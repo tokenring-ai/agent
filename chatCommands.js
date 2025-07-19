@@ -6,4 +6,3 @@ export * as persona from "./commands/persona.js";
 export * as settings from "./commands/settings.js";
 export * as resources from "./commands/resource.js";
 export * as instructions from "./commands/instruction.js";
-
