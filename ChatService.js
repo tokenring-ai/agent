@@ -252,6 +252,15 @@ export default class ChatService extends Service {
 	}
 
 	/**
+	 * Get configuration for a specific persona
+	 * @param {string} name - Name of the persona
+	 * @returns {PersonaConfig|undefined} - Configuration for the persona
+	 */
+	getPersonaConfig(name) {
+		return this.personas[name];
+	}
+
+	/**
 	 * Get current persona
 	 * @returns {string|null} - Current persona name
 	 */
