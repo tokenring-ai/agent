@@ -1,5 +1,5 @@
 import { Service } from "@token-ring/registry";
-import EventEmitter from "events";
+import EventEmitter from "eventemitter3";
 
 import formatLogMessages from "@token-ring/utility/formatLogMessage";
 
