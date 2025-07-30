@@ -1,5 +1,5 @@
-import ChatService from "../ChatService.js";
 import ChatMessageStorage from "@token-ring/ai-client/ChatMessageStorage";
+import ChatService from "../ChatService.js";
 
 export const description = "/clear - Clear the chat state.";
 

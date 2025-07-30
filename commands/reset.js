@@ -1,5 +1,5 @@
-import ChatService from "../ChatService.js";
 import ChatMessageStorage from "@token-ring/ai-client/ChatMessageStorage";
+import ChatService from "../ChatService.js";
 
 export const description =
 	"/reset - Reset the chat context and clear the chat history.";
