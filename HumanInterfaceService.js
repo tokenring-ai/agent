@@ -39,7 +39,7 @@ export default class HumanInterfaceService extends Service {
 	 * @returns {Promise<string>} The user's answer.
 	 * @throws {Error} If the method is not implemented by the subclass.
 	 */
-	async ask(question) {
+	async ask(_question) {
 		throw new Error('Method "ask()" must be implemented by subclass.');
 	}
 
@@ -77,7 +77,7 @@ export default class HumanInterfaceService extends Service {
 	 * @param {boolean} [options.loop=false] - Whether to loop through choices when reaching the end.
 	 * @returns {Promise<string|Array<string>>} The selected item(s).
 	 */
-	async askForTreeSelection(options) {
+	async askForTreeSelection(_options) {
 		throw new Error(
 			'Method "askForTreeSelection()" must be implemented by subclass.',
 		);

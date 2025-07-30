@@ -2,7 +2,7 @@ import ChatService from "../ChatService.js";
 
 export const description = "/settings - Show current chat settings.";
 
-export function execute(remainder, registry) {
+export function execute(_remainder, registry) {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 
 	const model = chatService.getModel() || "(none)";

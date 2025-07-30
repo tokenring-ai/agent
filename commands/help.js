@@ -3,7 +3,7 @@ import ChatService from "../ChatService.js";
 
 export const description = "/help - Show this help message";
 
-export async function execute(remainder, registry) {
+export async function execute(_remainder, registry) {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 
 	chatService.systemLine("Available chat commands:");

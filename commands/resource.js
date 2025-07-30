@@ -154,7 +154,7 @@ function buildResourceTree(resourceNames) {
 				if (!child) {
 					child = {
 						name: segments[i],
-						value: segments.slice(0, i + 1).join("/") + "/*",
+						value: `${segments.slice(0, i + 1).join("/")}/*`,
 						children: [],
 					};
 					leaf.push(child);

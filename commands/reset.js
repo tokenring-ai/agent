@@ -4,7 +4,7 @@ import ChatService from "../ChatService.js";
 export const description =
 	"/reset - Reset the chat context and clear the chat history.";
 
-export function execute(remainder, registry) {
+export function execute(_remainder, registry) {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const chatMessageStorage =
 		registry.requireFirstServiceByType(ChatMessageStorage);

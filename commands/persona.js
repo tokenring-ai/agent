@@ -40,7 +40,7 @@ export async function execute(remainder, registry) {
 			if (persona.instructions) {
 				const preview =
 					persona.instructions.length > 100
-						? persona.instructions.substring(0, 100) + "..."
+						? `${persona.instructions.substring(0, 100)}...`
 						: persona.instructions;
 				chatService.systemLine(`Instructions: ${preview}`);
 			}
@@ -84,7 +84,7 @@ export async function execute(remainder, registry) {
 			if (persona.instructions) {
 				const preview =
 					persona.instructions.length > 100
-						? persona.instructions.substring(0, 100) + "..."
+						? `${persona.instructions.substring(0, 100)}...`
 						: persona.instructions;
 				chatService.systemLine(`Instructions: ${preview}`);
 			}
