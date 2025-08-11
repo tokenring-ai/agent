@@ -2,7 +2,7 @@
 	"name": "@token-ring/chat",
 	"version": "0.1.0",
 	"dependencies": {
-		"@token-ring/eslint-config": "0.0.0",
+
 		"@token-ring/registry": "0.1.0",
 		"@token-ring/utility": "0.1.0",
 		"eventemitter3": "^5.0.1",
@@ -10,15 +10,15 @@
 		"uuid": "^11.1.0"
 	},
 	"exports": {
-		".": "./index.js",
-		"./*": "./*.js"
+		".": "./index.ts",
+		"./*": "./*.ts"
 	},
-	"types": "./dist-types/index.d.ts",
+ "types": "./index.ts",
 	"license": "MIT",
 	"scripts": {
-		"lint": "eslint ",
-		"build": "tsc -p tsconfig.json",
-		"eslint": "eslint --fix ./"
+
+		"build": "tsc -p tsconfig.tson"
+
 	},
 	"devDependencies": {
 		"typescript": "^5.6.3"

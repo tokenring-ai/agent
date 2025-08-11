@@ -1,6 +1,6 @@
 import { Service } from "@token-ring/registry";
 import formatLogMessages from "@token-ring/utility/formatLogMessage";
-import EventEmitter from "eventemitter3";
+import { EventEmitter } from "eventemitter3";
 
 /**
  * ChatService
@@ -10,101 +10,112 @@ import EventEmitter from "eventemitter3";
  * or remove them with
  *   chatService.off('jobStarted', handler)
  *
- * @typedef {Object} ChatServiceOptions
- * @property {string} [model] - The AI model to use
- * @property {string} [instructions] - System instructions for the AI
- * @property {Object<string, PersonaConfig>} [personas={}] - Map of available personas
- * @property {string} [persona=null] - Currently active persona
- *
- * @typedef {Object} PersonaConfig
- * @property {string} [instructions] - Persona-specific instructions
- * @property {string} [model] - Persona-specific model
- *
- * @typedef {Object} JobInfo
- * @property {string} name - Name of the job
- * @property {boolean} [success] - Whether the job completed successfully
- * @property {Error} [error] - Error that caused job failure
- * @property {number} [queueLength] - Current length of the job queue
- *
- * @typedef {Object} QueueState
- * @property {number} queueLength - Current length of the job queue
- * @property {boolean} isProcessing - Whether the queue is currently being processed
- * @property {string|null} currentJob - Name of the currently executing job, or null
- *
- * @typedef {Object} Job
- * @property {string} name - Name of the job
- * @property {Function} execute - Async function to execute the job
- *
- * @typedef {Object} ChatTool
- * @property {string} version - Version of the tool
- * @property {string} description - Description of what the tool does
- * @property {Function} getToolFunctions - Function that returns tool tools
- * @property {Function} adjustChatRequest - Function to modify chat requests
- * @property {Function} afterChatComplete - Function to run after chat completion
- * @property {Function} afterTestingComplete - Function to run after testing
- *
- * @typedef {Object} Body
- * @property {Array<Object>} messages - The messages in the request
- * @property {Array<Object>} [tools] - Tools available to the model
- * @property {string} [model] - The model used for this request
- *
- * @typedef {Object} Response
- * @property {string} id - Response identifier
- * @property {string} content - Response content
- * @property {Array<Object>} [toolCalls] - Tool calls made by the model
- *
- * @typedef {Object} ChatMessage
- * @property {number} id - The ID # of the record
- * @property {number} sessionId - The ID # of the session
- * @property {Body} request - The AI request
- * @property {number} cumulativeInputLength - The byte length of the input, including the output length from prior messages
- * @property {Response} response - The response from AI
- * @property {number} updatedAt - The update time in milliseconds since the epoch format
  */
+export interface PersonaConfig {
+	instructions?: string;
+	model?: string;
+	temperature?: number;
+	top_p?: number;
+}
+
+export type ChatServiceOptions = {
+	model?: string;
+	instructions?: string;
+	personas?: Record<string, PersonaConfig>;
+	persona?: string | null;
+};
+
+export type JobInfo = {
+	name: string;
+	success?: boolean;
+	error?: Error;
+	queueLength?: number;
+};
+
+export type QueueState = {
+	queueLength: number;
+	isProcessing: boolean;
+	currentJob: string | null;
+};
+
+export type Job = {
+	name: string;
+	execute: (...args: any[]) => Promise<any> | any;
+};
+
+export interface ChatTool {
+	version: string;
+	description: string;
+	getToolFunctions: (...args: any[]) => any;
+	adjustChatRequest: (...args: any[]) => any;
+	afterChatComplete: (...args: any[]) => any;
+	afterTestingComplete: (...args: any[]) => any;
+}
+
+export type Body = {
+	messages: Array<object>;
+	tools?: Record<string, any> | Array<object>;
+	model?: string;
+};
+
+export type Response = {
+	id?: string;
+	content?: string;
+	toolCalls?: Array<object>;
+	messages?: Array<object>;
+	[key: string]: any;
+};
+
+export type ChatMessage = {
+	id: number;
+	sessionId: number;
+	request: Body;
+	cumulativeInputLength: number;
+	response: Response;
+	updatedAt: number;
+};
+
 export default class ChatService extends Service {
 	/** @type {string} */
-	name = "ChatService";
+	name: string = "ChatService";
+
+ // Declared class fields for TS type safety
+	personas!: Record<string, PersonaConfig>;
+	persona!: string | null;
+	jobQueue!: Array<Job>;
+	isProcessingQueue!: boolean;
+	availableTools!: Record<string, ChatTool>;
+	activeToolNames!: Set<string>;
+	abortController!: AbortController | null;
+	loggers!: Set<object>;
 
 	/** @type {string} */
-	description = "Manages chat interactions with AI chatModels";
+	description: string = "Manages chat interactions with AI chatModels";
 
 	/**
 	 * @param {ChatServiceOptions} [options={}]
 	 */
-	constructor({ personas, persona } = {}) {
+	constructor(options: ChatServiceOptions = {}) {
 		super();
 
-		/** @type {Object<string, PersonaConfig>} */
+		const { personas = {}, persona = null } = options;
 		this.personas = personas;
-
-		/** @type {string|null} */
 		this.persona = persona;
 
 		/* internal state ------------------------------------------------------ */
-		/** @type {Array<Job>} */
 		this.jobQueue = [];
-
-		/** @type {boolean} */
 		this.isProcessingQueue = false;
-
-		/** @type {Object<string, ChatTool>} */
 		this.availableTools = {};
-
-		/** @type {Set<string>} */
-		this.activeToolNames = new Set();
-
-		/** @type {AbortController|null} */
+		this.activeToolNames = new Set<string>();
 		this.abortController = new AbortController();
-
-		/** @type {Set<Object>} */
-		this.loggers = new Set();
+		this.loggers = new Set<object>();
 	}
 
 	/** @type {Set<Object>} */
-	_receivers = new Set();
+	_receivers: Set<any> = new Set();
 
 	/** @type {EventEmitter} */
-	_events = new EventEmitter();
+	_events: EventEmitter = new EventEmitter();
 
 	/**
 	 * Emit an event to receivers and event listeners
@@ -112,20 +123,21 @@ export default class ChatService extends Service {
 	 * @param {any} arg - Argument to pass to event handlers
 	 * @returns {boolean} - True if the event had listeners, false otherwise
 	 */
-	emit(eventName, arg) {
+	emit(eventName: string, arg: any): boolean {
 		// dispatch to receivers
 		for (const r of this._receivers) {
+			// @ts-ignore dynamic dispatch
 			r[eventName]?.(arg);
 		}
 		// standard EventEmitter handling
-		return this._events.emit(eventName, arg);
+		return this._events.emit(eventName as any, arg);
 	}
 
 	/** @type {function(string, Function): EventEmitter} */
-	on = this._events.on.bind(this._events);
+	on: (event: string, handler: Function) => EventEmitter = this._events.on.bind(this._events) as any;
 
 	/** @type {function(string, Function): EventEmitter} */
-	off = this._events.off.bind(this._events);
+	off: (event: string, handler: Function) => EventEmitter = this._events.off.bind(this._events) as any;
 
 	/* --------------------------------------------------------------------- */
 	/* job queue                                                              */
@@ -140,16 +152,15 @@ export default class ChatService extends Service {
 	 * @param {Array<any>} [jobArgs=[]] - Arguments to pass to the job function
 	 * @returns {Promise<any>} - Promise that resolves with the job result
 	 */
-	submitJob(jobName, jobFunction, jobArgs = []) {
+	submitJob(jobName: string, jobFunction: Function, jobArgs: Array<any> = []): Promise<any> {
 		return new Promise((resolve, reject) => {
-			/** @type {Job} */
-			const job = {
+			const job: Job = {
 				name: jobName,
 				execute: async () => {
 					try {
 						this.emit("jobStarted", { name: jobName });
 
-						const result = await jobFunction(...jobArgs);
+						const result = await (jobFunction as any)(...jobArgs);
 
 						this.emit("jobCompleted", { name: jobName, success: true });
 						resolve(result);
@@ -175,7 +186,7 @@ export default class ChatService extends Service {
 	 * @param {Object<string, Function>} receiver - Object with event handler methods
 	 * @returns {() => void} - Unsubscribe function
 	 */
-	subscribe(receiver) {
+	subscribe(receiver: object): () => void {
 		this._receivers.add(receiver);
 		return () => this._receivers.delete(receiver);
 	}
@@ -186,7 +197,7 @@ export default class ChatService extends Service {
 	 * @param {Function} handler - Event handler function
 	 * @returns {Function} - Unsubscribe function
 	 */
-	subscribeToEvents(eventName, handler) {
+	subscribeToEvents(eventName: string, handler: Function): () => void {
 		this.on(eventName, handler);
 		return () => this.off(eventName, handler);
 	}
@@ -195,7 +206,7 @@ export default class ChatService extends Service {
 	 * Get the current state of the job queue
 	 * @returns {QueueState} - Object with queue state information
 	 */
-	getQueueState() {
+	getQueueState(): QueueState {
 		return {
 			queueLength: this.jobQueue.length,
 			isProcessing: this.isProcessingQueue,
@@ -212,8 +223,8 @@ export default class ChatService extends Service {
 	 * Get the current instructions
 	 * @returns {string|undefined} - Current instructions
 	 */
-	getInstructions() {
-		return this.personas[this.persona].instructions;
+	getInstructions(): string | undefined {
+		return this.persona ? this.personas[this.persona]?.instructions : undefined;
 	}
 
 	/**
@@ -221,16 +232,21 @@ export default class ChatService extends Service {
 	 * @param {string} instructions - Instructions to set
 	 * @returns {void}
 	 */
-	setInstructions(instructions) {
-		this.personas[this.persona].instructions = instructions;
+	setInstructions(instructions: string): void {
+		if (this.persona) {
+			this.personas[this.persona] = {
+				...this.personas[this.persona],
+				instructions,
+			};
+		}
 	}
 
 	/**
 	 * Get the current model
 	 * @returns {string|undefined} - Current model name
 	 */
-	getModel() {
-		return this.personas[this.persona].model;
+	getModel(): string | undefined {
+		return this.persona ? this.personas[this.persona]?.model : undefined;
 	}
 
 	/**
@@ -238,15 +254,20 @@ export default class ChatService extends Service {
 	 * @param {string} model - Model to set
 	 * @returns {void}
 	 */
-	setModel(model) {
-		this.personas[this.persona].model = model;
+	setModel(model: string): void {
+		if (this.persona) {
+			this.personas[this.persona] = {
+				...this.personas[this.persona],
+				model,
+			};
+		}
 	}
 
 	/**
 	 * Get all personas
 	 * @returns {Object<string, PersonaConfig>} - All personas
 	 */
-	getPersonas() {
+	getPersonas(): Record<string, PersonaConfig> {
 		return this.personas;
 	}
 
@@ -255,7 +276,7 @@ export default class ChatService extends Service {
 	 * @param {string} name - Name of the persona
 	 * @returns {PersonaConfig|undefined} - Configuration for the persona
 	 */
-	getPersonaConfig(name) {
+	getPersonaConfig(name: string): PersonaConfig | undefined {
 		return this.personas[name];
 	}
 
@@ -263,8 +284,8 @@ export default class ChatService extends Service {
 	 * Get current persona
 	 * @returns {string|null} - Current persona name
 	 */
-	getPersona() {
-		return this.persona;
+	getPersona(): string | null {
+		return (this as any).persona;
 	}
 
 	/**
@@ -273,18 +294,18 @@ export default class ChatService extends Service {
 	 * @throws {Error} If persona doesn't exist
 	 * @returns {void}
 	 */
-	setPersona(persona) {
-		if (persona && !this.personas[persona]) {
+	setPersona(persona: string | null): void {
+		if (persona && !(this as any).personas[persona]) {
 			throw new Error(`Persona "${persona}" does not exist`);
 		}
-		this.persona = persona;
+		(this as any).persona = persona;
 	}
 
 	/**
 	 * Get the abort signal
 	 * @returns {AbortSignal} - Current abort signal
 	 */
-	getAbortSignal() {
+	getAbortSignal(): AbortSignal | undefined {
 		return this.abortController?.signal;
 	}
 
@@ -292,7 +313,7 @@ export default class ChatService extends Service {
 	 * Reset the abort controller
 	 * @returns {void}
 	 */
-	resetAbortController() {
+	resetAbortController(): void {
 		this.abortController = new AbortController();
 	}
 
@@ -300,7 +321,7 @@ export default class ChatService extends Service {
 	 * Clear the abort controller
 	 * @returns {void}
 	 */
-	clearAbortController() {
+	clearAbortController(): void {
 		this.abortController = null;
 	}
 
@@ -308,7 +329,7 @@ export default class ChatService extends Service {
 	 * Get the abort controller
 	 * @returns {AbortController|null} - Current abort controller
 	 */
-	getAbortController() {
+	getAbortController(): AbortController | null {
 		return this.abortController;
 	}
 
@@ -317,9 +338,9 @@ export default class ChatService extends Service {
 	 * @param {...any} msgs - Messages to log
 	 * @returns {void}
 	 */
-	systemLine(...msgs) {
+	systemLine(...msgs: any[]): void {
 		// Format objects, arrays, and errors properly
-		const formattedMsgs = formatLogMessages(msgs);
+		const formattedMsgs = formatLogMessages(msgs as any);
 		this.emit("systemLine", formattedMsgs);
 	}
 
@@ -328,8 +349,8 @@ export default class ChatService extends Service {
 	 * @param {...any} msgs - Messages to log
 	 * @returns {void}
 	 */
-	infoLine(...msgs) {
-		const formattedMsgs = formatLogMessages(msgs);
+	infoLine(...msgs: any[]): void {
+		const formattedMsgs = formatLogMessages(msgs as any);
 		this.emit("infoLine", formattedMsgs);
 	}
 
@@ -338,8 +359,8 @@ export default class ChatService extends Service {
 	 * @param {...any} msgs - Messages to log
 	 * @returns {void}
 	 */
-	warningLine(...msgs) {
-		const formattedMsgs = formatLogMessages(msgs);
+	warningLine(...msgs: any[]): void {
+		const formattedMsgs = formatLogMessages(msgs as any);
 		this.emit("warningLine", formattedMsgs);
 	}
 
@@ -348,8 +369,8 @@ export default class ChatService extends Service {
 	 * @param {...any} msgs - Messages to log
 	 * @returns {void}
 	 */
-	errorLine(...msgs) {
-		const formattedMsgs = formatLogMessages(msgs);
+	errorLine(...msgs: any[]): void {
+		const formattedMsgs = formatLogMessages(msgs as any);
 		this.emit("errorLine", formattedMsgs);
 	}
 
@@ -358,7 +379,7 @@ export default class ChatService extends Service {
 	 * @param {...any} msgs - Messages to write
 	 * @returns {void}
 	 */
-	out(...msgs) {
+	out(...msgs: any[]): void {
 		this.emit("stdout", msgs.join(""));
 	}
 
@@ -367,7 +388,7 @@ export default class ChatService extends Service {
 	 * @param {...any} msgs - Messages to write
 	 * @returns {void}
 	 */
-	err(...msgs) {
+	err(...msgs: any[]): void {
 		this.emit("stderr", msgs.join(""));
 	}
 }

@@ -1,15 +1,18 @@
-import ChatService from "../ChatService.js";
-import HumanInterfaceService from "../HumanInterfaceService.js";
+import ChatService from "../ChatService.ts";
+import HumanInterfaceService from "../HumanInterfaceService.ts";
 
 export const description =
-	"/persona [persona_name] - Set or show the target persona for chat";
+	"/persona [persona_name] - Set or show the target persona for chat" as const;
 
-export async function execute(remainder, registry) {
+export async function execute(
+	remainder: string | undefined,
+	registry: any,
+): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const humanInterfaceService = registry.getFirstServiceByType(
 		HumanInterfaceService,
 	);
-	const personas = chatService.getPersonas();
+	const personas = chatService.getPersonas() as Record<string, any>;
 	const currentPersona = chatService.getPersona();
 
 	// Handle direct persona name input, e.g. /persona assistant
@@ -29,7 +32,7 @@ export async function execute(remainder, registry) {
 			chatService.systemLine(`Switched to persona: ${directPersonaName}`);
 
 			// Show the current settings for this persona
-			const persona = personas[directPersonaName];
+			const persona = personas[directPersonaName] as any;
 			chatService.systemLine(`Model: ${persona.model || "default"}`);
 			chatService.systemLine(
 				`Temperature: ${persona.temperature || "default"}`,
@@ -44,7 +47,7 @@ export async function execute(remainder, registry) {
 						: persona.instructions;
 				chatService.systemLine(`Instructions: ${preview}`);
 			}
-		} catch (error) {
+		} catch (error: any) {
 			chatService.errorLine(`Error setting persona: ${error.message}`);
 		}
 		return;
@@ -73,7 +76,7 @@ export async function execute(remainder, registry) {
 			chatService.systemLine(`Switched to persona: ${selectedPersona}`);
 
 			// Show the current settings for this persona
-			const persona = personas[selectedPersona];
+			const persona = personas[selectedPersona] as any;
 			chatService.systemLine(`Model: ${persona.model || "default"}`);
 			chatService.systemLine(
 				`Temperature: ${persona.temperature || "default"}`,
@@ -96,7 +99,7 @@ export async function execute(remainder, registry) {
 	}
 }
 
-export function help() {
+export function help(): string[] {
 	return [
 		"/persona [persona_name]",
 		"  - With no arguments: Shows interactive persona selection",

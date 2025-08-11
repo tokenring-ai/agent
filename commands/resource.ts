@@ -1,5 +1,5 @@
-import ChatService from "../ChatService.js";
-import HumanInterfaceService from "../HumanInterfaceService.js";
+import ChatService from "../ChatService.ts";
+import HumanInterfaceService from "../HumanInterfaceService.ts";
 
 /**
  * Usage:
@@ -11,16 +11,19 @@ import HumanInterfaceService from "../HumanInterfaceService.js";
  */
 
 export const description =
-	"/resources [enable|disable|set] <resource1> <resource2> ... - List, enable, disable, or set enabled resources for the chat session.";
+	"/resources [enable|disable|set] <resource1> <resource2> ... - List, enable, disable, or set enabled resources for the chat session." as const;
 
-export async function execute(remainder, registry) {
+export async function execute(
+	remainder: string | undefined,
+	registry: any,
+): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const humanInterfaceService = registry.getFirstServiceByType(
 		HumanInterfaceService,
 	);
 
-	const availableResources = registry.resources.getAvailableResourceNames();
-	const activeResources = registry.resources.getEnabledResourceNames();
+	const availableResources: string[] = registry.resources.getAvailableResourceNames();
+	const activeResources: string[] = registry.resources.getEnabledResourceNames();
 
 	// Handle direct resource operations, e.g. /resources enable foo bar
 	const directOperation = remainder?.trim();
@@ -125,7 +128,7 @@ export async function execute(remainder, registry) {
 	}
 }
 
-export function help() {
+export function help(): string[] {
 	return [
 		"/resources [enable|disable|set] <resource1> <resource2> ...",
 		"  - With no arguments: Shows interactive multi-selection for resources",
@@ -135,12 +138,12 @@ export function help() {
 	];
 }
 
-function buildResourceTree(resourceNames) {
-	const children = [];
+function buildResourceTree(resourceNames: string[]) {
+	const children: any[] = [];
 
 	for (const resourceName of resourceNames) {
 		const segments = resourceName.split("/");
-		let leaf = children;
+		let leaf: any[] = children;
 		for (let i = 0; i < segments.length; i++) {
 			if (i === segments.length - 1) {
 				leaf.push({
@@ -148,7 +151,7 @@ function buildResourceTree(resourceNames) {
 					value: resourceName,
 				});
 			} else {
-				let child = leaf.find(
+				let child: any = leaf.find(
 					(c) => c.name === segments[i] && c.children != null,
 				);
 				if (!child) {

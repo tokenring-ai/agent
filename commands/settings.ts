@@ -1,17 +1,14 @@
-import ChatService from "../ChatService.js";
+import ChatService from "../ChatService.ts";
 
-export const description = "/settings - Show current chat settings.";
+export const description = "/settings - Show current chat settings." as const;
 
-export function execute(_remainder, registry) {
+export function execute(_remainder: string | undefined, registry: any): void {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 
 	const model = chatService.getModel() || "(none)";
-	const activeServices = registry.services.getServiceNames();
-	const activeTools = registry.tools.getEnabledToolNames();
-	const mode =
-		typeof chatService.getMode === "function"
-			? chatService.getMode()
-			: "(none)";
+	const activeServices: string[] = registry.services.getServiceNames();
+	const activeTools: string[] = registry.tools.getEnabledToolNames();
+	const persona = chatService.getPersona();
 
 	chatService.systemLine("Current settings:");
 	chatService.systemLine(`Model: ${model}`);
@@ -21,10 +18,10 @@ export function execute(_remainder, registry) {
 	chatService.systemLine(
 		`Active tools: ${activeTools.length > 0 ? activeTools.join(", ") : "(none)"}`,
 	);
-	chatService.systemLine(`Mode: ${mode}`);
+	chatService.systemLine(`Persona: ${persona}`);
 }
 
-export function help() {
+export function help(): string[] {
 	return [
 		"/settings",
 		"  - Show current chat settings, including:",

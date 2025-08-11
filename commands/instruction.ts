@@ -1,9 +1,9 @@
-import ChatService from "../ChatService.js";
+import ChatService from "../ChatService.ts";
 
 export const description =
-	"/instructions <instructions ....> - Set or view current instructions";
+	"/instructions <instructions ....> - Set or view current instructions" as const;
 
-export function execute(remainder, registry) {
+export function execute(remainder: string | undefined, registry: any): void {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const instructions = chatService.getInstructions();
 
@@ -16,7 +16,7 @@ export function execute(remainder, registry) {
 	chatService.systemLine(`Current Instructions: ${instructions}`);
 }
 
-export function help() {
+export function help(): string[] {
 	return [
 		"/instructions <instructions ....>",
 		"  - With no arguments: View current instructions",

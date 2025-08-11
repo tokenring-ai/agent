@@ -1,9 +1,8 @@
-// Dynamic help command: lists all dynamically loaded commands with their help()
-import ChatService from "../ChatService.js";
+import ChatService from "../ChatService.ts";
 
-export const description = "/help - Show this help message";
+export const description = "/help - Show this help message" as const;
 
-export async function execute(_remainder, registry) {
+export async function execute(_remainder: string | undefined, registry: any): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 
 	chatService.systemLine("Available chat commands:");
@@ -32,6 +31,6 @@ export async function execute(_remainder, registry) {
 	);
 }
 
-export function help() {
+export function help(): string[] {
 	return ["/help - Show this help message"];
 }

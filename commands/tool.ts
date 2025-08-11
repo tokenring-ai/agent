@@ -1,5 +1,5 @@
-import ChatService from "../ChatService.js";
-import HumanInterfaceService from "../HumanInterfaceService.js";
+import ChatService from "../ChatService.ts";
+import HumanInterfaceService from "../HumanInterfaceService.ts";
 
 /**
  * Usage:
@@ -11,16 +11,19 @@ import HumanInterfaceService from "../HumanInterfaceService.js";
  */
 
 export const description =
-	"/tools [enable|disable|set] <tool1> <tool2> ... - List, enable, disable, or set enabled tools for the chat session.";
+	"/tools [enable|disable|set] <tool1> <tool2> ... - List, enable, disable, or set enabled tools for the chat session." as const;
 
-export async function execute(remainder, registry) {
+export async function execute(
+	remainder: string | undefined,
+	registry: any,
+): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const humanInterfaceService = registry.getFirstServiceByType(
 		HumanInterfaceService,
 	);
 
-	const availableTools = registry.tools.getAvailableToolNames();
-	const activeTools = registry.tools.getEnabledToolNames();
+	const availableTools: string[] = registry.tools.getAvailableToolNames();
+	const activeTools: string[] = registry.tools.getEnabledToolNames();
 
 	// Handle direct tool operations, e.g. /tools enable foo bar
 	const directOperation = remainder?.trim();
@@ -90,11 +93,11 @@ export async function execute(remainder, registry) {
 	}
 
 	// If no remainder provided, show interactive tree selection grouped by package
-	const toolsByPackage = registry.tools.getToolsByPackage();
+	const toolsByPackage: Record<string, string[]> = registry.tools.getToolsByPackage();
 
 	// Build tree structure for tool selection
 	const buildToolTree = () => {
-		const tree = {
+		const tree: any = {
 			name: "Tool Selection",
 			children: [],
 		};
@@ -141,7 +144,7 @@ export async function execute(remainder, registry) {
 	}
 }
 
-export function help() {
+export function help(): string[] {
 	return [
 		"/tools [enable|disable|set] <tool1> <tool2> ...",
 		"  - With no arguments: Shows interactive tree selection for tools grouped by package",
