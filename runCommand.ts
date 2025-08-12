@@ -31,6 +31,6 @@ export async function runCommand(
       );
     }
   } catch (err) {
-    chatService.errorLine("Error running command:", err as any);
+    chatService.errorLine("Error running command:", err );
   }
 }

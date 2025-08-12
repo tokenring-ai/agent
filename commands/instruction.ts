@@ -1,9 +1,10 @@
 import ChatService from "../ChatService.ts";
+import {Registry} from "@token-ring/registry";
 
 export const description =
 	"/instructions <instructions ....> - Set or view current instructions" as const;
 
-export function execute(remainder: string | undefined, registry: any): void {
+export function execute(remainder: string | undefined, registry: Registry): void {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const instructions = chatService.getInstructions();
 

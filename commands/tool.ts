@@ -1,5 +1,6 @@
 import ChatService from "../ChatService.ts";
 import HumanInterfaceService from "../HumanInterfaceService.ts";
+import {Registry} from "@token-ring/registry";
 
 /**
  * Usage:
@@ -15,7 +16,7 @@ export const description =
 
 export async function execute(
 	remainder: string | undefined,
-	registry: any,
+	registry: Registry,
 ): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const humanInterfaceService = registry.getFirstServiceByType(
@@ -125,20 +126,24 @@ export async function execute(
 
 	// Interactive tree selection if no operation is provided in the command
 	try {
-		const selectedTools = await humanInterfaceService.askForTreeSelection({
-			message: `Current enabled tools: ${activeTools.join(", ") || "none"}. Choose tools to enable:`,
-			tree: buildToolTree(),
-			multiple: true,
-			allowCancel: true,
-			initialSelection: activeTools,
-		});
+        if (humanInterfaceService) {
+            const selectedTools = await humanInterfaceService.askForMultipleTreeSelection({
+                message: `Current enabled tools: ${activeTools.join(", ") || "none"}. Choose tools to enable:`,
+                tree: buildToolTree(),
+                allowCancel: true,
+                initialSelection: activeTools,
+            });
 
-		if (selectedTools) {
-			await registry.tools.setEnabledTools(...selectedTools);
-			chatService.systemLine(`Set enabled tools: ${selectedTools.join(", ")}`);
-		} else {
-			chatService.systemLine("Tool selection cancelled. No changes made.");
-		}
+            if (selectedTools) {
+                await registry.tools.setEnabledTools(...selectedTools);
+                chatService.systemLine(`Set enabled tools: ${selectedTools.join(", ")}`);
+            } else {
+                chatService.systemLine("Tool selection cancelled. No changes made.");
+            }
+        } else {
+            chatService.errorLine("No HumanInterfaceService available for interactive tool selection.");
+            return;
+        }
 	} catch (error) {
 		chatService.errorLine(`Error during tool selection:`, error);
 	}

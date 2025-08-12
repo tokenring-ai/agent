@@ -1,8 +1,9 @@
 import ChatService from "../ChatService.ts";
+import {Registry} from "@token-ring/registry";
 
 export const description = "/help - Show this help message" as const;
 
-export async function execute(_remainder: string | undefined, registry: any): Promise<void> {
+export async function execute(_remainder: string | undefined, registry: Registry): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 
 	chatService.systemLine("Available chat commands:");

@@ -1,5 +1,6 @@
 import ChatService from "../ChatService.ts";
 import HumanInterfaceService from "../HumanInterfaceService.ts";
+import {Registry} from "@token-ring/registry";
 
 /**
  * Usage:
@@ -15,7 +16,7 @@ export const description =
 
 export async function execute(
 	remainder: string | undefined,
-	registry: any,
+	registry: Registry,
 ): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const humanInterfaceService = registry.getFirstServiceByType(
@@ -104,14 +105,13 @@ export async function execute(
 
 	// Interactive multi-selection if no operation is provided in the command
 	try {
-		const selectedResources = await humanInterfaceService.askForTreeSelection({
+		const selectedResources = await humanInterfaceService?.askForMultipleTreeSelection({
 			message: `Current enabled resources: ${activeResources.join(", ") || "none"}. Choose resources to enable:`,
 			tree: {
 				name: "Resource Selection",
 				children: buildResourceTree(sortedResources),
 			},
 			allowCancel: true,
-			multiple: true,
 			initialSelection: activeResources,
 		});
 

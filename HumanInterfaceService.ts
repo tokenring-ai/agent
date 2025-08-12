@@ -1,4 +1,5 @@
 import { Service } from "@token-ring/registry";
+import {FileSystemService} from "@token-ring/filesystem";
 
 export type TreeLeaf = {
   name: string;
@@ -43,26 +44,40 @@ export default abstract class HumanInterfaceService extends Service {
   }): Promise<Array<string>>;
 
   /**
-   * Asks the user to select items from a tree structure
+   * Asks the user to select an item from a tree structure
    */
-  async askForTreeSelection(_options: {
+  async askForSingleTreeSelection(_options: {
     message?: string;
     tree: TreeLeaf;
-    multiple?: boolean;
     allowCancel?: boolean;
     initialSelection?: string | Array<string>;
     loop?: boolean;
-  }): Promise<string | Array<string>> {
-    throw new Error('Method "askForTreeSelection()" must be implemented by subclass.');
+  }): Promise<string> {
+    throw new Error('Method "askForSingleTreeSelection()" must be implemented by subclass.');
   }
 
-  /**
+
+    /**
+     * Asks the user to select multiple items from a tree structure
+     */
+    async askForMultipleTreeSelection(_options: {
+        message?: string;
+        tree: TreeLeaf;
+        allowCancel?: boolean;
+        initialSelection?: string | Array<string>;
+        loop?: boolean;
+    }): Promise<string[]> {
+        throw new Error('Method "askForSingleTreeSelection()" must be implemented by subclass.');
+    }
+
+
+    /**
    * Asks the user to select an item from a tree structure using a REPL interface.
    * @param fileSystem - The filesystem interface to use for the selection
    * @param options - Optional configuration for the file selection
    */
   async askForFileSelection(
-    fileSystem: import("@token-ring/filesystem").FileSystemService,
+    fileSystem: FileSystemService,
     options: { initialSelection?: string | Array<string> } = {},
   ): Promise<string | Array<string>> {
     const buildTree = async (path = ""): Promise<Array<TreeLeaf>> => {
@@ -99,13 +114,12 @@ export default abstract class HumanInterfaceService extends Service {
 
     const { initialSelection } = options;
 
-    return await this.askForTreeSelection({
+    return await this.askForMultipleTreeSelection({
       message: "Select a file or directory:",
       tree: {
         name: "File Selection",
         children: buildTree,
       },
-      multiple: true,
       allowCancel: true,
       loop: false,
       ...(initialSelection && { initialSelection }),

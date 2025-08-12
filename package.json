@@ -1,6 +1,7 @@
 {
 	"name": "@token-ring/chat",
 	"version": "0.1.0",
+ "description": "Chat backend that creates the backbone for the Token Ring tools",
 	"dependencies": {
 
 		"@token-ring/registry": "0.1.0",

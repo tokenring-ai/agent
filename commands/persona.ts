@@ -1,12 +1,13 @@
 import ChatService from "../ChatService.ts";
 import HumanInterfaceService from "../HumanInterfaceService.ts";
+import {Registry} from "@token-ring/registry";
 
 export const description =
 	"/persona [persona_name] - Set or show the target persona for chat" as const;
 
 export async function execute(
 	remainder: string | undefined,
-	registry: any,
+	registry: Registry,
 ): Promise<void> {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 	const humanInterfaceService = registry.getFirstServiceByType(
@@ -32,7 +33,7 @@ export async function execute(
 			chatService.systemLine(`Switched to persona: ${directPersonaName}`);
 
 			// Show the current settings for this persona
-			const persona = personas[directPersonaName] as any;
+			const persona = personas[directPersonaName];
 			chatService.systemLine(`Model: ${persona.model || "default"}`);
 			chatService.systemLine(
 				`Temperature: ${persona.temperature || "default"}`,
@@ -57,7 +58,12 @@ export async function execute(
 	const personaNames = Object.keys(personas).sort();
 
 	try {
-		const selectedPersona = await humanInterfaceService.askForTreeSelection({
+        if (!humanInterfaceService) {
+            chatService.errorLine("No HumanInterfaceService available for interactive persona selection.");
+            return;
+        }
+
+		const selectedPersona = await humanInterfaceService.askForSingleTreeSelection({
 			message: `Current persona: ${currentPersona ?? "none"}. Choose a new persona:`,
 			tree: {
 				name: "Personas",
@@ -67,7 +73,6 @@ export async function execute(
 				})),
 			},
 			allowCancel: true,
-			multiple: false,
 			initialSelection: currentPersona ? [currentPersona] : [],
 		});
 
@@ -76,7 +81,7 @@ export async function execute(
 			chatService.systemLine(`Switched to persona: ${selectedPersona}`);
 
 			// Show the current settings for this persona
-			const persona = personas[selectedPersona] as any;
+			const persona = personas[selectedPersona];
 			chatService.systemLine(`Model: ${persona.model || "default"}`);
 			chatService.systemLine(
 				`Temperature: ${persona.temperature || "default"}`,
@@ -94,6 +99,7 @@ export async function execute(
 		} else {
 			chatService.systemLine("Persona selection cancelled. No changes made.");
 		}
+
 	} catch (error) {
 		chatService.errorLine(`Error during persona selection:`, error);
 	}

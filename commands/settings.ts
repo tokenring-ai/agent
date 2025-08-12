@@ -1,8 +1,9 @@
 import ChatService from "../ChatService.ts";
+import {Registry} from "@token-ring/registry";
 
 export const description = "/settings - Show current chat settings." as const;
 
-export function execute(_remainder: string | undefined, registry: any): void {
+export function execute(_remainder: string | undefined, registry: Registry): void {
 	const chatService = registry.requireFirstServiceByType(ChatService);
 
 	const model = chatService.getModel() || "(none)";

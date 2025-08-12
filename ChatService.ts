@@ -12,17 +12,15 @@ import { EventEmitter } from "eventemitter3";
  *
  */
 export interface PersonaConfig {
-	instructions?: string;
-	model?: string;
+	instructions: string;
+	model: string;
 	temperature?: number;
 	top_p?: number;
 }
 
 export type ChatServiceOptions = {
-	model?: string;
-	instructions?: string;
-	personas?: Record<string, PersonaConfig>;
-	persona?: string | null;
+	personas: Record<string, PersonaConfig>;
+	persona: string;
 };
 
 export type JobInfo = {
@@ -53,7 +51,10 @@ export interface ChatTool {
 }
 
 export type Body = {
-	messages: Array<object>;
+	messages: Array<{
+        role: string;
+        content: string;
+    }>;
 	tools?: Record<string, any> | Array<object>;
 	model?: string;
 };
@@ -76,29 +77,23 @@ export type ChatMessage = {
 };
 
 export default class ChatService extends Service {
-	/** @type {string} */
 	name: string = "ChatService";
 
  // Declared class fields for TS type safety
 	personas!: Record<string, PersonaConfig>;
-	persona!: string | null;
+	persona!: string;
 	jobQueue!: Array<Job>;
 	isProcessingQueue!: boolean;
 	availableTools!: Record<string, ChatTool>;
 	activeToolNames!: Set<string>;
 	abortController!: AbortController | null;
 	loggers!: Set<object>;
-
-	/** @type {string} */
 	description: string = "Manages chat interactions with AI chatModels";
 
-	/**
-	 * @param {ChatServiceOptions} [options={}]
-	 */
-	constructor(options: ChatServiceOptions = {}) {
+	constructor(options: ChatServiceOptions) {
 		super();
 
-		const { personas = {}, persona = null } = options;
+		const { personas = {}, persona } = options;
 		this.personas = personas;
 		this.persona = persona;
 
@@ -111,10 +106,7 @@ export default class ChatService extends Service {
 		this.loggers = new Set<object>();
 	}
 
-	/** @type {Set<Object>} */
 	_receivers: Set<any> = new Set();
-
-	/** @type {EventEmitter} */
 	_events: EventEmitter = new EventEmitter();
 
 	/**
@@ -160,7 +152,7 @@ export default class ChatService extends Service {
 					try {
 						this.emit("jobStarted", { name: jobName });
 
-						const result = await (jobFunction as any)(...jobArgs);
+						const result = await (jobFunction )(...jobArgs);
 
 						this.emit("jobCompleted", { name: jobName, success: true });
 						resolve(result);
@@ -245,8 +237,8 @@ export default class ChatService extends Service {
 	 * Get the current model
 	 * @returns {string|undefined} - Current model name
 	 */
-	getModel(): string | undefined {
-		return this.persona ? this.personas[this.persona]?.model : undefined;
+	getModel(): string {
+		return this.personas[this.persona]?.model;
 	}
 
 	/**
@@ -284,8 +276,8 @@ export default class ChatService extends Service {
 	 * Get current persona
 	 * @returns {string|null} - Current persona name
 	 */
-	getPersona(): string | null {
-		return (this as any).persona;
+	getPersona(): string {
+		return this.persona;
 	}
 
 	/**
@@ -294,11 +286,11 @@ export default class ChatService extends Service {
 	 * @throws {Error} If persona doesn't exist
 	 * @returns {void}
 	 */
-	setPersona(persona: string | null): void {
-		if (persona && !(this as any).personas[persona]) {
+	setPersona(persona: string): void {
+		if (persona && !this.personas[persona]) {
 			throw new Error(`Persona "${persona}" does not exist`);
 		}
-		(this as any).persona = persona;
+		this.persona = persona;
 	}
 
 	/**
@@ -340,7 +332,7 @@ export default class ChatService extends Service {
 	 */
 	systemLine(...msgs: any[]): void {
 		// Format objects, arrays, and errors properly
-		const formattedMsgs = formatLogMessages(msgs as any);
+		const formattedMsgs = formatLogMessages(msgs);
 		this.emit("systemLine", formattedMsgs);
 	}
 
@@ -350,7 +342,7 @@ export default class ChatService extends Service {
 	 * @returns {void}
 	 */
 	infoLine(...msgs: any[]): void {
-		const formattedMsgs = formatLogMessages(msgs as any);
+		const formattedMsgs = formatLogMessages(msgs );
 		this.emit("infoLine", formattedMsgs);
 	}
 
@@ -360,7 +352,7 @@ export default class ChatService extends Service {
 	 * @returns {void}
 	 */
 	warningLine(...msgs: any[]): void {
-		const formattedMsgs = formatLogMessages(msgs as any);
+		const formattedMsgs = formatLogMessages(msgs );
 		this.emit("warningLine", formattedMsgs);
 	}
 
@@ -370,7 +362,7 @@ export default class ChatService extends Service {
 	 * @returns {void}
 	 */
 	errorLine(...msgs: any[]): void {
-		const formattedMsgs = formatLogMessages(msgs as any);
+		const formattedMsgs = formatLogMessages(msgs );
 		this.emit("errorLine", formattedMsgs);
 	}
 
