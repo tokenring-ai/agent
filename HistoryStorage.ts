@@ -33,7 +33,7 @@ export default abstract class HistoryStorage extends Service {
    * Creates a new HistoryStorage instance
    * @param config - Configuration options
    */
-  constructor(config: HistoryConfig = {}) {
+  protected constructor(config: HistoryConfig = {}) {
     super();
     this.config = {
       limit: 100,

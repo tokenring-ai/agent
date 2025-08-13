@@ -1,5 +1,5 @@
 import ChatService from "./ChatService.ts";
-import type { Registry } from "@token-ring/registry";
+import type {Registry} from "@token-ring/registry";
 
 /**
  * Executes a chat command

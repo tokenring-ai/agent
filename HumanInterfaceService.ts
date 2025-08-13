@@ -1,4 +1,4 @@
-import { Service } from "@token-ring/registry";
+import {Service} from "@token-ring/registry";
 import {FileSystemService} from "@token-ring/filesystem";
 
 export type TreeLeaf = {

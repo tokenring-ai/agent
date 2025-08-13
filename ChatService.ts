@@ -1,6 +1,6 @@
-import { Service } from "@token-ring/registry";
+import {Service} from "@token-ring/registry";
 import formatLogMessages from "@token-ring/utility/formatLogMessage";
-import { EventEmitter } from "eventemitter3";
+import {EventEmitter} from "eventemitter3";
 
 /**
  * ChatService
