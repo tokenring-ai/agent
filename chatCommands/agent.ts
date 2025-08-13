@@ -55,7 +55,7 @@ export async function execute(
         if (result.error) {
           chatService.errorLine(result.error);
         } else {
-          chatService.aiLine(result.output);
+          chatService.infoLine(result.output);
         }
       } catch (error: any) {
         chatService.errorLine(`Error running agent: ${error?.message || error}`);

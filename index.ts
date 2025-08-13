@@ -1,4 +1,5 @@
-import {TokenRingPackage} from "@token-ring/registry";
+import type {TokenRingPackage} from "@token-ring/registry";
+import {Registry} from "@token-ring/registry";
 import AgentRegistry from "./AgentRegistry.ts";
 import * as runAgent from "./tools/runAgent.ts";
 import * as listAgents from "./tools/listAgents.ts";
@@ -18,9 +19,9 @@ const pkg: TokenRingPackage = {
   description: "AI Agents for TokenRing Writer",
   
   // Register services
-  async start(registry) {
+  async start(registry: Registry) {
     // Register the agent registry service
-    registry.services.register(agentRegistry);
+    await registry.services.addServices(agentRegistry);
     
     // The registry is now available for other components to use
     console.log("[agent] Started agent service");
