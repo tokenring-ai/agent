@@ -1,0 +1,27 @@
+import {Registry} from "@token-ring/registry";
+import {execute as runChat} from "@token-ring/ai-client/runChat";
+
+/**
+ * Research agent that gathers and synthesizes information on a given topic
+ * @param input The topic or question to research
+ * @param registry The application registry
+ */
+export async function researchAgent(input: string, registry: Registry) {
+  // Example implementation that uses AI to perform research
+  const result = await runChat({
+    input: `I need you to research the following topic and provide a comprehensive summary: ${input}`,
+    systemPrompt: "You are a research specialist tasked with gathering and synthesizing information.",
+    model: "gpt-4",
+  }, registry);
+
+  // runChat returns [output, response], we extract them here
+  const [output, response] = result;
+
+  return {
+    output,
+    metadata: {
+      usage: response.usage,
+      timing: response.timing,
+    }
+  };
+}

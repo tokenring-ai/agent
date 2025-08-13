@@ -1,0 +1,30 @@
+{
+	"name": "@token-ring/agent",
+	"version": "0.1.0",
+ "description": "Agents for the Token Ring ecosystem",
+	"dependencies": {
+		"@token-ring/chat": "0.1.0",
+		"@token-ring/registry": "0.1.0"
+	},
+	"devDependencies": {
+		"@vitest/coverage-v8": "^3.2.4",
+		"vitest": "^3.2.4",
+		"typescript": "^5.6.3",
+  "@types/async": "^3.2.6"
+	},
+	"exports": {
+		".": "./index.ts",
+		"./*": "./*.ts"
+	},
+	"types": "./index.ts",
+	"license": "MIT",
+	"scripts": {
+
+		"build": "tsc -p tsconfig.tson",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
+
+	},
+	"type": "module"
+}
