@@ -1,5 +1,5 @@
-import ChatService from "./ChatService.ts";
 import type {Registry} from "@token-ring/registry";
+import ChatService from "./ChatService.ts";
 
 /**
  * Executes a chat command
@@ -31,6 +31,6 @@ export async function runCommand(
       );
     }
   } catch (err) {
-    chatService.errorLine("Error running command:", err );
+    chatService.errorLine("Error running command:", err);
   }
 }

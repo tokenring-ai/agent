@@ -12,22 +12,20 @@ export interface HistoryConfig {
 
 /**
  * Abstract base class for command line history storage implementations.
- * 
+ *
  * This class defines the interface for history storage providers, which can be
  * used by the command prompt to maintain command history across sessions.
- * 
+ *
  * Implementations must provide storage-specific logic for initialization,
  * adding commands, retrieving previous/next commands, and listing all commands.
  */
 export default abstract class HistoryStorage extends Service {
-  /** Current position in history list when navigating */
-  protected historyIndex: number = -1;
-  
-  /** Current line being edited */
-  protected currentLine: string = "";
-  
   /** Configuration options */
   public config: HistoryConfig;
+  /** Current position in history list when navigating */
+  protected historyIndex: number = -1;
+  /** Current line being edited */
+  protected currentLine: string = "";
 
   /**
    * Creates a new HistoryStorage instance
@@ -86,7 +84,7 @@ export default abstract class HistoryStorage extends Service {
    */
   setConfig(config: HistoryConfig): void {
     if (typeof config === "object") {
-      this.config = { ...this.config, ...config };
+      this.config = {...this.config, ...config};
     }
   }
 }
