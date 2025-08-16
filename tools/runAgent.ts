@@ -1,13 +1,13 @@
-import { Registry } from "@token-ring/registry";
-import { z } from "zod";
-import AgentRegistry from "../AgentRegistry.ts";
 import ChatService from "@token-ring/chat/ChatService";
+import {Registry} from "@token-ring/registry";
+import {z} from "zod";
+import AgentRegistry from "../AgentRegistry.ts";
 
 /**
  * Runs an agent with the given input via the tool interface
  */
 export async function execute(
-  { agentName, input }: { agentName?: string; input?: string },
+  {agentName, input}: { agentName?: string; input?: string },
   registry: Registry,
 ): Promise<
   | { ok: true; output?: string; metadata?: Record<string, any> }
@@ -19,24 +19,24 @@ export async function execute(
   chatService.infoLine(`[runAgent] Running agent: ${agentName}`);
 
   if (!agentName) {
-    return { error: "Agent name is required" };
+    return {error: "Agent name is required"};
   }
 
   if (!input) {
-    return { error: "Input is required" };
+    return {error: "Input is required"};
   }
 
   try {
     // Use the AgentRegistry's runAgent method
-    const result = await agentRegistry.runAgent({ agentName, input }, registry);
+    const result = await agentRegistry.runAgent({agentName, input}, registry);
 
     if (result.error) {
-      return { error: result.error };
+      return {error: result.error};
     }
 
-    return { ok: true, output: result.output, metadata: result.metadata };
+    return {ok: true, output: result.output, metadata: result.metadata};
   } catch (err: any) {
-    return { error: err?.message || "Unknown error running agent" };
+    return {error: err?.message || "Unknown error running agent"};
   }
 }
 

@@ -1,6 +1,6 @@
-import {z} from "zod";
-import {Registry} from "@token-ring/registry";
 import ChatService from "@token-ring/chat/ChatService";
+import {Registry} from "@token-ring/registry";
+import {z} from "zod";
 import AgentRegistry from "../AgentRegistry.ts";
 
 /**
@@ -12,12 +12,12 @@ export async function execute(
 ): Promise<void> {
   const chatService: ChatService = registry.requireFirstServiceByType(ChatService);
   const agentRegistry: AgentRegistry = registry.requireFirstServiceByType(AgentRegistry);
-  
+
   if (!command) {
     displayHelp(chatService);
     return;
   }
-  
+
   switch (command.toLowerCase()) {
     case "list":
       const agents = agentRegistry.list();
@@ -30,26 +30,26 @@ export async function execute(
         }
       }
       break;
-      
+
     case "run":
       const [agentName, ...inputParts] = args;
       const input = inputParts.join(" ");
-      
+
       if (!agentName) {
         chatService.systemLine("Error: Agent name is required.");
         chatService.systemLine("Usage: /agent run <agentName> <input>");
         return;
       }
-      
+
       if (!input) {
         chatService.systemLine("Error: Input is required.");
         chatService.systemLine("Usage: /agent run <agentName> <input>");
         return;
       }
-      
+
       chatService.systemLine(`Running agent: ${agentName}`);
       chatService.emit("waiting", null);
-      
+
       try {
         const result = await agentRegistry.runAgent({agentName, input}, registry);
         if (result.error) {
@@ -63,7 +63,7 @@ export async function execute(
         chatService.emit("doneWaiting", null);
       }
       break;
-      
+
     default:
       chatService.systemLine(`Unknown command: ${command}`);
       displayHelp(chatService);

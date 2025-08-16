@@ -1,5 +1,5 @@
-import { Registry } from "@token-ring/registry";
-import { z } from "zod";
+import {Registry} from "@token-ring/registry";
+import {z} from "zod";
 import AgentRegistry from "../AgentRegistry.ts";
 
 /**
@@ -16,9 +16,9 @@ export async function execute(
     const agents = agentRegistry.list();
 
     // Return output without tool name prefix
-    return { output: agents };
+    return {output: agents};
   } catch (err: any) {
-    return { error: err?.message || "Unknown error listing agents" };
+    return {error: err?.message || "Unknown error listing agents"};
   }
 }
 

@@ -1,5 +1,5 @@
-import {Registry} from "@token-ring/registry";
 import {execute as runChat} from "@token-ring/ai-client/runChat";
+import {Registry} from "@token-ring/registry";
 
 /**
  * Research agent that gathers and synthesizes information on a given topic
