@@ -1,33 +1,24 @@
-import {Registry} from "@token-ring/registry";
-import {z} from "zod";
+import { Registry } from "@token-ring/registry";
+import { z } from "zod";
 import AgentRegistry from "../AgentRegistry.ts";
 
 /**
  * Lists all available agents via the tool interface
  */
-export async function execute({},
+export async function execute(
+  {},
   registry: Registry,
-): Promise<{
-  ok: boolean;
-  agents: string[];
-  error?: string;
-}> {
+): Promise<{ output: string[] } | { error: string }> {
   try {
     const agentRegistry: AgentRegistry = registry.requireFirstServiceByType(AgentRegistry);
 
     // Get the list of agents
     const agents = agentRegistry.list();
 
-    return {
-      ok: true,
-      agents,
-    };
+    // Return output without tool name prefix
+    return { output: agents };
   } catch (err: any) {
-    return {
-      ok: false,
-      error: err?.message || "Unknown error listing agents",
-      agents: [],
-    };
+    return { error: err?.message || "Unknown error listing agents" };
   }
 }
 
