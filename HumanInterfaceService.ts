@@ -12,7 +12,7 @@ export default abstract class HumanInterfaceService extends Service {
   /**
    * The name of the service
    */
-  name = "HumanInterfaceService" as const;
+  name : string = "HumanInterfaceService" as const;
 
   /**
    * Description of the service's functionality

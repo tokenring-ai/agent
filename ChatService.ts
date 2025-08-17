@@ -38,16 +38,19 @@ export type QueueState = {
 
 export type Job = {
   name: string;
-  execute: (...args: any[]) => Promise<any> | any;
+  // Execute a job with any arguments, returning a result or a promise of a result.
+  // Using unknown for arguments and return type provides type safety while preserving flexibility.
+  execute: (...args: unknown[]) => Promise<unknown> | unknown;
 };
 
 export interface ChatTool {
   version: string;
   description: string;
-  getToolFunctions: (...args: any[]) => any;
-  adjustChatRequest: (...args: any[]) => any;
-  afterChatComplete: (...args: any[]) => any;
-  afterTestingComplete: (...args: any[]) => any;
+  // Functions for tool integration, using unknown for arguments and return types.
+  getToolFunctions: (...args: unknown[]) => unknown;
+  adjustChatRequest: (...args: unknown[]) => unknown;
+  afterChatComplete: (...args: unknown[]) => unknown;
+  afterTestingComplete: (...args: unknown[]) => unknown;
 }
 
 export type Body = {
@@ -55,7 +58,8 @@ export type Body = {
     role: string;
     content: string;
   }>;
-  tools?: Record<string, any> | Array<object>;
+  // Tools configuration map; using unknown for flexibility.
+  tools?: Record<string, unknown> | Array<object>;
   model?: string;
 };
 
