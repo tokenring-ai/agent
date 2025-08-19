@@ -3,6 +3,8 @@ import {Registry} from "@token-ring/registry";
 import {z} from "zod";
 import AgentRegistry from "../AgentRegistry.ts";
 
+export const name = "agent";
+
 /**
  * Chat command for interacting with agents
  */
@@ -51,14 +53,10 @@ export async function execute(
       chatService.emit("waiting", null);
 
       try {
-        const result = await agentRegistry.runAgent({agentName, input}, registry);
-        if (result.error) {
-          chatService.errorLine(result.error);
-        } else {
-          chatService.infoLine(result.output);
-        }
-      } catch (error: any) {
-        chatService.errorLine(`Error running agent: ${error?.message || error}`);
+        await agentRegistry.runAgent({agentName, input}, registry);
+      } catch (err: unknown) {
+        const message = err instanceof Error && err.message ? err.message : "Unknown error running agents";
+        throw new Error(`[${name}] ${message}`);
       } finally {
         chatService.emit("doneWaiting", null);
       }

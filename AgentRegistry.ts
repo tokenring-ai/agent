@@ -49,25 +49,20 @@ export default class AgentRegistry extends Service {
   async runAgent(
     {agentName, input}: { agentName: string; input: string },
     registry: Registry,
-  ): Promise<any> {
+  ): Promise<
+    | { output: string; metadata?: Record<string, any> }
+  > {
     if (!agentName) {
-      return {error: "Agent name is required"};
+      throw new Error("Agent name is required");
     }
 
     const agent = this.get(agentName);
 
     if (!agent) {
-      return {error: `Agent not found: ${agentName}`};
+      throw new Error(`Agent not found: ${agentName}`);
     }
 
-    try {
-      // Execute the agent function with the input
-      return await agent(input, registry);
-    } catch (error: any) {
-      return {
-        ok: false,
-        error: error?.message || "Unknown error running agent",
-      };
-    }
+    // Execute the agent function with the input
+    return await agent(input, registry);
   }
 }

@@ -3,8 +3,6 @@ import {Registry} from "@token-ring/registry";
 
 /**
  * Research agent that gathers and synthesizes information on a given topic
- * @param input The topic or question to research
- * @param registry The application registry
  */
 export async function researchAgent(input: string, registry: Registry) {
   // Example implementation that uses AI to perform research

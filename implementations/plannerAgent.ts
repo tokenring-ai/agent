@@ -4,8 +4,6 @@ import AgentRegistry from "../AgentRegistry.ts";
 
 /**
  * Planner agent that determines which agents to use for a given task
- * @param input The task to plan for
- * @param registry The application registry
  */
 export async function plannerAgent(input: string, registry: Registry) {
   const agentRegistry = registry.requireFirstServiceByType(AgentRegistry);

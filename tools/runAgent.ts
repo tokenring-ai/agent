@@ -1,6 +1,6 @@
 import ChatService from "@token-ring/chat/ChatService";
-import { Registry } from "@token-ring/registry";
-import { z } from "zod";
+import {Registry} from "@token-ring/registry";
+import {z} from "zod";
 import AgentRegistry from "../AgentRegistry.ts";
 
 /**
@@ -9,7 +9,7 @@ import AgentRegistry from "../AgentRegistry.ts";
 export const name = "agent/runAgent";
 
 export async function execute(
-  { agentName, input }: { agentName?: string; input?: string },
+  {agentName, input}: { agentName?: string; input?: string },
   registry: Registry,
 ): Promise<
   { ok: true; output?: string; metadata?: Record<string, any> }
@@ -29,22 +29,19 @@ export async function execute(
 
   try {
     // Use the AgentRegistry's runAgent method
-    const result = await agentRegistry.runAgent({ agentName, input }, registry);
+    const result = await agentRegistry.runAgent({agentName, input}, registry);
 
-    if (result.error) {
-      throw new Error(`[${name}] ${result.error}`);
-    }
-
-    return { ok: true, output: result.output, metadata: result.metadata };
-  } catch (err: any) {
-    throw new Error(`[${name}] ${err?.message || "Unknown error running agent"}`);
+    return {ok: true, output: result.output, metadata: result.metadata};
+  } catch (err: unknown) {
+    const message = err instanceof Error && err.message ? err.message : "Unknown error running agents";
+    throw new Error(`[${name}] ${message}`);
   }
 }
 
 export const description =
   "Run an AI agent with the given input. Agents are specialized AI assistants that can perform specific tasks.";
 
-export const parameters = z.object({
+export const inputSchema = z.object({
   agentName: z.string().describe("The name of the agent to run."),
   input: z.string().describe("The input to pass to the agent."),
 });

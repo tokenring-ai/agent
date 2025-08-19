@@ -1,7 +1,7 @@
-import { Registry } from "@token-ring/registry";
-import { z } from "zod";
-import AgentRegistry from "../AgentRegistry.ts";
 import ChatService from "@token-ring/chat/ChatService";
+import {Registry} from "@token-ring/registry";
+import {z} from "zod";
+import AgentRegistry from "../AgentRegistry.ts";
 
 /**
  * Lists all available agents via the tool interface
@@ -20,13 +20,14 @@ export async function execute(
   try {
     // Get the list of agents
     const agents = agentRegistry.list();
-    return { output: agents };
-  } catch (err: any) {
-    throw new Error(`[${name}] ${err?.message || "Unknown error listing agents"}`);
+    return {output: agents};
+  } catch (err: unknown) {
+    const message = err instanceof Error && err.message ? err.message : "Unknown error listing agents";
+    throw new Error(`[${name}] ${message}`);
   }
 }
 
 export const description =
   "Lists all available agents. Returns an array of agent names that can be used with the runAgent tool.";
 
-export const parameters = z.object({});
+export const inputSchema = z.object({});
