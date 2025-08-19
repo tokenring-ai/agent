@@ -68,6 +68,7 @@ function clearMemory(memoryService: MemoryService, chatService: ChatService): vo
   chatService.systemLine("Memory cleared.");
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return [
     "/clear [chat|memory|all]...",

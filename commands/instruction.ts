@@ -17,6 +17,7 @@ export function execute(remainder: string | undefined, registry: Registry): void
   chatService.systemLine(`Current Instructions: ${instructions}`);
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return [
     "/instructions <instructions ....>",

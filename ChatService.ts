@@ -15,7 +15,7 @@ export interface PersonaConfig {
   instructions: string;
   model: string;
   temperature?: number;
-  top_p?: number;
+  topP?: number;
 }
 
 export type ChatServiceOptions = {
@@ -53,24 +53,6 @@ export interface ChatTool {
   afterTestingComplete: (...args: unknown[]) => unknown;
 }
 
-export type Body = {
-  messages: Array<{
-    role: string;
-    content: string;
-  }>;
-  // Tools configuration map; using unknown for flexibility.
-  tools?: Record<string, unknown> | Array<object>;
-  model?: string;
-};
-
-export type Response = {
-  id?: string;
-  content?: string;
-  toolCalls?: Array<object>;
-  messages?: Array<object>;
-  [key: string]: any;
-};
-
 export type ChatMessage = {
   id: number;
   sessionId: number;
@@ -95,10 +77,8 @@ export default class ChatService extends Service {
   description: string = "Manages chat interactions with AI chatModels";
   _receivers: Set<any> = new Set();
   _events: EventEmitter = new EventEmitter();
-  /** @type {function(string, Function): EventEmitter} */
-  on: (event: string, handler: Function) => EventEmitter = this._events.on.bind(this._events) as any;
-  /** @type {function(string, Function): EventEmitter} */
-  off: (event: string, handler: Function) => EventEmitter = this._events.off.bind(this._events) as any;
+  on: (event: string, handler: Function) => EventEmitter = this._events.on.bind(this._events) as (event: string, handler: Function) => EventEmitter;
+  off: (event: string, handler: Function) => EventEmitter = this._events.off.bind(this._events) as (event: string, handler: Function) => EventEmitter;
 
   constructor(options: ChatServiceOptions) {
     super();
@@ -118,9 +98,6 @@ export default class ChatService extends Service {
 
   /**
    * Emit an event to receivers and event listeners
-   * @param {string} eventName - Name of the event to emit
-   * @param {any} arg - Argument to pass to event handlers
-   * @returns {boolean} - True if the event had listeners, false otherwise
    */
   emit(eventName: string, arg: any): boolean {
     // dispatch to receivers
@@ -140,10 +117,6 @@ export default class ChatService extends Service {
   /**
    * Push a job onto the queue.
    *
-   * @param {string} jobName - Name of the job
-   * @param {Function} jobFunction - Async function to execute
-   * @param {Array<any>} [jobArgs=[]] - Arguments to pass to the job function
-   * @returns {Promise<any>} - Promise that resolves with the job result
    */
   submitJob(jobName: string, jobFunction: Function, jobArgs: Array<any> = []): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -176,8 +149,6 @@ export default class ChatService extends Service {
    * Subscribe an object whose keys are event names and values are callbacks.
    * Returns an unsubscribe function.
    *
-   * @param {Object<string, Function>} receiver - Object with event handler methods
-   * @returns {() => void} - Unsubscribe function
    */
   subscribe(receiver: object): () => void {
     this._receivers.add(receiver);
@@ -186,9 +157,6 @@ export default class ChatService extends Service {
 
   /**
    * Convenience wrapper – identical to `on`, but returns an unsubscribe fn.
-   * @param {string} eventName - Name of the event to subscribe to
-   * @param {Function} handler - Event handler function
-   * @returns {Function} - Unsubscribe function
    */
   subscribeToEvents(eventName: string, handler: Function): () => void {
     this.on(eventName, handler);
@@ -197,7 +165,6 @@ export default class ChatService extends Service {
 
   /**
    * Get the current state of the job queue
-   * @returns {QueueState} - Object with queue state information
    */
   getQueueState(): QueueState {
     return {
@@ -214,7 +181,6 @@ export default class ChatService extends Service {
 
   /**
    * Get the current instructions
-   * @returns {string|undefined} - Current instructions
    */
   getInstructions(): string | undefined {
     return this.persona ? this.personas[this.persona]?.instructions : undefined;
@@ -222,8 +188,6 @@ export default class ChatService extends Service {
 
   /**
    * Set instructions for the current persona or global instructions
-   * @param {string} instructions - Instructions to set
-   * @returns {void}
    */
   setInstructions(instructions: string): void {
     if (this.persona) {
@@ -236,7 +200,6 @@ export default class ChatService extends Service {
 
   /**
    * Get the current model
-   * @returns {string|undefined} - Current model name
    */
   getModel(): string {
     return this.personas[this.persona]?.model;
@@ -244,8 +207,6 @@ export default class ChatService extends Service {
 
   /**
    * Set model for the current persona or global model
-   * @param {string} model - Model to set
-   * @returns {void}
    */
   setModel(model: string): void {
     if (this.persona) {
@@ -258,7 +219,6 @@ export default class ChatService extends Service {
 
   /**
    * Get all personas
-   * @returns {Object<string, PersonaConfig>} - All personas
    */
   getPersonas(): Record<string, PersonaConfig> {
     return this.personas;
@@ -266,8 +226,6 @@ export default class ChatService extends Service {
 
   /**
    * Get configuration for a specific persona
-   * @param {string} name - Name of the persona
-   * @returns {PersonaConfig|undefined} - Configuration for the persona
    */
   getPersonaConfig(name: string): PersonaConfig | undefined {
     return this.personas[name];
@@ -275,7 +233,6 @@ export default class ChatService extends Service {
 
   /**
    * Get current persona
-   * @returns {string|null} - Current persona name
    */
   getPersona(): string {
     return this.persona;
@@ -283,9 +240,6 @@ export default class ChatService extends Service {
 
   /**
    * Set current persona
-   * @param {string|null} persona - Persona to set
-   * @throws {Error} If persona doesn't exist
-   * @returns {void}
    */
   setPersona(persona: string): void {
     if (persona && !this.personas[persona]) {
@@ -296,7 +250,6 @@ export default class ChatService extends Service {
 
   /**
    * Get the abort signal
-   * @returns {AbortSignal} - Current abort signal
    */
   getAbortSignal(): AbortSignal | undefined {
     return this.abortController?.signal;
@@ -304,7 +257,6 @@ export default class ChatService extends Service {
 
   /**
    * Reset the abort controller
-   * @returns {void}
    */
   resetAbortController(): void {
     this.abortController = new AbortController();
@@ -312,7 +264,6 @@ export default class ChatService extends Service {
 
   /**
    * Clear the abort controller
-   * @returns {void}
    */
   clearAbortController(): void {
     this.abortController = null;
@@ -320,7 +271,6 @@ export default class ChatService extends Service {
 
   /**
    * Get the abort controller
-   * @returns {AbortController|null} - Current abort controller
    */
   getAbortController(): AbortController | null {
     return this.abortController;
@@ -328,8 +278,6 @@ export default class ChatService extends Service {
 
   /**
    * Log a system message
-   * @param {...any} msgs - Messages to log
-   * @returns {void}
    */
   systemLine(...msgs: any[]): void {
     // Format objects, arrays, and errors properly
@@ -339,8 +287,6 @@ export default class ChatService extends Service {
 
   /**
    * Log an info message
-   * @param {...any} msgs - Messages to log
-   * @returns {void}
    */
   infoLine(...msgs: any[]): void {
     const formattedMsgs = formatLogMessages(msgs);
@@ -349,8 +295,6 @@ export default class ChatService extends Service {
 
   /**
    * Log a warning message
-   * @param {...any} msgs - Messages to log
-   * @returns {void}
    */
   warningLine(...msgs: any[]): void {
     const formattedMsgs = formatLogMessages(msgs);

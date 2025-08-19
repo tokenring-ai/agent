@@ -12,7 +12,7 @@ export default abstract class HumanInterfaceService extends Service {
   /**
    * The name of the service
    */
-  name : string = "HumanInterfaceService" as const;
+  name: string = "HumanInterfaceService" as const;
 
   /**
    * Description of the service's functionality
@@ -47,12 +47,11 @@ export default abstract class HumanInterfaceService extends Service {
    * Asks the user to select an item from a tree structure
    */
   async askForSingleTreeSelection(_options: {
-    message?: string;
+    message?: string | undefined;
     tree: TreeLeaf;
-    allowCancel?: boolean;
-    initialSelection?: string | Array<string>;
+    initialSelection?: string | undefined;
     loop?: boolean;
-  }): Promise<string> {
+  }): Promise<string | null> {
     throw new Error('Method "askForSingleTreeSelection()" must be implemented by subclass.');
   }
 
@@ -61,52 +60,45 @@ export default abstract class HumanInterfaceService extends Service {
    * Asks the user to select multiple items from a tree structure
    */
   async askForMultipleTreeSelection(_options: {
-    message?: string;
+    message?: string | undefined;
     tree: TreeLeaf;
-    allowCancel?: boolean;
-    initialSelection?: string | Array<string>;
+    initialSelection?: Array<string> | undefined;
     loop?: boolean;
-  }): Promise<string[]> {
+  }): Promise<string[] | null> {
     throw new Error('Method "askForSingleTreeSelection()" must be implemented by subclass.');
   }
 
 
   /**
    * Asks the user to select an item from a tree structure using a REPL interface.
-   * @param fileSystem - The filesystem interface to use for the selection
-   * @param options - Optional configuration for the file selection
    */
   async askForFileSelection(
     fileSystem: FileSystemService,
-    options: { initialSelection?: string | Array<string> } = {},
-  ): Promise<string | Array<string>> {
+    options: { initialSelection?: string[] | undefined } = {},
+  ): Promise<Array<string> | null> {
     const buildTree = async (path = ""): Promise<Array<TreeLeaf>> => {
       const children: Array<TreeLeaf> = [];
 
-      try {
-        for await (const itemPath of fileSystem.getDirectoryTree(path, {
-          recursive: false,
-        })) {
-          if (itemPath.endsWith("/")) {
-            // Directory
-            const dirName = itemPath.substring(0, itemPath.length - 1).split("/").pop()!;
-            children.push({
-              name: dirName,
-              value: itemPath,
-              hasChildren: true,
-              children: () => buildTree(itemPath),
-            });
-          } else {
-            // File
-            const fileName = itemPath.split("/").pop()!;
-            children.push({
-              name: fileName,
-              value: itemPath,
-            });
-          }
+      for await (const itemPath of fileSystem.getDirectoryTree(path, {
+        recursive: false,
+      })) {
+        if (itemPath.endsWith("/")) {
+          // Directory
+          const dirName = itemPath.substring(0, itemPath.length - 1).split("/").pop()!;
+          children.push({
+            name: dirName,
+            value: itemPath,
+            hasChildren: true,
+            children: () => buildTree(itemPath),
+          });
+        } else {
+          // File
+          const fileName = itemPath.split("/").pop()!;
+          children.push({
+            name: fileName,
+            value: itemPath,
+          });
         }
-      } catch (error) {
-        console.error(`Error reading directory ${path}:`, error);
       }
 
       return children;
@@ -120,7 +112,6 @@ export default abstract class HumanInterfaceService extends Service {
         name: "File Selection",
         children: buildTree,
       },
-      allowCancel: true,
       loop: false,
       ...(initialSelection && {initialSelection}),
     });

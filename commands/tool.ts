@@ -130,7 +130,6 @@ export async function execute(
       const selectedTools = await humanInterfaceService.askForMultipleTreeSelection({
         message: `Current enabled tools: ${activeTools.join(", ") || "none"}. Choose tools to enable:`,
         tree: buildToolTree(),
-        allowCancel: true,
         initialSelection: activeTools,
       });
 
@@ -149,6 +148,7 @@ export async function execute(
   }
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return [
     "/tools [enable|disable|set] <tool1> <tool2> ...",

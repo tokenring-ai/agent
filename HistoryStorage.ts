@@ -27,9 +27,9 @@ export default abstract class HistoryStorage extends Service {
   /** Current line being edited */
   protected currentLine: string = "";
 
+  // noinspection TypeScriptAbstractClassConstructorCanBeMadeProtected
   /**
    * Creates a new HistoryStorage instance
-   * @param config - Configuration options
    */
   constructor(config: HistoryConfig = {}) {
     super();
@@ -48,31 +48,26 @@ export default abstract class HistoryStorage extends Service {
 
   /**
    * Add a command to history
-   * @param command - The command to add
    */
   abstract add(command: string): void;
 
   /**
    * Get the previous command in history
-   * @returns The previous command or null if at beginning
    */
   abstract getPrevious(): string | null;
 
   /**
    * Get the next command in history
-   * @returns The next command or null if at end
    */
   abstract getNext(): string | null;
 
   /**
    * Get all commands in history
-   * @returns Array of all commands in history
    */
   abstract getAll(): string[];
 
   /**
    * Set the current line of input (for saving when navigating history)
-   * @param line - The current line of input
    */
   setCurrent(line: string): void {
     this.currentLine = line;
@@ -80,7 +75,6 @@ export default abstract class HistoryStorage extends Service {
 
   /**
    * Update configuration settings
-   * @param config - New configuration options
    */
   setConfig(config: HistoryConfig): void {
     if (typeof config === "object") {

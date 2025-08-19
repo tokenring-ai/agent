@@ -111,7 +111,6 @@ export async function execute(
         name: "Resource Selection",
         children: buildResourceTree(sortedResources),
       },
-      allowCancel: true,
       initialSelection: activeResources,
     });
 
@@ -128,6 +127,7 @@ export async function execute(
   }
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return [
     "/resources [enable|disable|set] <resource1> <resource2> ...",

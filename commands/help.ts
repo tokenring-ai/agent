@@ -32,6 +32,7 @@ export async function execute(_remainder: string | undefined, registry: Registry
   );
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return ["/help - Show this help message"];
 }

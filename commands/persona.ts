@@ -38,7 +38,7 @@ export async function execute(
       chatService.systemLine(
         `Temperature: ${persona.temperature || "default"}`,
       );
-      chatService.systemLine(`Top_p: ${persona.top_p || "default"}`);
+      chatService.systemLine(`Top_p: ${persona.topP || "default"}`);
 
       // Show a preview of the instructions (first 100 characters)
       if (persona.instructions) {
@@ -72,8 +72,7 @@ export async function execute(
           value: name,
         })),
       },
-      allowCancel: true,
-      initialSelection: currentPersona ? [currentPersona] : [],
+      initialSelection: currentPersona ?? undefined
     });
 
     if (selectedPersona) {
@@ -86,7 +85,7 @@ export async function execute(
       chatService.systemLine(
         `Temperature: ${persona.temperature || "default"}`,
       );
-      chatService.systemLine(`Top_p: ${persona.top_p || "default"}`);
+      chatService.systemLine(`Top_p: ${persona.topP || "default"}`);
 
       // Show a preview of the instructions (first 100 characters)
       if (persona.instructions) {
@@ -105,6 +104,7 @@ export async function execute(
   }
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return [
     "/persona [persona_name]",

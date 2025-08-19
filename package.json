@@ -1,28 +1,25 @@
 {
-	"name": "@token-ring/chat",
-	"version": "0.1.0",
+ "name": "@token-ring/chat",
+ "version": "0.1.0",
  "description": "Chat backend that creates the backbone for the Token Ring tools",
-	"dependencies": {
-
-		"@token-ring/registry": "0.1.0",
-		"@token-ring/utility": "0.1.0",
-		"eventemitter3": "^5.0.1",
-		"glob-gitignore": "^1.0.15",
-		"uuid": "^11.1.0"
-	},
-	"exports": {
-		".": "./index.ts",
-		"./*": "./*.ts"
-	},
+ "dependencies": {
+  "@token-ring/registry": "0.1.0",
+  "@token-ring/utility": "0.1.0",
+  "eventemitter3": "^5.0.1",
+  "glob-gitignore": "^1.0.15",
+  "uuid": "^11.1.0"
+ },
+ "exports": {
+  ".": "./index.ts",
+  "./*": "./*.ts"
+ },
  "types": "./index.ts",
-	"license": "MIT",
-	"scripts": {
-
-		"build": "tsc -p tsconfig.tson"
-
-	},
-	"devDependencies": {
-		"typescript": "^5.9.2"
-	},
-	"type": "module"
+ "license": "MIT",
+ "scripts": {
+  "build": "tsc -p tsconfig.tson"
+ },
+ "devDependencies": {
+  "typescript": "^5.9.2"
+ },
+ "type": "module"
 }

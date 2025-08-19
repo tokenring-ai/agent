@@ -3,10 +3,6 @@ import ChatService from "./ChatService.ts";
 
 /**
  * Executes a chat command
- * @param commandName
- * @param remainder
- * @param registry - The package registry
- * @returns Promise<void>
  */
 export async function runCommand(
   commandName: string,

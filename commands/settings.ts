@@ -22,6 +22,7 @@ export function execute(_remainder: string | undefined, registry: Registry): voi
   chatService.systemLine(`Persona: ${persona}`);
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return [
     "/settings",
