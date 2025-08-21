@@ -27,6 +27,9 @@ export async function runCommand(
       );
     }
   } catch (err) {
-    chatService.errorLine("Error running command:", err);
+    if (! chatService.getAbortSignal()?.aborted) {
+      // Only output an error if the command wasn't aborted'
+      chatService.errorLine("Error running command:", err);
+    }
   }
 }
