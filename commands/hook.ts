@@ -36,7 +36,7 @@ export async function execute(
           chatService.errorLine(`Usage: /hooks enable <hookName>`);
           return;
         }
-        if (!registeredHooks.findIndex(hook => hook.name === hookName)) {
+        if (registeredHooks.findIndex(hook => hook.name === hookName) === -1) {
           chatService.errorLine(`Unknown hook: ${hookName}`);
           return;
         }
@@ -49,7 +49,7 @@ export async function execute(
           chatService.errorLine(`Usage: /hooks disable <hookName>`);
           return;
         }
-        if (!registeredHooks.findIndex(hook => hook.name === hookName)) {
+        if (registeredHooks.findIndex(hook => hook.name === hookName) === -1) {
           chatService.errorLine(`Unknown hook: ${hookName}`);
           return;
         }
