@@ -106,7 +106,7 @@ export default class ChatService extends Service {
       r[eventName]?.(arg);
     }
     // standard EventEmitter handling
-    return this._events.emit(eventName as any, arg);
+    return this._events.emit(eventName, arg);
   }
 
   /* --------------------------------------------------------------------- */

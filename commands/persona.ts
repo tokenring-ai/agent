@@ -1,5 +1,5 @@
 import {Registry} from "@token-ring/registry";
-import ChatService from "../ChatService.ts";
+import ChatService, {PersonaConfig} from "../ChatService.ts";
 import HumanInterfaceService from "../HumanInterfaceService.ts";
 
 export const description =
@@ -13,7 +13,7 @@ export async function execute(
   const humanInterfaceService = registry.getFirstServiceByType(
     HumanInterfaceService,
   );
-  const personas = chatService.getPersonas() as Record<string, any>;
+  const personas = chatService.getPersonas();
   const currentPersona = chatService.getPersona();
 
   // Handle direct persona name input, e.g. /persona assistant
@@ -29,25 +29,7 @@ export async function execute(
 
     // Set the persona
     try {
-      chatService.setPersona(directPersonaName);
-      chatService.systemLine(`Switched to persona: ${directPersonaName}`);
-
-      // Show the current settings for this persona
-      const persona = personas[directPersonaName];
-      chatService.systemLine(`Model: ${persona.model || "default"}`);
-      chatService.systemLine(
-        `Temperature: ${persona.temperature || "default"}`,
-      );
-      chatService.systemLine(`Top_p: ${persona.topP || "default"}`);
-
-      // Show a preview of the instructions (first 100 characters)
-      if (persona.instructions) {
-        const preview =
-          persona.instructions.length > 100
-            ? `${persona.instructions.substring(0, 100)}...`
-            : persona.instructions;
-        chatService.systemLine(`Instructions: ${preview}`);
-      }
+      setPersona(chatService, personas, directPersonaName);
     } catch (error: any) {
       chatService.errorLine(`Error setting persona: ${error.message}`);
     }
@@ -76,25 +58,7 @@ export async function execute(
     });
 
     if (selectedPersona) {
-      chatService.setPersona(selectedPersona);
-      chatService.systemLine(`Switched to persona: ${selectedPersona}`);
-
-      // Show the current settings for this persona
-      const persona = personas[selectedPersona];
-      chatService.systemLine(`Model: ${persona.model || "default"}`);
-      chatService.systemLine(
-        `Temperature: ${persona.temperature || "default"}`,
-      );
-      chatService.systemLine(`Top_p: ${persona.topP || "default"}`);
-
-      // Show a preview of the instructions (first 100 characters)
-      if (persona.instructions) {
-        const preview =
-          persona.instructions.length > 100
-            ? `${persona.instructions.substring(0, 100)}...`
-            : persona.instructions;
-        chatService.systemLine(`Instructions: ${preview}`);
-      }
+      setPersona(chatService, personas, selectedPersona);
     } else {
       chatService.systemLine("Persona selection cancelled. No changes made.");
     }
@@ -111,4 +75,27 @@ export function help(): string[] {
     "  - With no arguments: Shows interactive persona selection",
     "  - With persona_name: Switches to the specified persona",
   ];
+}
+
+
+function setPersona(chatService: ChatService, personas: Record<string, PersonaConfig>, selectedPersona: string) {
+  chatService.setPersona(selectedPersona);
+  chatService.systemLine(`Switched to persona: ${selectedPersona}`);
+
+  // Show the current settings for this persona
+  const persona = personas[selectedPersona];
+  chatService.systemLine(`Model: ${persona.model || "default"}`);
+  chatService.systemLine(
+    `Temperature: ${persona.temperature || "default"}`,
+  );
+  chatService.systemLine(`Top_p: ${persona.topP || "default"}`);
+
+  // Show a preview of the instructions (first 100 characters)
+  if (persona.instructions) {
+    const preview =
+      persona.instructions.length > 100
+        ? `${persona.instructions.substring(0, 100)}...`
+        : persona.instructions;
+    chatService.systemLine(`Instructions: ${preview}`);
+  }
 }
