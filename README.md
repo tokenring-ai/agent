@@ -1,4 +1,4 @@
-@token-ring/chat
+@tokenring-ai/chat
 =================
 
 Chat primitives and services for Token Ring. This package provides the foundational building blocks for chat-oriented
@@ -17,9 +17,9 @@ Overview
 Installation
 This package is part of the Token Ring monorepo and is typically consumed via workspaces.
 
-- npm: npm install @token-ring/chat
-- pnpm: pnpm add @token-ring/chat
-- bun: bun add @token-ring/chat
+- npm: npm install @tokenring-ai/chat
+- pnpm: pnpm add @tokenring-ai/chat
+- bun: bun add @tokenring-ai/chat
 
 Exports
 
@@ -31,8 +31,8 @@ Exports
 Quick Start
 
 1) Create and register a ChatService
-   import { ServiceRegistry } from "@token-ring/registry";
-   import { ChatService } from "@token-ring/chat";
+   import { ServiceRegistry } from "@tokenring-ai/registry";
+   import { ChatService } from "@tokenring-ai/chat";
 
 const registry = new ServiceRegistry();
 
@@ -95,7 +95,7 @@ chat.setPersona("default");
    chat.clearAbortController();
 
 5) Using built-in chat commands
-   import { runCommand } from "@token-ring/chat";
+   import { runCommand } from "@tokenring-ai/chat";
 
 // Commands are resolved through the registry's chatCommands registry
 await runCommand("help", "", registry); // prints available commands
@@ -114,7 +114,7 @@ Key methods to implement:
 - askForMultipleTreeSelection(options): Promise<string[]>
 
 It also includes a ready-to-use askForFileSelection helper that builds a file/directory tree using
-@token-ring/filesystem and presents it via the tree selection methods you implement.
+@tokenring-ai/filesystem and presents it via the tree selection methods you implement.
 
 HistoryStorage
 Implement this abstract class to provide command history for chat prompts. Typical responsibilities:
@@ -143,9 +143,9 @@ TypeScript Types
 
 Related Packages
 
-- @token-ring/registry: Service registry and chat command registry integration.
-- @token-ring/utility: Utilities like formatLogMessage used for consistent log formatting.
-- @token-ring/filesystem: Used by HumanInterfaceService.askForFileSelection to build file trees.
+- @tokenring-ai/registry: Service registry and chat command registry integration.
+- @tokenring-ai/utility: Utilities like formatLogMessage used for consistent log formatting.
+- @tokenring-ai/filesystem: Used by HumanInterfaceService.askForFileSelection to build file trees.
 
 License
 MIT

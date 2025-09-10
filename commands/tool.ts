@@ -1,6 +1,5 @@
-import {Registry} from "@token-ring/registry";
-import ChatService from "../ChatService.ts";
-import HumanInterfaceService from "../HumanInterfaceService.ts";
+import joinDefault from "@tokenring-ai/utility/joinDefault";
+import Agent from "../Agent.ts";
 
 /**
  * Usage:
@@ -16,15 +15,10 @@ export const description =
 
 export async function execute(
   remainder: string | undefined,
-  registry: Registry,
+  agent: Agent,
 ): Promise<void> {
-  const chatService = registry.requireFirstServiceByType(ChatService);
-  const humanInterfaceService = registry.getFirstServiceByType(
-    HumanInterfaceService,
-  );
-
-  const availableTools: string[] = registry.tools.getAvailableToolNames();
-  const activeTools: string[] = registry.tools.getEnabledToolNames();
+  const availableTools = agent.tools.getAllItemNames();
+  const activeTools = agent.tools.getActiveItemNames();
 
   // Handle direct tool operations, e.g. /tools enable foo bar
   const directOperation = remainder?.trim();
@@ -34,67 +28,47 @@ export async function execute(
     const toolNames = parts.slice(1);
 
     if (!["enable", "disable", "set"].includes(operation)) {
-      chatService.errorLine(
+      agent.errorLine(
         "Unknown operation. Usage: /tools [enable|disable|set] <tool1> <tool2> ...",
       );
       return;
     }
 
-    // Validate tool names
-    for (const name of toolNames) {
-      if (!availableTools.includes(name)) {
-        chatService.errorLine(`Unknown tool: ${name}`);
-        return;
-      }
-    }
-
     switch (operation) {
       case "enable": {
-        let changed = false;
-        for (const name of toolNames) {
-          if (activeTools.includes(name)) {
-            chatService.systemLine(`Tool '${name}' is already enabled.`);
-          } else if (availableTools.includes(name)) {
-            await registry.tools.enableTools(name);
-            changed = true;
-            chatService.systemLine(`Enabled tool: ${name}`);
-          } else {
-            chatService.errorLine(`Unknown tool: ${name}`);
-          }
-        }
-        if (!changed) chatService.systemLine("No tools were enabled.");
+        agent.tools.enableItems(...toolNames);
         break;
       }
       case "disable": {
-        let changed = false;
-        for (const name of toolNames) {
-          if (activeTools.includes(name)) {
-            await registry.tools.disableTools(name);
-            changed = true;
-            chatService.systemLine(`Disabled tool: ${name}`);
-          } else {
-            chatService.systemLine(`Tool '${name}' was not enabled.`);
-          }
-        }
-        if (!changed) chatService.systemLine("No tools were disabled.");
+        agent.tools.disableItems(...toolNames);
         break;
       }
       case "set": {
-        await registry.tools.setEnabledTools(...toolNames);
-        chatService.systemLine(`Set enabled tools: ${toolNames.join(" ")}`);
+        agent.tools.setEnabledItems(toolNames);
         break;
       }
     }
 
-    chatService.systemLine(
-      "Current enabled tools: " +
-      (registry.tools.getEnabledToolNames().join(" ") || "none"),
+    agent.infoLine(
+      `Enabled tools: ${joinDefault(", ", agent.tools.getActiveItemNames(), "(none)")}`,
     );
     return;
   }
 
-  // If no remainder provided, show interactive tree selection grouped by package
-  const toolsByPackage: Record<string, string[]> = registry.tools.getToolsByPackage();
+
+  const toolsByPackage: Record<string, string[]> = {};
+
+  for (const [toolName, toolDef] of Object.entries(agent.tools.getAllItems())) {
+    const packageName = toolDef.packageName || "unknown";
+    if (!toolsByPackage[packageName]) {
+      toolsByPackage[packageName] = [];
+    }
+    toolsByPackage[packageName].push(toolName);
+  }
+
+  for (const packageName in toolsByPackage) {
+    toolsByPackage[packageName].sort((a, b) => a.localeCompare(b));
+  }
 
   // Build tree structure for tool selection
   const buildToolTree = () => {
@@ -126,25 +100,21 @@ export async function execute(
 
   // Interactive tree selection if no operation is provided in the command
   try {
-    if (humanInterfaceService) {
-      const selectedTools = await humanInterfaceService.askForMultipleTreeSelection({
-        message: `Current enabled tools: ${activeTools.join(", ") || "none"}. Choose tools to enable:`,
+    const selectedTools = await agent.askHuman({
+      type: "askForMultipleTreeSelection",
+      message: `Current enabled tools: ${joinDefault(", ", activeTools, "(none)")}. Choose tools to enable:`,
         tree: buildToolTree(),
         initialSelection: activeTools,
       });
 
       if (selectedTools) {
-        await registry.tools.setEnabledTools(...selectedTools);
-        chatService.systemLine(`Set enabled tools: ${selectedTools.join(", ")}`);
+        agent.tools.setEnabledItems(selectedTools);
+        agent.infoLine(`Enabled tools: ${joinDefault(", ", agent.tools.getActiveItemNames(), "No tools selected.")}`);
       } else {
-        chatService.systemLine("Tool selection cancelled. No changes made.");
+        agent.infoLine("Tool selection cancelled. No changes made.");
       }
-    } else {
-      chatService.errorLine("No HumanInterfaceService available for interactive tool selection.");
-      return;
-    }
   } catch (error) {
-    chatService.errorLine(`Error during tool selection:`, error);
+    agent.errorLine(`Error during tool selection:`, error as Error);
   }
 }
 

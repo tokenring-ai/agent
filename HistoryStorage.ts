@@ -1,4 +1,4 @@
-import {Service} from "@token-ring/registry";
+import {TokenRingService} from "./types.js";
 
 /**
  * Configuration options for HistoryStorage
@@ -19,7 +19,10 @@ export interface HistoryConfig {
  * Implementations must provide storage-specific logic for initialization,
  * adding commands, retrieving previous/next commands, and listing all commands.
  */
-export default abstract class HistoryStorage extends Service {
+export default abstract class HistoryStorage implements TokenRingService {
+  name = "HistoryStorage";
+  description = "A service for storing CLI history";
+
   /** Configuration options */
   public config: HistoryConfig;
   /** Current position in history list when navigating */
@@ -32,7 +35,6 @@ export default abstract class HistoryStorage extends Service {
    * Creates a new HistoryStorage instance
    */
   constructor(config: HistoryConfig = {}) {
-    super();
     this.config = {
       limit: 100,
       blacklist: [],

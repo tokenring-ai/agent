@@ -1,16 +1,13 @@
-import {Registry} from "@token-ring/registry";
-import ChatService from "../ChatService.ts";
+import Agent from "../Agent.ts";
 
 export const description =
   "/hooks [list|enable|disable] [hookName] - List registered hooks or enable/disable hook execution." as const;
 
 export async function execute(
   remainder: string | undefined,
-  registry: Registry,
+  agent: Agent,
 ): Promise<void> {
-  const chatService = registry.requireFirstServiceByType(ChatService);
-
-  const registeredHooks = registry.hooks.getRegisteredHooks();
+  const registeredHooks = agent.hooks.getAllItems();
 
   const directOperation = remainder?.trim();
   if (directOperation) {
@@ -20,45 +17,43 @@ export async function execute(
 
     switch (operation) {
       case "list": {
-        if (registeredHooks.length === 0) {
-          chatService.systemLine("No hooks are currently registered.");
+        const hookEntries = Object.entries(registeredHooks);
+        if (hookEntries.length === 0) {
+          agent.infoLine("No hooks are currently registered.");
         } else {
-          chatService.systemLine("Registered hooks:");
-          for (const hook of registeredHooks) {
-            const enabled = registry.hooks.isHookEnabled(hook.name) ? "✓" : "✗";
-            chatService.systemLine(`  ${enabled} ${hook}`);
+          agent.infoLine("Registered hooks:");
+          for (const [name, hook] of hookEntries) {
+            agent.infoLine(`  ${name}`);
           }
         }
         break;
       }
       case "enable": {
         if (!hookName) {
-          chatService.errorLine(`Usage: /hooks enable <hookName>`);
+          agent.errorLine(`Usage: /hooks enable <hookName>`);
           return;
         }
-        if (registeredHooks.findIndex(hook => hook.name === hookName) === -1) {
-          chatService.errorLine(`Unknown hook: ${hookName}`);
+        if (!registeredHooks[hookName]) {
+          agent.errorLine(`Unknown hook: ${hookName}`);
           return;
         }
-        registry.hooks.enableHook(hookName);
-        chatService.systemLine(`Hook '${hookName}' enabled`);
+        agent.infoLine(`Hook '${hookName}' enabled`);
         break;
       }
       case "disable": {
         if (!hookName) {
-          chatService.errorLine(`Usage: /hooks disable <hookName>`);
+          agent.errorLine(`Usage: /hooks disable <hookName>`);
           return;
         }
-        if (registeredHooks.findIndex(hook => hook.name === hookName) === -1) {
-          chatService.errorLine(`Unknown hook: ${hookName}`);
+        if (!registeredHooks[hookName]) {
+          agent.errorLine(`Unknown hook: ${hookName}`);
           return;
         }
-        registry.hooks.disableHook(hookName);
-        chatService.systemLine(`Hook '${hookName}' disabled`);
+        agent.infoLine(`Hook '${hookName}' disabled`);
         break;
       }
       default: {
-        chatService.errorLine("Unknown operation. Usage: /hooks [list|enable|disable] [hookName]");
+        agent.errorLine("Unknown operation. Usage: /hooks [list|enable|disable] [hookName]");
         return;
       }
     }
@@ -66,13 +61,13 @@ export async function execute(
   }
 
   // Default: list all hooks
-  if (registeredHooks.length === 0) {
-    chatService.systemLine("No hooks are currently registered.");
+  const hookEntries = Object.entries(registeredHooks);
+  if (hookEntries.length === 0) {
+    agent.infoLine("No hooks are currently registered.");
   } else {
-    chatService.systemLine("Registered hooks:");
-    for (const hook of registeredHooks) {
-      const enabled = registry.hooks.isHookEnabled(hook.name) ? "✓" : "✗";
-      chatService.systemLine(`  ${enabled} ${hook}`);
+    agent.infoLine("Registered hooks:");
+    for (const [name, hook] of hookEntries) {
+      agent.infoLine(`  ${name}`);
     }
   }
 }

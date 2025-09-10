@@ -1,10 +1,9 @@
 {
- "name": "@token-ring/chat",
+ "name": "@tokenring-ai/agent",
  "version": "0.1.0",
- "description": "Chat backend that creates the backbone for the Token Ring tools",
+ "description": "Agent package for TokenRing Coder.",
  "dependencies": {
-  "@token-ring/registry": "0.1.0",
-  "@token-ring/utility": "0.1.0",
+  "@tokenring-ai/utility": "0.1.0",
   "eventemitter3": "^5.0.1",
   "glob-gitignore": "^1.0.15",
   "uuid": "^11.1.0"

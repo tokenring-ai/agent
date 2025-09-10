@@ -1,25 +1,19 @@
-import {Registry} from "@token-ring/registry";
-import ChatService from "../ChatService.ts";
+import joinDefault from "@tokenring-ai/utility/joinDefault";
+import Agent from "../Agent.ts";
 
 export const description = "/settings - Show current chat settings." as const;
 
-export function execute(_remainder: string | undefined, registry: Registry): void {
-  const chatService = registry.requireFirstServiceByType(ChatService);
+export function execute(_remainder: string | undefined, agent: Agent): void {
+  const activeServices = agent.team.services.getItems()
+  const activeTools = agent.tools.getActiveItemNames();
 
-  const model = chatService.getModel() || "(none)";
-  const activeServices: string[] = registry.services.getServiceNames();
-  const activeTools: string[] = registry.tools.getEnabledToolNames();
-  const persona = chatService.getPersona();
-
-  chatService.systemLine("Current settings:");
-  chatService.systemLine(`Model: ${model}`);
-  chatService.systemLine(
-    `Active registry: ${activeServices.length > 0 ? activeServices.join(", ") : "(none)"}`,
+  agent.infoLine("Current settings:");
+  agent.infoLine(
+    `Active services: ${joinDefault(", ", activeServices.map(s => s.name), "No services active.")}`
   );
-  chatService.systemLine(
-    `Active tools: ${activeTools.length > 0 ? activeTools.join(", ") : "(none)"}`,
+  agent.infoLine(
+    `Active tools: ${joinDefault(", ", activeTools, "No tools enabled.")}`
   );
-  chatService.systemLine(`Persona: ${persona}`);
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -27,9 +21,7 @@ export function help(): string[] {
   return [
     "/settings",
     "  - Show current chat settings, including:",
-    "  - Model name",
     "  - Active services",
     "  - Active tools",
-    "  - Current mode",
   ];
 }

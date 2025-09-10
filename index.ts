@@ -1,9 +1,16 @@
+import * as chatCommands from "./chatCommands.ts";
 import packageJSON from './package.json' with {type: 'json'};
+import * as tools from "./tools.ts";
+import {TokenRingPackage} from "./types.js";
 
-export const name = packageJSON.name;
-export const version = packageJSON.version;
-export const description = packageJSON.description;
+export const packageInfo: TokenRingPackage = {
+  name: packageJSON.name,
+  version: packageJSON.version,
+  description: packageJSON.description,
+  chatCommands,
+  tools
+};
 
-export {default as ChatService} from "./ChatService.ts";
-export * as chatCommands from "./chatCommands.ts";
-export {default as HumanInterfaceService} from "./HumanInterfaceService.ts";
+export {default as Agent} from "./Agent.ts";
+export {default as AgentTeam} from "./AgentTeam.ts";
+export {type TokenRingPackage} from "./types.js";
