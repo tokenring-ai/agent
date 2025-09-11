@@ -21,90 +21,59 @@ export async function execute(
     throw new Error("Message is required");
   }
 
-  try {
     // Create a new agent of the specified type
-    const newAgent = await agent.team.createAgent(agentType);
+  const newAgent = await agent.team.createAgent(agentType);
 
+  try {
     agent.systemMessage(`Created new agent: ${newAgent.options.name} (${newAgent.id.slice(0, 8)})`);
 
     let response = "";
-    let hasResponse = false;
 
-    // Create an abort controller for the event stream
-    const abortController = new AbortController();
+    agent.setBusy("Waiting for agent response...");
+
+    newAgent.handleInput({message});
 
     // Promise to collect the response
-    const responsePromise = new Promise<void>((resolve) => {
-      const processEvents = async () => {
-        try {
-          for await (const event of newAgent.events(abortController.signal)) {
-            switch (event.type) {
-              case 'output.chat':
-                response += event.data.content;
-                hasResponse = true;
-                break;
-              case 'output.system':
-                // Include system messages in the response for debugging
-                if (event.data.level === 'error') {
-                  response += `[System Error: ${event.data.message}]\n`;
-                }
-                break;
-              case 'state.idle':
-                if (hasResponse) {
-                  // Agent has finished processing and we have a response
-                  resolve();
-                  return;
-                }
-                break;
-              case 'state.aborted':
-                resolve();
-                return;
-            }
+    for await (const event of newAgent.events(agent.getAbortSignal())) {
+      switch (event.type) {
+        case 'output.chat':
+          response += event.data.content;
+          agent.chatOutput(event.data.content)
+          break;
+        case 'output.system':
+          agent.systemMessage(event.data.message, event.data.level);
+          // Include system messages in the response for debugging
+          if (event.data.level === 'error') {
+            response += `[System Error: ${event.data.message}]\n`;
           }
-        } catch (error) {
-          if (!abortController.signal.aborted) {
-            console.error("Error processing agent events:", error);
+          break;
+        case 'state.idle':
+          if (response) {
+            return {
+              ok: true,
+              response: response.trim() || "[No response generated]"
+            };
+          } else {
+            return {
+              ok: false,
+              response: response.trim() || "[Something went wrong, No response generated]"
+            };
           }
-          resolve();
-        }
-      };
-
-      processEvents();
-    });
-
-    // Send the message to the new agent
-    await newAgent.handleInput({message});
-
-    // Wait for the response with a timeout
-    const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(() => {
-        abortController.abort("Response timeout");
-        resolve();
-      }, 30000); // 30 second timeout
-    });
-
-    await Promise.race([responsePromise, timeoutPromise]);
-
-    // Clean up the agent
-    await agent.team.deleteAgent(newAgent);
-
-    if (abortController.signal.aborted && abortController.signal.reason === "Response timeout") {
-      return {
-        ok: false,
-        error: "Agent response timed out after 30 seconds"
-      };
+        case 'state.aborted':
+          return {
+            ok: false,
+            response: response.trim() || "[Agent was terminated]"
+          };
+      }
     }
 
     return {
-      ok: true,
-      response: response.trim() || "[No response generated]"
-    };
-
-  } catch (error) {
-    return {
       ok: false,
-      error: `Failed to run agent: ${error instanceof Error ? error.message : String(error)}`
-    };
+      response: "[Agent ended prematurely]"
+    }
+  } finally {
+    // Clean up the agent
+    await agent.team.deleteAgent(newAgent);
   }
 }
 

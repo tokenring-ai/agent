@@ -1,4 +1,4 @@
-import Agent from "./Agent.js";
+import Agent, {AgentConfig} from "./Agent.js";
 import AgentTeam from "./AgentTeam.js";
 
 export type TokenRingChatCommand = {
@@ -39,6 +39,7 @@ export type TokenRingPackage = {
   tools?: Record<string, TokenRingToolDefinition>;
   chatCommands?: Record<string, TokenRingChatCommand>;
   hooks?: Record<string, Omit<Omit<HookConfig, "name">, "packageName">>;
+  agents?: Record<string, AgentConfig>;
 };
 
 export type MemoryItemMessage = {

@@ -1,9 +1,10 @@
+import {ChatInputMessage} from "@tokenring-ai/ai-client/client/AIChatClient";
 import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
 
 export type ContextItem = {
   id: string,
   compactable: boolean,
-  content: string,
+  content: ChatInputMessage[],
   createdAt: number,
   onDelete?: () => void,
 }

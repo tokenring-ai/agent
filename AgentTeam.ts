@@ -11,6 +11,17 @@ import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
 import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
 import {EventEmitter} from "eventemitter3";
 
+
+
+export interface AgentPersistentStorage {
+  storeState: (agent: Agent) => Promise<string>;
+  loadState: (stateId: string, agentTeam: AgentTeam) => Promise<Agent>;
+}
+
+export type AgentTeamConfig = {
+  persistentStorage: AgentPersistentStorage;
+}
+
 export default class AgentTeam implements TokenRingService {
   name = "AgentTeam";
   description = "A team of AI agents that work together";
@@ -26,6 +37,11 @@ export default class AgentTeam implements TokenRingService {
   getAgentConfigs = this.agentConfigRegistry.getAllItems;
   private agentInstanceRegistry = new KeyedRegistry<Agent>();
   private agents: Map<string, Agent> = new Map();
+  persistentStorage: AgentPersistentStorage;
+
+  constructor(config: AgentTeamConfig) {
+    this.persistentStorage = config.persistentStorage;
+  }
 
   /**
    * Log a system message
@@ -57,6 +73,11 @@ export default class AgentTeam implements TokenRingService {
             name: hookName,
             packageName: pkg.name
           });
+        }
+      }
+      if (pkg.agents) {
+        for (const agentName in pkg.agents) {
+          this.addAgentConfig(agentName, pkg.agents[agentName]);
         }
       }
       if (pkg.start) await pkg.start(this);
