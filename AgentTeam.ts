@@ -37,11 +37,7 @@ export default class AgentTeam implements TokenRingService {
   getAgentConfigs = this.agentConfigRegistry.getAllItems;
   private agentInstanceRegistry = new KeyedRegistry<Agent>();
   private agents: Map<string, Agent> = new Map();
-  persistentStorage: AgentPersistentStorage;
 
-  constructor(config: AgentTeamConfig) {
-    this.persistentStorage = config.persistentStorage;
-  }
 
   /**
    * Log a system message

@@ -3,8 +3,10 @@ import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import RegistryMultiSelector from "@tokenring-ai/utility/RegistryMultiSelector";
 import {v4 as uuid} from 'uuid'
 import {AgentEventEnvelope, AgentEvents, ResetWhat} from "./AgentEvents.js";
+import AgentCheckpointService from "./AgentCheckpointService.js";
+import {AgentCheckpointData} from "./AgentCheckpointProvider.js";
 import AgentTeam from "./AgentTeam.ts";
-import ContextStorage from "./ContextStorage.js";
+//import ContextStorage from "./ContextStorage.js";
 import {HumanInterfaceRequest} from "./HumanInterfaceRequest.js";
 import {HookConfig, HookType, TokenRingService, TokenRingTool} from "./types.js";
 
@@ -17,6 +19,8 @@ export interface AgentConfig {
   }
   ai: AIConfig;
   initialCommands: string[];
+  persistent?: boolean;
+  storagePath?: string;
 }
 
 export enum ColorName {
@@ -39,9 +43,10 @@ export enum ColorName {
 }
 
 export interface AgentStateSlice {
+  name: string;
   reset: (what: ResetWhat[]) => void;
-  //freeze: () => object;
-  //thaw: (state: object) => AgentStateSlice;
+  serialize: () => object;
+  deserialize: (data: object) => void;
 }
 
 
@@ -50,10 +55,10 @@ export default class Agent {
   readonly description = "Agent implementation";
 
   readonly id: string = uuid();
-  state = new Map<any, AgentStateSlice>();
+  state = new Map<string, AgentStateSlice>();
   tools: RegistryMultiSelector<TokenRingTool>;
   hooks: RegistryMultiSelector<HookConfig>;
-  contextStorage = new ContextStorage();
+  //contextStorage = new ContextStorage();
   requireFirstServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R;
   getFirstServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R | undefined;
   readonly team!: AgentTeam;
@@ -72,18 +77,47 @@ export default class Agent {
     this.team = agentTeam;
     this.options = options;
     this.tools = new RegistryMultiSelector(agentTeam.tools);
-    this.hooks = new RegistryMultiSelector(agentTeam.hooks)
+    this.hooks = new RegistryMultiSelector(agentTeam.hooks);
     this.requireFirstServiceByType = this.team.services.requireFirstItemByType;
     this.getFirstServiceByType = this.team.services.getFirstItemByType;
   }
 
+  restoreCheckpoint({ state }: AgentCheckpointData): void {
+    //this.contextStorage.fromJSON(state.contextStorage || []);
+    this.tools.setEnabledItems(state.toolsEnabled || []);
+    this.hooks.setEnabledItems(state.hooksEnabled || []);
+    for (const key in state.agentState) {
+      const slice = this.state.get(key);
+      if (slice) {
+        slice.deserialize(state.agentState[key]);
+      } else {
+        this.systemMessage(`State slice ${key} not found in agent state`);
+      }
+    }
+  }
+
+  generateCheckpoint(): AgentCheckpointData {
+    return {
+      agentId: this.id,
+      createdAt: Date.now(),
+      state: {
+        //contextStorage: this.contextStorage.toJSON(),
+        agentState: Object.fromEntries(
+          Array.from(this.state.entries()).map(([key, slice]) => [key, slice.serialize()])
+        ),
+        toolsEnabled: Array.from(this.tools.getActiveItemNames()),
+        hooksEnabled: Array.from(this.hooks.getActiveItemNames()),
+      }
+    };
+  }
+
 
   initializeState<S, T extends AgentStateSlice>(ClassType: new (props: S) => T, props: S): void {
-    this.state.set(ClassType, new ClassType(props));
+    this.state.set(ClassType.name, new ClassType(props));
   }
 
   mutateState<R, T extends AgentStateSlice>(ClassType: new (...args: any[]) => T, callback: (state: T) => R): R {
-    const state = this.state.get(ClassType) as T;
+    const state = this.state.get(ClassType.name) as T;
     if (!state) {
       throw new Error(`State slice ${ClassType.name} not found`);
     }
@@ -92,7 +126,7 @@ export default class Agent {
   }
 
   getState<T extends AgentStateSlice>(ClassType: new (...args: any[]) => T): T {
-    const stateSlice = this.state.get(ClassType);
+    const stateSlice = this.state.get(ClassType.name);
     if (stateSlice) {
       return stateSlice as T;
     } else {
@@ -223,6 +257,9 @@ export default class Agent {
     }
     // Also notify listeners
     this.emit('reset', {what});
+
+    // Auto-save after reset
+    this.autoSave();
   }
 
   async askHuman(request: HumanInterfaceRequest): Promise<any> {
@@ -265,6 +302,13 @@ export default class Agent {
     return this.abortController.signal;
   }
 
+  private autoSave(): void {
+    const storage = this.getFirstServiceByType(AgentCheckpointService);
+    if (storage) {
+      setTimeout(() => storage.saveAgentCheckpoint("Autosaved Checkpoint", this), 0);
+    }
+  }
+
   private emit<K extends keyof AgentEvents>(type: K, data: AgentEvents[K]): void {
     const envelope = {type, data} as AgentEventEnvelope;
     this.eventLog.push(envelope);
@@ -272,6 +316,11 @@ export default class Agent {
     this.eventWaiters = [];
     for (const waiter of waiters) {
       waiter(envelope);
+    }
+
+    // Auto-save on certain events
+    if (type === 'state.idle' || type === 'human.response' || type === 'reset') {
+      this.autoSave();
     }
   }
 

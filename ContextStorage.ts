@@ -21,11 +21,22 @@ export default class ContextStorage {
   }
 
   removeItem(id: string) {
+    const item = this.getItem(id);
+    if (item && item.onDelete) item.onDelete();
     this.registry.unregister(id);
   }
 
   getItemsInOrder(): ContextItem[] {
     const allItems = this.registry.getAllItems();
     return Object.values(allItems).sort((a, b) => (a.createdAt - b.createdAt));
+  }
+
+  // For persistence
+  toJSON(): ContextItem[] {
+    return this.getItemsInOrder();
+  }
+
+  fromJSON(items: ContextItem[]): void {
+    items.forEach(item => this.addItem(item));
   }
 }
