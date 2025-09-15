@@ -1,495 +1,228 @@
-# @tokenring‑ai/agent
+# Agent Package Documentation
 
-> **A modular, extensible framework for building AI‑driven agents, teams, and tooling.**  
-> The package provides a core **Agent** implementation, a **Team** manager, services for persistence, history, human interaction, and a plug‑in system for tools, chat commands, hooks, and custom services.
+## Overview
 
----
+The `@tokenring-ai/agent` package is a core component of the TokenRing AI system, designed to create, manage, and orchestrate AI agents. These agents can process commands, utilize tools, execute hooks, maintain state, and interact with users or other services through events and chat interfaces. The package supports building collaborative AI teams where agents can share resources like tools, commands, and storage. It emphasizes modularity via registries for extensibility, persistence through checkpoints, and asynchronous event handling for real-time interactions. This package is particularly suited for AI-driven applications involving natural language processing, task automation, and multi-agent workflows.
 
-## Table of Contents
+## Installation/Setup
 
-1. [Introduction](#introduction)
-2. [Core Concepts](#core-concepts)
- - [Agent](#agent)
- - [AgentTeam](#agentteam)
- - [Services](#services)
- - [Tools](#tools)
- - [Checkpoints](#checkpoints)
- - [Human Interface](#human-interface)
- - [History Storage](#history-storage)
- - [Events](#events)
-3. [Architecture Overview](#architecture-overview)
-4. [API Reference](#api-reference)
-5. [Installation](#installation)
-6. [Quick Start](#quick-start)
-7. [Usage Details](#usage-details)
- - [Built‑in Commands](#built‑in-commands)
- - [Custom Services / Tools / Human Interfaces](#custom-services--tools--human-interfaces)
-8. [Extending the Package](#extending-the-package)
-9. [Testing](#testing)
-10. [Contributing](#contributing)
-11. [License](#license)
+To use this package in a Node.js/TypeScript project:
 
----
+1. Ensure you have Node.js (v18+) and npm/yarn installed.
+2. Install the package and its peer dependencies:
+   ```
+   npm install @tokenring-ai/agent @tokenring-ai/utility @tokenring-ai/ai-client
+   ```
+   (Note: `@tokenring-ai/ai-client` is required for AI configurations.)
+3. For development, clone the repository and build:
+   ```
+   cd pkg/agent
+   npm install
+   npm run build  # Compiles TypeScript to JavaScript
+   ```
+4. Import and use as an ES module (package type is "module").
 
-## Introduction
+Environment variables or configs for AI services (e.g., API keys) should be set per the `@tokenring-ai/ai-client` documentation.
 
-`@tokenring-ai/agent` is the **core runtime** for the TokenRing ecosystem. It lets you:
+## Package Structure
 
-* Define **agent configurations** (model, prompts, visual style, etc.).
-* Spin up **multiple agents** that can cooperate via a shared **AgentTeam**.
-* Persist and restore agent state through **checkpoints**.
-* Hook into the chat lifecycle with **hooks** (pre‑/post‑completion, testing, etc.).
-* Expose **tools** that agents can invoke as part of a conversation.
-* Provide a **human interface** for interactive selections, confirmations, or free‑form input.
-* Store command **history** and expose a **service registry** for custom extensions.
+The package is organized as a TypeScript library with the following key directories and files:
 
-All of this is type‑safe, event‑driven, and designed for both CLI and programmatic use.
+- **Root files**:
+  - `package.json`: Defines the package metadata, dependencies, and exports.
+  - `index.ts`: Main entry point exporting core classes and package info.
+  - `types.ts`: Type definitions for tools, commands, hooks, services, etc.
+  - `Agent.ts`: Core `Agent` class implementation.
+  - `AgentTeam.ts`: Manages teams of agents and registries.
+  - `ContextStorage.ts`: Handles context items for agent memory.
+  - `HistoryStorage.ts`: Abstract base for CLI history management.
 
----
+- **Commands** (`commands/`):
+  - Files like `history.ts`, `checkpoint.ts`, `reset.ts`, `hook.ts`, `tool.ts`, `settings.ts`: Implement chat commands for agent control (e.g., saving checkpoints, resetting state).
 
-## Core Concepts
+- **Tools** (`tools/`):
+  - `runAgent.ts`: Tool to execute an agent.
+  - `listAgents.ts`: Tool to list available agents.
+  - `tools.ts`: Exports tools for the package.
 
-### Agent
+- **Other**:
+  - `AgentCheckpointService.ts`, `AgentCheckpointProvider.ts`: Handle agent state persistence.
+  - `AgentEvents.ts`: Defines event types for agent lifecycle.
+  - `chatCommands.ts`: Base chat command implementations.
+  - Config files: `tsconfig.json`, `vitest.config.ts` for building and testing.
+  - `LICENSE`: MIT license.
 
-*Implemented in `pkg/agent/Agent.ts`.*
+Directories like `commands/` and `tools/` contain modular extensions that can be registered dynamically.
 
-* **Lifecycle** – `initialize()` attaches services, runs `initialCommands`, then becomes idle.
-* **State slices** – Arbitrary state objects can be registered via `initializeState()` and accessed with `getState()` / `mutateState()`.
-* **Tool & Hook selectors** – `tools` and `hooks` are `RegistryMultiSelector`s that enable/disable items per‑session.
-* **Human interaction** – `askHuman(request)` emits a `human.request` event and returns a promise resolved when a response arrives.
-* **Event stream** – `events(signal)` yields `AgentEventEnvelope`s (chat, system, state changes, human I/O, etc.).
-* **Auto‑save** – After idle, human response, or reset, the agent automatically stores a checkpoint via `AgentCheckpointService` (if registered).
+## Core Components
 
 ### AgentTeam
 
-*Implemented in `pkg/agent/AgentTeam.ts`.*
+`AgentTeam` is the central orchestrator for managing multiple agents, packages, and shared resources. It uses registries to handle tools, commands, hooks, and services.
 
-* **Registries** – Holds collections of packages, services, chat commands, tools, hooks, and agent configs (`KeyedRegistry` / `TypedRegistry`).
-* **Package loading** – `addPackages(packages)` registers everything a package exports (tools, commands, hooks, agents) and runs optional `start` hooks.
-* **Agent creation** – `createAgent(type)` looks up the config, constructs an `Agent`, runs its `initialize()`, and tracks it in internal maps.
-* **Service lookup** – `requireFirstServiceByType` / `getFirstServiceByType` expose services to agents.
-* **Event bus** – `events` (via `eventemitter3`) lets the team broadcast system‑level messages (`serviceOutput`, `serviceError`).
+- **Key Methods**:
+  - `addPackages(packages: TokenRingPackage[])`: Registers tools, commands, hooks, and agents from packages. Starts package-specific initialization.
+  - `createAgent(type: string): Promise<Agent>`: Creates and initializes a new agent instance by type.
+  - `getAgents(): Agent[]`: Retrieves all active agents.
+  - `deleteAgent(agent: Agent): Promise<void>`: Shuts down and removes an agent.
 
-### Services
+- **Interactions**: Acts as a service itself (`implements TokenRingService`), emitting events for outputs/errors. Registries (e.g., `tools`, `chatCommands`) are shared across agents.
 
-All services implement the `TokenRingService` interface (`pkg/agent/types.ts`):
+### Agent
 
-```ts
-export interface TokenRingService {
-  name: string;
-  description: string;
-  start?(team: AgentTeam): Promise<void>;
-  stop?(team: AgentTeam): Promise<void>;
-  attach?(agent: Agent): Promise<void>;
-  detach?(agent: Agent): Promise<void>;
-  getMemories?(agent: Agent): AsyncGenerator<MemoryItemMessage>;
-  getAttentionItems?(agent: Agent): AsyncGenerator<AttentionItemMessage>;
+The `Agent` class represents an individual AI agent. It maintains state, processes inputs via commands, emits events, and integrates with tools/hooks/services.
+
+- **Description**: Configured via `AgentConfig`, an agent can be persistent, handle initial commands, and interact with AI services. It supports checkpointing for state restoration.
+
+- **Key Methods**:
+  - Constructor: `new Agent(agentTeam: AgentTeam, options: AgentConfig)`
+    - Initializes tools, hooks, and services from the team.
+  - `initialize(): Promise<void>`: Attaches services and runs initial commands.
+  - `handleInput({message: string}): Promise<void>`: Processes user input, dispatching to chat commands (e.g., `/help`, `/reset`).
+  - `generateCheckpoint(): AgentCheckpointData`: Serializes state, tools, and hooks for persistence.
+  - `restoreCheckpoint(data: AgentCheckpointData): void`: Deserializes and restores state.
+  - `events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope>`: Yields real-time events (e.g., 'output.chat', 'state.busy').
+  - `askHuman(request: HumanInterfaceRequest): Promise<any>`: Requests human input, resolving via `sendHumanResponse`.
+  - `reset(what: ResetWhat[])`: Resets specific state slices (e.g., memory, tools).
+
+- **State Management**:
+  - `initializeState(ClassType, props)`: Adds a state slice (implements `AgentStateSlice` with `serialize`/`deserialize`).
+  - `getState<T>(ClassType): T`: Retrieves a state slice.
+  - State slices handle serialization for checkpoints.
+
+- **Interactions**: Emits events for outputs (chat, reasoning, system), state changes (busy/idle), and human interactions. Uses team's registries for tools/hooks. Auto-saves checkpoints on idle/reset/response events.
+
+### ContextStorage
+
+Manages ordered context items (e.g., chat messages) for agent memory.
+
+- **Key Methods**:
+  - `addItem(item: ContextItem)`: Adds a context item with ID and optional delete callback.
+  - `getItemsInOrder(): ContextItem[]`: Returns sorted items by creation time.
+  - `toJSON()` / `fromJSON(items)`: For persistence.
+
+- **Interactions**: Can be integrated into agent state for maintaining conversation history.
+
+### HistoryStorage
+
+Abstract class for storing CLI command history, useful for interactive agent sessions.
+
+- **Key Methods** (abstract):
+  - `init()`: Setup storage.
+  - `add(command: string)`: Append to history.
+  - `getPrevious()` / `getNext(): string | null`: Navigate history.
+  - `getAll(): string[]`: List all entries.
+
+- **Configuration**: `HistoryConfig` with `limit` (default 100) and `blacklist`.
+
+- **Interactions**: Implements `TokenRingService` for team integration.
+
+### Other Components
+
+- **Tools and Hooks**: Registered via `TokenRingTool` and `HookConfig`. Tools have `execute` with Zod schemas; hooks run before/after chat completions.
+- **Chat Commands**: `TokenRingChatCommand` with `execute` and `help` methods for handling inputs like `/checkpoint` or `/tool`.
+- **Services**: `TokenRingService` interface for attachable components (e.g., memory providers via `getMemories()` generator).
+
+Components interact through the `AgentTeam`'s registries and the agent's event system, enabling modular extensions.
+
+## Usage Examples
+
+### 1. Creating an Agent Team and Adding Packages
+
+```typescript
+import { AgentTeam, TokenRingPackage } from '@tokenring-ai/agent';
+import { packageInfo as utilityPackage } from '@tokenring-ai/utility'; // Example package
+
+const team = new AgentTeam({ persistentStorage: /* implement AgentPersistentStorage */ });
+await team.addPackages([utilityPackage /*, other packages */]);
+
+const agent = await team.createAgent('myAgentType'); // Assumes config registered
+```
+
+### 2. Handling Agent Input and Events
+
+```typescript
+// Listen to events
+const eventIterator = agent.events(new AbortController().signal);
+for await (const event of eventIterator) {
+  if (event.type === 'output.chat') {
+    console.log('Agent says:', event.data.content);
+  } else if (event.type === 'state.idle') {
+    console.log('Agent is ready.');
+  }
 }
+
+// Process user input
+await agent.handleInput({ message: '/help' }); // Runs help command
+await agent.handleInput({ message: 'Hello, agent!' }); // Falls back to chat
 ```
 
-Key built‑in services:
+### 3. Checkpointing and Reset
 
-| Service | File | Purpose |
-|---------|------|---------|
-| **AgentCheckpointService** | `AgentCheckpointService.ts` | Persists agent state via a `AgentCheckpointProvider`. |
-| **HistoryStorage** (abstract) | `HistoryStorage.ts` | Base class for CLI history providers (e.g., in‑memory, file‑based). |
-| **HumanInterfaceProvider** | `HumanInterfaceProvider.ts` | Supplies UI primitives (`ask`, `openWebPage`, selections, confirmations). |
+```typescript
+// Generate and save checkpoint (via service)
+const checkpoint = agent.generateCheckpoint();
+await storage.saveAgentCheckpoint('Manual save', agent);
 
-### Tools
+// Restore
+await agent.restoreCheckpoint(checkpoint);
 
-*Defined in packages (`TokenRingPackage.tools`) and wrapped with a `packageName` prefix.*  
-Tool definition (`TokenRingTool`):
-
-```ts
-export type TokenRingTool = {
-  packageName: string;
-} & TokenRingToolDefinition;
+// Reset specific state
+agent.reset(['memory', 'tools']);
 ```
 
-`TokenRingToolDefinition` includes:
+## Configuration Options
 
-* `name`, `description`
-* `execute(input, agent)` – returns a string or object.
-* `inputSchema` – a Zod schema for validation.
-* Optional `start` / `stop` lifecycle hooks.
+- **AgentConfig**:
+  - `name: string`: Agent identifier.
+  - `description: string`: Purpose.
+  - `visual: { color: ColorName }`: UI color (e.g., 'blue').
+  - `ai: AIConfig`: From `@tokenring-ai/ai-client` for LLM integration.
+  - `initialCommands: string[]`: Startup messages/commands.
+  - `persistent?: boolean`: Enable checkpointing.
+  - `storagePath?: string`: Custom storage location.
 
-Built‑in tools (see `pkg/agent/tools/*.ts`):
+- **Team Config** (`AgentTeamConfig`): `persistentStorage: AgentPersistentStorage` for state loading/saving.
 
-* `agent/list` – lists registered agent types.
-* `agent/run` – creates a temporary agent, sends a message, returns its response.
+- **Hooks/Tools/Commands**: Configured via `TokenRingPackage` records, registered dynamically.
 
-### Checkpoints
-
-*Implemented via `AgentCheckpointProvider` (interface) and `AgentCheckpointService` (service).*
-
-* **Store** – `saveAgentCheckpoint(name, agent)` returns a checkpoint ID.
-* **Restore** – `restoreAgentCheckpoint(id, agent)` loads state and calls `agent.restoreCheckpoint()`.
-* **List** – `listCheckpoints()` returns lightweight metadata (`AgentCheckpointListItem`).
-
-Checkpoint data (`AgentCheckpointData`) captures:
-
-* `agentId`, `createdAt`
-* `state.agentState` (serialized slices)
-* `toolsEnabled`, `hooksEnabled`
-
-### Human Interface
-
-`HumanInterfaceProvider` defines the contract for UI interactions. The `HumanInterfaceRequest` union (see `HumanInterfaceRequest.ts`) includes:
-
-* `askForConfirmation`
-* `openWebPage`
-* `askForSelection`
-* `ask`
-* `askForMultipleSelections`
-* `askForSingleTreeSelection`
-* `askForMultipleTreeSelection`
-
-Agents emit `human.request` events; a UI layer (CLI, VS Code extension, web UI) listens, presents the request, and calls `agent.sendHumanResponse(sequence, response)`.
-
-### History Storage
-
-`HistoryStorage` (abstract) defines:
-
-* `init()`, `add(command)`, `getPrevious()`, `getNext()`, `getAll()`
-* Configurable `limit` and `blacklist`.
-
-Concrete implementations can be provided by the host application and registered as a service.
-
-### Events
-
-All runtime activity is expressed via **typed events** (`AgentEvents` in `AgentEvents.ts`). Event envelope types (`AgentEventEnvelope`) are emitted through the agent’s internal `emit()` method and can be consumed via `agent.events(abortSignal)`.
-
-Key event categories:
-
-| Category | Example Types |
-|----------|---------------|
-| Output   | `output.chat`, `output.reasoning`, `output.system` |
-| State    | `state.busy`, `state.notBusy`, `state.idle`, `state.aborted` |
-| Input    | `input.received` |
-| Human    | `human.request`, `human.response` |
-| Control  | `reset` |
-
----
-
-## Architecture Overview
-
-```
-+-------------------+          +-------------------+
-|   AgentTeam       |<-------->|   TokenRingPackage|
-| (registries, svc) |          | (tools, cmds,…)   |
-+-------------------+          +-------------------+
-        |                               |
-        | creates                        |
-        v                               v
-+-------------------+          +-------------------+
-|      Agent        |<------->|   Services (e.g.  |
-| (state, tools,   |  events  |   Checkpoint,    |
-|  hooks, UI)      |          |   History, …)    |
-+-------------------+          +-------------------+
-        |
-        | emits AgentEventEnvelope
-        v
-+-------------------+
-|   Human UI Layer  |
-| (CLI / VSCode)   |
-+-------------------+
-```
-
-* **AgentTeam** is the central registry and lifecycle manager.
-* **Agent** is a lightweight runtime that delegates to the team for services, tools, and hooks.
-* **Services** are pluggable, can attach to agents, and expose additional capabilities (persistence, history, etc.).
-* **Tools** are invoked by agents via the `tools` selector; they can be enabled/disabled per session.
-* **Human UI** consumes `human.request` events and replies via `sendHumanResponse`.
-
-All components are fully typed, making it straightforward to write custom extensions.
-
----
+- Environment: No specific vars; AI configs handle API keys.
 
 ## API Reference
 
-### Exported from `pkg/agent/index.ts`
-
-| Export | Type | Description |
-|--------|------|-------------|
-| `packageInfo` | `TokenRingPackage` | Metadata for the `@tokenring-ai/agent` package (name, version, description, exported chat commands & tools). |
-| `Agent` | `class` | Core agent implementation (see **Agent** section). |
-| `AgentTeam` | `class` | Team/registry manager (see **AgentTeam**). |
-| `AgentStateStorage` | `class` (actually `AgentCheckpointService`) | Service that persists checkpoints. |
-| `TokenRingPackage` | `type` | Shape of a package (name, version, description, optional `start`, `tools`, `chatCommands`, `hooks`, `agents`). |
-
-### Key Types (re‑exported)
-
-| Type | Source | Meaning |
-|------|--------|---------|
-| `AgentConfig` | `Agent.ts` | Configuration required to instantiate an agent (name, description, visual, AI model config, initial commands, persistence options). |
-| `AgentEvents` / `AgentEventEnvelope` | `AgentEvents.ts` | Typed event definitions emitted by agents. |
-| `TokenRingService` | `types.ts` | Base interface for all services. |
-| `TokenRingTool` / `TokenRingToolDefinition` | `types.ts` | Definition of a tool that agents can call. |
-| `TokenRingChatCommand` | `types.ts` | Definition of a slash‑command (`/reset`, `/tools`, …). |
-| `HookConfig` | `types.ts` | Hook registration (name, package, callbacks). |
-| `HistoryConfig` | `HistoryStorage.ts` | Configuration for history storage. |
-| `HumanInterfaceRequest` | `HumanInterfaceRequest.ts` | Union of all possible UI requests. |
-
-### Important Methods
-
-| Class / Service | Method | Purpose |
-|-----------------|--------|---------|
-| `AgentTeam` | `addPackages(packages)` | Register a list of `TokenRingPackage`s. |
-| `AgentTeam` | `createAgent(type)` | Instantiate an agent of a registered type. |
-| `AgentTeam` | `deleteAgent(agent)` | Gracefully shut down and remove an agent. |
-| `Agent` | `initialize()` | Attach services, run initial commands, set idle. |
-| `Agent` | `handleInput({message})` | Parse slash commands or treat as chat. |
-| `Agent` | `askHuman(request)` | Emit a human request and await response. |
-| `Agent` | `events(abortSignal)` | Async generator yielding all emitted events. |
-| `AgentCheckpointService` | `saveAgentCheckpoint(name, agent)` | Persist current state. |
-| `AgentCheckpointService` | `restoreAgentCheckpoint(id, agent)` | Load a checkpoint into an agent. |
-| `AgentCheckpointService` | `listCheckpoints()` | Retrieve checkpoint metadata. |
-| `HistoryStorage` (subclass) | `add(command)` | Store a command in history. |
-| `HumanInterfaceProvider` | Various `ask*` methods | UI primitives that a concrete provider must implement. |
-
----
-
-## Installation
-
-```bash
-# Using npm
-npm install @tokenring-ai/agent
-
-# Using yarn
-yarn add @tokenring-ai/agent
-```
-
-The package has peer dependencies on:
-
-* `@tokenring-ai/utility`
-* `@tokenring-ai/ai-client`
-* `eventemitter3`
-* `zod`
-* `uuid`
-
-Make sure they are installed (most are pulled in automatically).
-
----
-
-## Quick Start
-
-Below is a minimal example that creates a team, registers a simple package, spins up an agent, and runs a command.
-
-```ts
-import { AgentTeam, Agent, packageInfo } from '@tokenring-ai/agent';
-import { TokenRingPackage } from '@tokenring-ai/agent/types';
-
-// 1️⃣ Create the team
-const team = new AgentTeam({
-  persistentStorage: {
-    // Simple in‑memory storage for demo purposes
-    async storeState(agent) { return 'dummy-id'; },
-    async loadState(id, team) { throw new Error('not implemented'); },
-  },
-});
-
-// 2️⃣ Register the built‑in package (exposes /tools, /reset, etc.)
-await team.addPackages([packageInfo]);
-
-// 3️⃣ Register a custom agent type (example config)
-team.addAgentConfig('demo', {
-  name: 'Demo Agent',
-  description: 'A tiny demo agent',
-  visual: { color: 'green' },
-  ai: { model: 'gpt-4o-mini', temperature: 0.7 },
-  initialCommands: [], // optional startup commands
-});
-
-// 4️⃣ Create an agent instance
-const agent: Agent = await team.createAgent('demo');
-
-// 5️⃣ Send a chat message (treated as a normal chat)
-await agent.handleInput({ message: 'Hello, world!' });
-
-// 6️⃣ Listen for output (optional)
-for await (const ev of agent.events(agent.getAbortSignal())) {
-  if (ev.type === 'output.chat') {
-    console.log('Agent says:', ev.data.content);
-  }
-}
-```
-
-### Using Built‑in Commands
-
-```ts
-// Enable a tool
-await agent.handleInput({ message: '/tools enable agent/list' });
-
-// List available agents
-await agent.handleInput({ message: '/agents' }); // (if a /agents command exists)
-
-// Create a checkpoint
-await agent.handleInput({ message: '/checkpoint create "Before major change"' });
-```
-
----
-
-## Usage Details
-
-### Built‑in Commands
-
-| Command | Syntax | Description |
-|---------|--------|-------------|
-| **/reset** | `/reset [chat|memory|settings|all]…` | Clears selected parts of the agent’s state. |
-| **/tools** | `/tools [enable|disable|set] <tool…>` | List, enable, disable, or set the active tool set. Without arguments opens an interactive tree selection. |
-| **/checkpoint** | `/checkpoint create|restore|list` | Create a checkpoint, restore by ID, or browse checkpoints via an interactive tree. |
-| **/history** | `/history` | Browse checkpoint history (same UI as `/checkpoint list`). |
-| **/settings** | `/settings` | Shows currently active services and tools. |
-| **/hooks** | `/hooks [list|enable|disable] <hook>` | Manage hook registration and activation. |
-| **/agents** (provided by packages) | `/agents` | List registered agent types (via `agent/list` tool). |
-| **/run** (tool) | `/run agentType "message"` | Creates a temporary agent, sends a message, returns its response. |
-
-All commands are defined under `pkg/agent/commands/*.ts` and exported via `chatCommands.ts`.
-
-### Custom Services / Tools / Human Interfaces
-
-#### Adding a Service
-
-```ts
-import { TokenRingService } from '@tokenring-ai/agent/types';
-
-class MyLoggingService implements TokenRingService {
-  name = 'MyLoggingService';
-  description = 'Logs every chat message to an external system';
-
-  async attach(agent: Agent) {
-    // Listen to chat output events
-    agent.events(agent.getAbortSignal()).then(async function* (ev) {
-      for await (const e of ev) {
-        if (e.type === 'output.chat') {
-          await externalLog(e.data.content);
-        }
-      }
-    });
-  }
-}
-
-// Register
-team.services.register(new MyLoggingService());
-```
-
-#### Adding a Tool
-
-```ts
-import { z } from 'zod';
-import { TokenRingToolDefinition } from '@tokenring-ai/agent/types';
-import { Agent } from '@tokenring-ai/agent';
-
-export const myTool: TokenRingToolDefinition = {
-  name: 'my/tool',
-  description: 'Returns the current date/time',
-  inputSchema: z.object({}),
-  async execute(_, agent) {
-    const now = new Date().toISOString();
-    agent.chatOutput(`Current time: ${now}`);
-    return now;
-  },
-};
-
-// In a package definition:
-export const myPackage: TokenRingPackage = {
-  name: 'my-package',
-  version: '0.1.0',
-  description: 'Demo package',
-  tools: { 'my/tool': myTool },
-};
-await team.addPackages([myPackage]);
-```
-
-#### Implementing a Human Interface Provider
-
-Create a class that implements the methods in `HumanInterfaceProvider` (e.g., a VS Code extension, a web UI, or a simple CLI prompt). Register it as a service:
-
-```ts
-class CliHumanProvider implements HumanInterfaceProvider {
-  name = 'CliHumanProvider';
-  description = 'CLI prompts using stdin/stdout';
-
-  async askForConfirmation({ message, default: def }) {
-    // simple node prompt...
-  }
-  async openWebPage(url) { /* maybe spawn a browser */ }
-  async askForSelection({ title, items }) { /* prompt */ }
-  async ask(question) { /* multiline input */ }
-  async askForMultipleSelections({ title, items }) { /* prompt */ }
-  async askForSingleTreeSelection({ message, tree }) { /* tree UI */ }
-  async askForMultipleTreeSelection({ message, tree }) { /* tree UI */ }
-}
-
-// Register
-team.services.register(new CliHumanProvider());
-```
-
-Now any `agent.askHuman(request)` will be satisfied by this provider.
-
----
-
-## Extending the Package
-
-### Writing New Services
-
-1. Implement `TokenRingService`.
-2. Optionally provide `attach`/`detach` to hook into agents.
-3. Register with `team.services.register(new MyService())`.
-
-### Writing New Tools
-
-1. Define a `TokenRingToolDefinition` (name, description, Zod schema, `execute`).
-2. Add to a `TokenRingPackage.tools` map.
-3. Register the package via `team.addPackages([myPackage])`.
-
-### Writing New Hooks
-
-Hooks are simple objects with optional callbacks:
-
-```ts
-const myHook: HookConfig = {
-  name: 'logBefore',
-  packageName: 'my-package',
-  description: 'Logs input before chat completion',
-  beforeChatCompletion: async (agent, ...args) => {
-    console.log('About to call LLM with', args);
-  },
-};
-```
-
-Add to `TokenRingPackage.hooks` and register the package.
-
-### Custom Human Interface Providers
-
-Implement the methods in `HumanInterfaceProvider`. Register as a service. The UI layer must listen for `human.request` events and call `agent.sendHumanResponse(sequence, response)`.
-
----
-
-## Testing
-
-The repository includes a Vitest configuration (`vitest.config.ts`). To run the test suite:
-
-```bash
-npm run test   # or `npx vitest`
-```
-
-Add new test files under `test/**/*.test.ts`. The test environment is Node, and globals (`describe`, `it`, `expect`) are available.
-
----
-
-## Contributing
-
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feat/my‑feature`).
-3. Write code and accompanying tests.
-4. Run `npm run lint && npm run test` to ensure quality.
-5. Submit a Pull Request with a clear description of the change.
-
-Please follow the existing code style (TypeScript, 2‑space indentation, explicit types) and update the README if you add public APIs.
-
----
-
-## License
-
-`@tokenring-ai/agent` is released under the **MIT License**. See the `LICENSE` file in the repository for full terms.
+- **AgentTeam**:
+  - `addPackages(packages: TokenRingPackage[]): Promise<void>`
+  - `createAgent(type: string): Promise<Agent>`
+  - `getAgents(): Agent[]`
+
+- **Agent**:
+  - `new Agent(team: AgentTeam, config: AgentConfig)`
+  - `handleInput(input: {message: string}): Promise<void>`
+  - `events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope>`
+  - `generateCheckpoint(): AgentCheckpointData`
+  - `askHuman(request: HumanInterfaceRequest): Promise<any>`
+
+- **Types**:
+  - `TokenRingTool`: `{ name, description, execute, inputSchema }`
+  - `TokenRingChatCommand`: `{ description, execute(input: string, agent: Agent) }`
+  - `HookConfig`: `{ name, beforeChatCompletion?, afterChatCompletion? }`
+  - `AgentStateSlice`: `{ reset(what: ResetWhat[]), serialize(): object, deserialize(data: object) }`
+
+See `types.ts` for full signatures.
+
+## Dependencies
+
+- `@tokenring-ai/utility` (^0.1.0): Registries, logging utilities.
+- `eventemitter3` (^5.0.1): Event handling.
+- `glob-gitignore` (^1.0.15): File globbing with .gitignore support.
+- `uuid` (^11.1.0): ID generation.
+- Dev: `typescript` (^5.9.2).
+
+Peer: `@tokenring-ai/ai-client` for AI integration (not listed, but imported).
+
+## Contributing/Notes
+
+- **Building/Testing**: Run `npm run build` for compilation. Use Vitest for tests (`npm test`).
+- **Extending**: Implement `TokenRingPackage` to add custom agents/tools/commands.
+- **Limitations**: Early version (0.1.0); checkpointing relies on external storage services. Human input requires manual resolution via `sendHumanResponse`. No built-in LLM; configure via AI config.
+- Contributions: Fork, add features/tests, submit PRs. Follow TypeScript best practices and MIT license.
