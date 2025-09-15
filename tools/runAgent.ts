@@ -31,7 +31,7 @@ export async function execute(
 
     agent.setBusy("Waiting for agent response...");
 
-    newAgent.handleInput({message});
+    let inputSent = false;
 
     // Promise to collect the response
     for await (const event of newAgent.events(agent.getAbortSignal())) {
@@ -48,7 +48,12 @@ export async function execute(
           }
           break;
         case 'state.idle':
-          if (response) {
+          console.log("Agent is idle");
+          if (!inputSent) {
+            inputSent = true;
+            console.log("Sending message to agent:", message);
+            newAgent.handleInput({message});
+          } else if (response) {
             return {
               ok: true,
               response: response.trim() || "[No response generated]"
@@ -59,6 +64,7 @@ export async function execute(
               response: response.trim() || "[Something went wrong, No response generated]"
             };
           }
+          break;
         case 'state.aborted':
           return {
             ok: false,
