@@ -1,3 +1,4 @@
+import trimMiddle from "@tokenring-ai/utility/trimMiddle";
 import {z} from "zod";
 import Agent from "../Agent.js";
 
@@ -7,7 +8,7 @@ export const name = "agent/run";
  * Creates a new agent, sends it a message, and waits for the response
  */
 export async function execute(
-  {agentType, message}: { agentType?: string; message?: string },
+  {agentType, message, context}: { agentType?: string; message?: string; context?: string },
   agent: Agent
 ): Promise<{
   ok: boolean;
@@ -51,17 +52,21 @@ export async function execute(
           console.log("Agent is idle");
           if (!inputSent) {
             inputSent = true;
+
+            if (context) {
+              message = `${message}\n\nImportant Context:\n${context}`;
+            }
             console.log("Sending message to agent:", message);
             newAgent.handleInput({message});
           } else if (response) {
             return {
               ok: true,
-              response: response.trim() || "[No response generated]"
+              response: trimMiddle(response, 300, 500),
             };
           } else {
             return {
               ok: false,
-              response: response.trim() || "[Something went wrong, No response generated]"
+              response: "[Something went wrong, No response generated]"
             };
           }
           break;
@@ -89,4 +94,5 @@ export const description =
 export const inputSchema = z.object({
   agentType: z.string().describe("The type of agent to create (use agent/list to see available types)."),
   message: z.string().describe("The message to send to the agent."),
+  context: z.string().describe("Important contextual information to pass to the agent, such as file names, task plans, descriptions, instructions, etc. This information is critical to proper agent functionality, and should be detailed and comprehensive."),
 });
