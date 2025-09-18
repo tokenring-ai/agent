@@ -94,5 +94,5 @@ export const description =
 export const inputSchema = z.object({
   agentType: z.string().describe("The type of agent to create (use agent/list to see available types)."),
   message: z.string().describe("The message to send to the agent."),
-  context: z.string().describe("Important contextual information to pass to the agent, such as file names, task plans, descriptions, instructions, etc. This information is critical to proper agent functionality, and should be detailed and comprehensive."),
+  context: z.string().describe("Important contextual information to pass to the agent, such as file names, task plans, descriptions, instructions, etc. This information is critical to proper agent functionality, and should be detailed and comprehensive. It needs to explain absolutely everything to the agent that will be dispatched. The ONLY information this agent has is the information provided here."),
 });
