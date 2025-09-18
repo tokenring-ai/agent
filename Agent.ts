@@ -9,13 +9,13 @@ import AgentTeam from "./AgentTeam.ts";
 //import ContextStorage from "./ContextStorage.js";
 import {HumanInterfaceRequest} from "./HumanInterfaceRequest.js";
 import {HookConfig, HookType, TokenRingService, TokenRingTool} from "./types.js";
-
+import type {ChalkInstance} from "chalk";
 
 export interface AgentConfig {
   name: string;
   description: string;
   visual: {
-    color: keyof typeof ColorName;
+    color: keyof ChalkInstance;
   }
   ai: AIConfig;
   initialCommands: string[];
