@@ -8,6 +8,7 @@ import {AgentCheckpointData} from "./AgentCheckpointProvider.js";
 import AgentTeam from "./AgentTeam.ts";
 //import ContextStorage from "./ContextStorage.js";
 import {HumanInterfaceRequest} from "./HumanInterfaceRequest.js";
+import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {HookConfig, HookType, TokenRingService, TokenRingTool} from "./types.js";
 import type {ChalkInstance} from "chalk";
 
@@ -48,7 +49,6 @@ export interface AgentStateSlice {
   serialize: () => object;
   deserialize: (data: object) => void;
 }
-
 
 export default class Agent {
   readonly name = "Agent";
@@ -138,6 +138,8 @@ export default class Agent {
    * Initialize the agent with commands and services
    */
   async initialize(): Promise<void> {
+    this.initializeState(CommandHistoryState, {});
+
     for (const service of this.team.services.getItems()) {
       if (service.attach) await service.attach(this);
     }
@@ -161,6 +163,10 @@ export default class Agent {
    */
   async handleInput({message}: { message: string }): Promise<void> {
     message = message.trim();
+
+    this.mutateState(CommandHistoryState, state => {
+      state.commands.push(message);
+    })
 
     let commandName = "chat";
     let remainder = message.replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {

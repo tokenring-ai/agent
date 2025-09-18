@@ -27,6 +27,7 @@ export type AskForMultipleSelectionOptions = {
 
 export type AskForCommandOptions = {
   autoCompletion?: string[];
+  history? : string[];
 };
 
 export type AskForSingleTreeSelectionOptions = {
