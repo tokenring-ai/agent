@@ -201,6 +201,7 @@ export default class Agent {
       }
     } finally {
       this.setIdle();
+      this.saveCheckpoint(message);
     }
   }
 
@@ -263,9 +264,6 @@ export default class Agent {
     }
     // Also notify listeners
     this.emit('reset', {what});
-
-    // Auto-save after reset
-    this.autoSave();
   }
 
   async askHuman(request: HumanInterfaceRequest): Promise<any> {
@@ -308,10 +306,10 @@ export default class Agent {
     return this.abortController.signal;
   }
 
-  private autoSave(): void {
+  private saveCheckpoint(message: string): void {
     const storage = this.getFirstServiceByType(AgentCheckpointService);
     if (storage) {
-      setTimeout(() => storage.saveAgentCheckpoint("Autosaved Checkpoint", this), 0);
+      setTimeout(() => storage.saveAgentCheckpoint(message, this), 0);
     }
   }
 
@@ -324,10 +322,7 @@ export default class Agent {
       waiter(envelope);
     }
 
-    // Auto-save on certain events
-    if (type === 'state.idle' || type === 'human.response' || type === 'reset') {
-      this.autoSave();
-    }
+
   }
 
 }
