@@ -1,16 +1,16 @@
 import {AIConfig} from "@tokenring-ai/ai-client/AIService";
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import RegistryMultiSelector from "@tokenring-ai/utility/RegistryMultiSelector";
+import type {ChalkInstance} from "chalk";
 import {v4 as uuid} from 'uuid'
-import {AgentEventEnvelope, AgentEvents, ResetWhat} from "./AgentEvents.js";
-import AgentCheckpointService from "./AgentCheckpointService.js";
 import {AgentCheckpointData} from "./AgentCheckpointProvider.js";
+import AgentCheckpointService from "./AgentCheckpointService.js";
+import {AgentEventEnvelope, AgentEvents, ResetWhat} from "./AgentEvents.js";
 import AgentTeam from "./AgentTeam.ts";
 //import ContextStorage from "./ContextStorage.js";
 import {HumanInterfaceRequest} from "./HumanInterfaceRequest.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {HookConfig, HookType, TokenRingService, TokenRingTool} from "./types.js";
-import type {ChalkInstance} from "chalk";
 
 export interface AgentConfig {
   name: string;
@@ -22,6 +22,7 @@ export interface AgentConfig {
   initialCommands: string[];
   persistent?: boolean;
   storagePath?: string;
+  type: "interactive" | "background";
 }
 
 export enum ColorName {
@@ -48,6 +49,7 @@ export interface AgentStateSlice {
   reset: (what: ResetWhat[]) => void;
   serialize: () => object;
   deserialize: (data: object) => void;
+  persistToSubAgents?: boolean;
 }
 
 export default class Agent {
@@ -59,8 +61,8 @@ export default class Agent {
   tools: RegistryMultiSelector<TokenRingTool>;
   hooks: RegistryMultiSelector<HookConfig>;
   //contextStorage = new ContextStorage();
-  requireFirstServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R;
-  getFirstServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R | undefined;
+  requireServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R;
+  getServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R | undefined;
   readonly team!: AgentTeam;
   options: AgentConfig;
   private sequenceCounter = 0;
@@ -78,8 +80,8 @@ export default class Agent {
     this.options = options;
     this.tools = new RegistryMultiSelector(agentTeam.tools);
     this.hooks = new RegistryMultiSelector(agentTeam.hooks);
-    this.requireFirstServiceByType = this.team.services.requireFirstItemByType;
-    this.getFirstServiceByType = this.team.services.getFirstItemByType;
+    this.requireServiceByType = this.team.services.requireItemByType;
+    this.getServiceByType = this.team.services.getItemByType;
   }
 
   restoreCheckpoint({ state }: AgentCheckpointData): void {
@@ -252,6 +254,10 @@ export default class Agent {
     this.emit('state.idle', {});
   }
 
+  requestExit() {
+    this.emit('state.exit', {});
+  }
+
   requestAbort(reason: string) {
     this.emit('state.aborted', {reason});
     this.abortController.abort(reason);
@@ -307,7 +313,7 @@ export default class Agent {
   }
 
   private saveCheckpoint(message: string): void {
-    const storage = this.getFirstServiceByType(AgentCheckpointService);
+    const storage = this.getServiceByType(AgentCheckpointService);
     if (storage) {
       setTimeout(() => storage.saveAgentCheckpoint(message, this), 0);
     }
@@ -321,8 +327,5 @@ export default class Agent {
     for (const waiter of waiters) {
       waiter(envelope);
     }
-
-
   }
-
 }

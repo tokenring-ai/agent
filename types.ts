@@ -42,18 +42,15 @@ export type TokenRingPackage = {
   agents?: Record<string, AgentConfig>;
 };
 
-export type MemoryItemMessage = {
-  role: "user" | "system";
-  content: string;
-};
-
-export type AttentionItemMessage = {
-  role: "user" | "system";
+export type ContextItemPosition = "afterSystemMessage" | "afterPriorMessages" | "afterCurrentMessage";
+export type ContextItem = {
+  role: "system" | "user";
+  position: ContextItemPosition;
   content: string;
 };
 
 export interface TokenRingService {
-  name: string;
+  name: string; // Must match class name
   description: string;
 
   start?(agentTeam: AgentTeam): Promise<void>;
@@ -64,7 +61,5 @@ export interface TokenRingService {
 
   detach?(agent: Agent): Promise<void>;
 
-  getMemories?(agent: Agent): AsyncGenerator<MemoryItemMessage>;
-
-  getAttentionItems?(agent: Agent): AsyncGenerator<AttentionItemMessage>;
+  getContextItems?(agent: Agent): AsyncGenerator<ContextItem>;
 }

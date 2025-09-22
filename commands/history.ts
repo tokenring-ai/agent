@@ -1,5 +1,5 @@
 import Agent from "../Agent.ts";
-import {AgentCheckpointListItem, StoredAgentCheckpoint} from "../AgentCheckpointProvider.js";
+import {AgentCheckpointListItem} from "../AgentCheckpointProvider.js";
 import AgentCheckpointService from "../AgentCheckpointService.js";
 
 export const description: string = "/history - Browse agent checkpoints";
@@ -8,7 +8,7 @@ export async function execute(
   _remainder: string | undefined,
   agent: Agent,
 ): Promise<void> {
-  const checkpointStorage = agent.requireFirstServiceByType(AgentCheckpointService);
+  const checkpointStorage = agent.requireServiceByType(AgentCheckpointService);
 
     // Get all agent checkpoints
     const checkpoints = await checkpointStorage.listCheckpoints();

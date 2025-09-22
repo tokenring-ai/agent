@@ -11,6 +11,7 @@ export interface AgentEvents {
   'state.notBusy': {};
   'state.idle': {};
   'state.aborted': { reason: string };
+  'state.exit': {};
   'input.received': { message: string };
   'human.request': { request: HumanInterfaceRequest; sequence: number };
   'human.response': { responseTo: number; response: any };
@@ -25,6 +26,7 @@ export type AgentEventEnvelope =
   | { type: 'state.notBusy'; data: {} }
   | { type: 'state.idle'; data: {} }
   | { type: 'state.aborted'; data: { reason: string } }
+  | { type: 'state.exit'; data: {} }
   | { type: 'input.received'; data: { message: string } }
   | { type: 'human.request'; data: { request: HumanInterfaceRequest; sequence: number } }
   | { type: 'human.response'; data: { responseTo: number; response: any } }

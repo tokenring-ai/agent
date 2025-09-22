@@ -15,7 +15,7 @@ export async function execute(
   agent: Agent,
 ): Promise<void> {
   const checkpointService =
-    agent.requireFirstServiceByType(AgentCheckpointService);
+    agent.requireServiceByType(AgentCheckpointService);
 
   const [action, ...args] = (remainder || "").trim().split(/\s+/);
 
