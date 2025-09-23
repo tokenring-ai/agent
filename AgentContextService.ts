@@ -5,9 +5,6 @@ export default class AgentContextService implements TokenRingService {
   name = "AgentContextService";
   description = "Dispatches sub-agents to handle tasks";
 
-  /**
-   * Asynchronously yields memories from manually selected files.
-   */
   async* getContextItems(agent: Agent): AsyncGenerator<ContextItem> {
     if (agent.tools.getActiveItemNames().has("@tokenring-ai/agent/runAgent")) {
       // Get the list of available agent types from the agent team

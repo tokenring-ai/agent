@@ -67,7 +67,7 @@ export async function execute(
               message = `${message}\n\nImportant Context:\n${context}`;
             }
             console.log("Sending message to agent:", message);
-            newAgent.handleInput({message});
+            newAgent.handleInput({message: `/work ${message}`});
           } else if (response) {
             return {
               ok: true,

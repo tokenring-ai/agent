@@ -18,6 +18,7 @@ export interface AgentConfig {
   visual: {
     color: keyof ChalkInstance;
   }
+  workHandler?: (prompt: string, agent: Agent) => Promise<void>;
   ai: AIConfig;
   initialCommands: string[];
   persistent?: boolean;
@@ -147,7 +148,7 @@ export default class Agent {
     }
 
     for (const message of this.options.initialCommands ?? []) {
-      await this.handleInput({message});
+      await this.runCommand(message);
     }
 
     this.setIdle();
@@ -161,41 +162,18 @@ export default class Agent {
   }
 
   /**
-   * Executes a command on the agent
+   * Handle input from the user.
+   * @param message
    */
   async handleInput({message}: { message: string }): Promise<void> {
-    message = message.trim();
-
-    this.mutateState(CommandHistoryState, state => {
-      state.commands.push(message);
-    })
-
-    let commandName = "chat";
-    let remainder = message.replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {
-      commandName = matchedCommandName;
-      return "";
-    }).trim();
-
     try {
-      commandName = commandName || "help";
+      message = message.trim();
 
-      // Get command from agent's chat commands
-      const commands = this.team.chatCommands.getAllItems();
-      let command = commands[commandName];
+      this.mutateState(CommandHistoryState, state => {
+        state.commands.push(message);
+      })
 
-      if (!command && commandName.endsWith("s")) {
-        // If the command name is plural, try it singular as well
-        command = commands[commandName.slice(0, -1)];
-      }
-
-      if (command) {
-        await command.execute(remainder, this);
-      } else {
-        this.systemMessage(
-          `Unknown command: /${commandName}. Type /help for a list of commands.`,
-          'error'
-        );
-      }
+      await this.runCommand(message);
     } catch (err) {
       if (!this.abortController?.signal?.aborted) {
         // Only output an error if the command wasn't aborted
@@ -204,6 +182,35 @@ export default class Agent {
     } finally {
       this.setIdle();
       this.saveCheckpoint(message);
+    }
+  }
+
+
+  async runCommand(message: string): Promise<void> {
+    let commandName = "chat";
+    let remainder = message.replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {
+      commandName = matchedCommandName;
+      return "";
+    }).trim();
+
+    commandName = commandName || "help";
+
+    // Get command from agent's chat commands
+    const commands = this.team.chatCommands.getAllItems();
+    let command = commands[commandName];
+
+    if (!command && commandName.endsWith("s")) {
+      // If the command name is plural, try it singular as well
+      command = commands[commandName.slice(0, -1)];
+    }
+
+    if (command) {
+      await command.execute(remainder, this);
+    } else {
+      this.systemMessage(
+        `Unknown command: /${commandName}. Type /help for a list of commands.`,
+        'error'
+      );
     }
   }
 
