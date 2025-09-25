@@ -148,6 +148,7 @@ export default class Agent {
     }
 
     for (const message of this.options.initialCommands ?? []) {
+      this.emit('input.received', {message});
       await this.runCommand(message);
     }
 
@@ -168,6 +169,7 @@ export default class Agent {
   async handleInput({message}: { message: string }): Promise<void> {
     try {
       message = message.trim();
+      this.emit('input.received', {message});
 
       this.mutateState(CommandHistoryState, state => {
         state.commands.push(message);

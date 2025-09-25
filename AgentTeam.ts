@@ -92,11 +92,13 @@ export default class AgentTeam implements TokenRingService {
     }
 
     const agent = new Agent(this, agentConfig);
-    await agent.initialize();
 
     this.agentInstanceRegistry.register(agent.id, agent);
     this.agents.set(agent.id, agent);
 
+
+    // noinspection ES6MissingAwait
+    agent.initialize(); // Initialize the agent in the background
     return agent;
   }
 
