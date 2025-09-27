@@ -9,7 +9,7 @@ import {AgentEventEnvelope, AgentEvents, ResetWhat} from "./AgentEvents.js";
 import AgentTeam, {NamedTool} from "./AgentTeam.ts";
 import {HumanInterfaceRequest} from "./HumanInterfaceRequest.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
-import {HookConfig, HookType, TokenRingService, TokenRingTool} from "./types.js";
+import {HookConfig, HookType, TokenRingService} from "./types.js";
 
 export interface AgentConfig {
   name: string;

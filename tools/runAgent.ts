@@ -59,14 +59,14 @@ export async function execute(
           }
           break;
         case 'state.idle':
-          console.log("Agent is idle");
+          agent.systemMessage("Agent is idle");
           if (!inputSent) {
             inputSent = true;
 
             if (context) {
               message = `${message}\n\nImportant Context:\n${context}`;
             }
-            console.log("Sending message to agent:", message);
+            agent.infoLine("Sending message to agent:", message);
             newAgent.handleInput({message: `/work ${message}`});
           } else if (response) {
             return {
