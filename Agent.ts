@@ -6,8 +6,7 @@ import {v4 as uuid} from 'uuid'
 import {AgentCheckpointData} from "./AgentCheckpointProvider.js";
 import AgentCheckpointService from "./AgentCheckpointService.js";
 import {AgentEventEnvelope, AgentEvents, ResetWhat} from "./AgentEvents.js";
-import AgentTeam from "./AgentTeam.ts";
-//import ContextStorage from "./ContextStorage.js";
+import AgentTeam, {NamedTool} from "./AgentTeam.ts";
 import {HumanInterfaceRequest} from "./HumanInterfaceRequest.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {HookConfig, HookType, TokenRingService, TokenRingTool} from "./types.js";
@@ -59,7 +58,7 @@ export default class Agent {
 
   readonly id: string = uuid();
   state = new Map<string, AgentStateSlice>();
-  tools: RegistryMultiSelector<TokenRingTool>;
+  tools: RegistryMultiSelector<NamedTool>;
   hooks: RegistryMultiSelector<HookConfig>;
   //contextStorage = new ContextStorage();
   requireServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R;

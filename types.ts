@@ -1,3 +1,4 @@
+import type {Tool} from "ai";
 import Agent, {AgentConfig} from "./Agent.js";
 import AgentTeam from "./AgentTeam.js";
 
@@ -23,7 +24,7 @@ export type TokenRingToolDefinition = {
   name: string;
   description: string;
   execute: (input: object, agent: Agent) => Promise<string | object>;
-  inputSchema: import("zod").ZodTypeAny;
+  inputSchema: Tool["inputSchema"];
   start?: (agent: Agent) => Promise<void>;
   stop?: (agent: Agent) => Promise<void>;
 };

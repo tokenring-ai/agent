@@ -6,9 +6,11 @@ import {
   TokenRingService,
   TokenRingTool
 } from "@tokenring-ai/agent/types";
+import {tokenRingTool} from "@tokenring-ai/ai-client/util/tokenRingTool";
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
 import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
+import {Tool} from "ai";
 import {EventEmitter} from "eventemitter3";
 
 
@@ -22,6 +24,11 @@ export type AgentTeamConfig = {
   persistentStorage: AgentPersistentStorage;
 }
 
+export type NamedTool = {
+  name: string;
+  tool: Tool;
+}
+
 export default class AgentTeam implements TokenRingService {
   name = "AgentTeam";
   description = "A team of AI agents that work together";
@@ -29,7 +36,7 @@ export default class AgentTeam implements TokenRingService {
   packages = new KeyedRegistry<TokenRingPackage>();
   services = new TypedRegistry<TokenRingService>();
   chatCommands = new KeyedRegistry<TokenRingChatCommand>();
-  tools = new KeyedRegistry<TokenRingTool>();
+  tools = new KeyedRegistry<NamedTool>();
   hooks = new KeyedRegistry<HookConfig>();
   readonly events = new EventEmitter();
   private agentConfigRegistry = new KeyedRegistry<AgentConfig>();
@@ -59,7 +66,7 @@ export default class AgentTeam implements TokenRingService {
       }
       if (pkg.tools) {
         for (const [toolName, tool] of Object.entries(pkg.tools)) {
-          this.tools.register(`${pkg.name}/${toolName}`, {...tool, packageName: pkg.name});
+          this.tools.register(`${pkg.name}/${toolName}`, tokenRingTool({...tool}));
         }
       }
       if (pkg.hooks) {

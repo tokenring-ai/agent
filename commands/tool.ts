@@ -58,8 +58,9 @@ export async function execute(
 
   const toolsByPackage: Record<string, string[]> = {};
 
-  for (const [toolName, toolDef] of Object.entries(agent.tools.getAllItems())) {
-    const packageName = toolDef.packageName || "unknown";
+  for (const toolName of agent.tools.getAllItemNames()) {
+    let [,packageName] = toolName.match(/^(.*)\//) ?? [null, "un"];
+
     if (!toolsByPackage[packageName]) {
       toolsByPackage[packageName] = [];
     }
