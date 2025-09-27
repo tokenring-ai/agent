@@ -22,7 +22,12 @@ export interface AskForSelectionRequest extends AskForSelectionOptions {
 
 export interface AskRequest {
   type: "ask";
-  question: string;
+  message: string;
+}
+
+export interface AskForPasswordOptions {
+  type: "askForPassword";
+  message: string;
 }
 
 export interface AskForMultipleSelectionsRequest extends AskForMultipleSelectionOptions {
@@ -41,6 +46,7 @@ export type HumanInterfaceRequest =
   | AskForConfirmationRequest
   | OpenWebPageRequest
   | AskForSelectionRequest
+  | AskForPasswordOptions
   | AskRequest
   | AskForMultipleSelectionsRequest
   | AskForSingleTreeSelectionRequest

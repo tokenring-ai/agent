@@ -15,14 +15,13 @@ export type AskForConfirmationOptions = {
 
 
 export type AskForSelectionOptions = {
-  title: string;
-  items: Array<string>;
+  message: string;
+  choices: Array<{ name: string, value: string}>;
 };
 
 export type AskForMultipleSelectionOptions = {
-  title: string;
-  items: Iterable<string>;
-  message?: string;
+  message: string;
+  options: Array<{name: string, value: string}>;
 };
 
 export type AskForCommandOptions = {
