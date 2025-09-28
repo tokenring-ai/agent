@@ -85,6 +85,11 @@ export async function execute(
             ok: false,
             response: response.trim() || "[Agent was terminated]"
           };
+        case 'human.request':
+          // Forward human requests to the parent agent
+          const humanResponse = await agent.askHuman(event.data.request);
+          newAgent.sendHumanResponse(event.data.sequence, humanResponse);
+          break;
       }
     }
 

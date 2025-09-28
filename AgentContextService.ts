@@ -14,9 +14,11 @@ export default class AgentContextService implements TokenRingService {
         position: "afterSystemMessage",
         role: "user",
         content: `/* The following agents can be run with the agent tool */` +
-          Object.entries(agentTypes).map(([name, config]) =>
-            `- ${name}: ${config.description}`
-          ).join("\n")
+          Object.entries(agentTypes)
+                .filter(([name, config]) => config.type === 'background')
+                .map(([name, config]) =>
+                  `- ${name}: ${config.description}`
+                ).join("\n")
       };
     }
   }
