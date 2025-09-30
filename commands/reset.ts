@@ -8,7 +8,7 @@ export function execute(remainder: string | undefined, agent: Agent): void {
   let args = remainder?.trim().split(/\s+/) || [];
 
   // Default behavior: reset chat if no args provided
-  if (!args) {
+  if (args.length === 0) {
     args = ["chat"];
   }
 
