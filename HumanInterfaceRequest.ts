@@ -52,3 +52,14 @@ export type HumanInterfaceRequest =
   | AskForSingleTreeSelectionRequest
   | AskForMultipleTreeSelectionRequest;
 
+
+export interface HumanInterfaceResponse {
+  askForConfirmation: boolean;
+  openWebPage: void;
+  askForSelection: string;
+  askForPassword: string;
+  ask: string;
+  askForMultipleSelections: string[];
+  askForSingleTreeSelection: string | null;
+  askForMultipleTreeSelection: string[] | null;
+}

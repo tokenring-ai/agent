@@ -7,7 +7,7 @@ import {AgentCheckpointData} from "./AgentCheckpointProvider.js";
 import AgentCheckpointService from "./AgentCheckpointService.js";
 import {AgentEventEnvelope, AgentEvents, ResetWhat} from "./AgentEvents.js";
 import AgentTeam, {NamedTool} from "./AgentTeam.ts";
-import {HumanInterfaceRequest} from "./HumanInterfaceRequest.js";
+import {HumanInterfaceRequest, HumanInterfaceResponse} from "./HumanInterfaceRequest.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {HookConfig, HookType, TokenRingService} from "./types.js";
 
@@ -280,7 +280,9 @@ export default class Agent {
     this.emit('reset', {what});
   }
 
-  async askHuman(request: HumanInterfaceRequest): Promise<any> {
+  async askHuman<T extends keyof HumanInterfaceResponse>(
+    request: HumanInterfaceRequest & { type: T }
+  ): Promise<HumanInterfaceResponse[T]> {
     const sequence = this.sequenceCounter++;
     this.emit('human.request', {request, sequence});
 
