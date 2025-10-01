@@ -1,10 +1,46 @@
-import {
-  AskForConfirmationOptions,
-  AskForMultipleSelectionOptions,
-  AskForMultipleTreeSelectionOptions,
-  AskForSelectionOptions,
-  AskForSingleTreeSelectionOptions
-} from "./HumanInterfaceProvider.js";
+
+export type TreeLeaf = {
+  name: string;
+  value?: string;
+  hasChildren?: boolean;
+  children?: Array<TreeLeaf> | (() => Promise<Array<TreeLeaf>>) | (() => Array<TreeLeaf>);
+};
+
+
+export type AskForConfirmationOptions = {
+  message: string;
+  default?: boolean;
+};
+
+
+export type AskForSelectionOptions = {
+  message: string;
+  choices: Array<{ name: string, value: string}>;
+};
+
+export type AskForMultipleSelectionOptions = {
+  message: string;
+  options: Array<{name: string, value: string}>;
+};
+
+export type AskForCommandOptions = {
+  autoCompletion?: string[];
+  history? : string[];
+};
+
+export type AskForSingleTreeSelectionOptions = {
+  message?: string | undefined;
+  tree: TreeLeaf;
+  initialSelection?: string | undefined;
+  loop?: boolean;
+};
+
+export type AskForMultipleTreeSelectionOptions = {
+  message?: string | undefined;
+  tree: TreeLeaf;
+  initialSelection?: Iterable<string> | undefined;
+  loop?: boolean;
+};
 
 
 export interface AskForConfirmationRequest extends AskForConfirmationOptions {
