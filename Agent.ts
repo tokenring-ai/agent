@@ -1,341 +1,395 @@
-import {AIConfig} from "@tokenring-ai/ai-client/AIService";
+import type { AIConfig } from "@tokenring-ai/ai-client/AIService";
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import RegistryMultiSelector from "@tokenring-ai/utility/RegistryMultiSelector";
-import type {ChalkInstance} from "chalk";
-import {v4 as uuid} from 'uuid'
-import {AgentCheckpointData} from "./AgentCheckpointProvider.js";
+import type Chalk from "chalk";
+import { v4 as uuid } from "uuid";
+import type { AgentCheckpointData } from "./AgentCheckpointProvider.js";
 import AgentCheckpointService from "./AgentCheckpointService.js";
-import {AgentEventEnvelope, AgentEvents, ResetWhat} from "./AgentEvents.js";
-import AgentTeam, {NamedTool} from "./AgentTeam.ts";
-import {HumanInterfaceRequest, HumanInterfaceResponse} from "./HumanInterfaceRequest.js";
-import {CommandHistoryState} from "./state/commandHistoryState.js";
-import {HookConfig, HookType, TokenRingService} from "./types.js";
+import type {
+	AgentEventEnvelope,
+	AgentEvents,
+	ResetWhat,
+} from "./AgentEvents.js";
+import AgentTeam, { type NamedTool } from "./AgentTeam.ts";
+import type {
+	HumanInterfaceRequest,
+	HumanInterfaceResponse,
+} from "./HumanInterfaceRequest.js";
+import { CommandHistoryState } from "./state/commandHistoryState.js";
+import type { HookConfig, HookType, TokenRingService } from "./types.js";
 
-export interface AgentConfig {
-  name: string;
-  description: string;
-  visual: {
-    color: keyof ChalkInstance;
-  }
-  workHandler?: (prompt: string, agent: Agent) => Promise<void>;
-  ai: AIConfig;
-  initialCommands: string[];
-  persistent?: boolean;
-  storagePath?: string;
-  type: "interactive" | "background";
+export type MessageLevel = "info" | "warning" | "error";
+
+export interface ChatOutputStream {
+	systemMessage(message: string, level?: MessageLevel): void;
+	chatOutput(content: string): void;
+	reasoningOutput(content: string): void;
+	infoLine(...msgs: string[]): void;
+	warningLine(...msgs: string[]): void;
+	errorLine(...msgs: (string | Error)[]): void;
 }
 
-export enum ColorName {
-  black,
-  red,
-  green,
-  yellow,
-  blue,
-  magenta,
-  cyan,
-  white,
-  blackBright,
-  redBright,
-  greenBright,
-  yellowBright,
-  blueBright,
-  magentaBright,
-  cyanBright,
-  whiteBright,
+export interface AskHumanInterface {
+	askHuman<T extends keyof HumanInterfaceResponse>(
+		request: HumanInterfaceRequest & { type: T },
+	): Promise<HumanInterfaceResponse[T]>;
+}
+
+export interface StateStorageInterface {
+	getState<T extends AgentStateSlice>(ClassType: new (...args: any[]) => T): T;
+
+	mutateState<R, T extends AgentStateSlice>(
+		ClassType: new (...args: any[]) => T,
+		callback: (state: T) => R,
+	): R;
+
+	initializeState<S, T extends AgentStateSlice>(
+		ClassType: new (props: S) => T,
+		props: S,
+	): void;
+}
+
+export interface ServiceRegistryInterface {
+	requireServiceByType<R extends TokenRingService>(
+		type: abstract new (...args: any[]) => R,
+	): R;
+	getServiceByType<R extends TokenRingService>(
+		type: abstract new (...args: any[]) => R,
+	): R | undefined;
+}
+
+export interface AgentConfig {
+	name: string;
+	description: string;
+	visual: {
+		color: keyof Chalk.Chalk;
+	};
+	workHandler?: (prompt: string, agent: Agent) => Promise<void>;
+	ai: AIConfig;
+	initialCommands: string[];
+	persistent?: boolean;
+	storagePath?: string;
+	type: "interactive" | "background";
 }
 
 export interface AgentStateSlice {
-  name: string;
-  reset: (what: ResetWhat[]) => void;
-  serialize: () => object;
-  deserialize: (data: object) => void;
-  persistToSubAgents?: boolean;
+	name: string;
+	reset: (what: ResetWhat[]) => void;
+	serialize: () => object;
+	deserialize: (data: object) => void;
+	persistToSubAgents?: boolean;
 }
 
-export default class Agent {
-  readonly name = "Agent";
-  readonly description = "Agent implementation";
+export default class Agent
+	implements
+		AskHumanInterface,
+		ChatOutputStream,
+		StateStorageInterface,
+		ServiceRegistryInterface
+{
+	readonly name = "Agent";
+	readonly description = "Agent implementation";
 
-  readonly id: string = uuid();
-  state = new Map<string, AgentStateSlice>();
-  tools: RegistryMultiSelector<NamedTool>;
-  hooks: RegistryMultiSelector<HookConfig>;
-  //contextStorage = new ContextStorage();
-  requireServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R;
-  getServiceByType: <R extends TokenRingService>(type: abstract new (...args: any[]) => R) => R | undefined;
-  readonly team!: AgentTeam;
-  options: AgentConfig;
-  private sequenceCounter = 0;
-  private abortController = new AbortController();
+	readonly id: string = uuid();
+	state = new Map<string, AgentStateSlice>();
+	tools: RegistryMultiSelector<NamedTool>;
+	hooks: RegistryMultiSelector<HookConfig>;
+	//contextStorage = new ContextStorage();
+	requireServiceByType: <R extends TokenRingService>(
+		type: abstract new (...args: any[]) => R,
+	) => R;
+	getServiceByType: <R extends TokenRingService>(
+		type: abstract new (...args: any[]) => R,
+	) => R | undefined;
+	readonly team!: AgentTeam;
+	options: AgentConfig;
+	private sequenceCounter = 0;
+	private abortController = new AbortController();
 
-  // Async event stream
-  private eventLog: AgentEventEnvelope[] = [];
-  private eventWaiters: Array<(ev: AgentEventEnvelope) => void> = [];
+	// Async event stream
+	private eventLog: AgentEventEnvelope[] = [];
+	private eventWaiters: Array<(ev: AgentEventEnvelope) => void> = [];
 
-  // Map of pending human responses
-  private pendingHumanResponses = new Map<number, (response: any) => void>();
+	// Map of pending human responses
+	private pendingHumanResponses = new Map<number, (response: any) => void>();
 
-  constructor(agentTeam: AgentTeam, options: AgentConfig) {
-    this.team = agentTeam;
-    this.options = options;
-    this.tools = new RegistryMultiSelector(agentTeam.tools);
-    this.hooks = new RegistryMultiSelector(agentTeam.hooks);
-    this.requireServiceByType = this.team.services.requireItemByType;
-    this.getServiceByType = this.team.services.getItemByType;
-  }
+	constructor(agentTeam: AgentTeam, options: AgentConfig) {
+		this.team = agentTeam;
+		this.options = options;
+		this.tools = new RegistryMultiSelector(agentTeam.tools);
+		this.hooks = new RegistryMultiSelector(agentTeam.hooks);
+		this.requireServiceByType = this.team.services.requireItemByType;
+		this.getServiceByType = this.team.services.getItemByType;
+	}
 
-  restoreCheckpoint({ state }: AgentCheckpointData): void {
-    //this.contextStorage.fromJSON(state.contextStorage || []);
-    this.tools.setEnabledItems(state.toolsEnabled || []);
-    this.hooks.setEnabledItems(state.hooksEnabled || []);
-    for (const key in state.agentState) {
-      const slice = this.state.get(key);
-      if (slice) {
-        slice.deserialize(state.agentState[key]);
-      } else {
-        this.systemMessage(`State slice ${key} not found in agent state`);
-      }
-    }
-  }
+	restoreCheckpoint({ state }: AgentCheckpointData): void {
+		//this.contextStorage.fromJSON(state.contextStorage || []);
+		this.tools.setEnabledItems(state.toolsEnabled || []);
+		this.hooks.setEnabledItems(state.hooksEnabled || []);
+		for (const key in state.agentState) {
+			const slice = this.state.get(key);
+			if (slice) {
+				slice.deserialize(state.agentState[key]);
+			} else {
+				this.systemMessage(`State slice ${key} not found in agent state`);
+			}
+		}
+	}
 
-  generateCheckpoint(): AgentCheckpointData {
-    return {
-      agentId: this.id,
-      createdAt: Date.now(),
-      state: {
-        //contextStorage: this.contextStorage.toJSON(),
-        agentState: Object.fromEntries(
-          Array.from(this.state.entries()).map(([key, slice]) => [key, slice.serialize()])
-        ),
-        toolsEnabled: Array.from(this.tools.getActiveItemNames()),
-        hooksEnabled: Array.from(this.hooks.getActiveItemNames()),
-      }
-    };
-  }
+	generateCheckpoint(): AgentCheckpointData {
+		return {
+			agentId: this.id,
+			createdAt: Date.now(),
+			state: {
+				//contextStorage: this.contextStorage.toJSON(),
+				agentState: Object.fromEntries(
+					Array.from(this.state.entries()).map(([key, slice]) => [
+						key,
+						slice.serialize(),
+					]),
+				),
+				toolsEnabled: Array.from(this.tools.getActiveItemNames()),
+				hooksEnabled: Array.from(this.hooks.getActiveItemNames()),
+			},
+		};
+	}
 
+	initializeState<S, T extends AgentStateSlice>(
+		ClassType: new (props: S) => T,
+		props: S,
+	): void {
+		this.state.set(ClassType.name, new ClassType(props));
+	}
 
-  initializeState<S, T extends AgentStateSlice>(ClassType: new (props: S) => T, props: S): void {
-    this.state.set(ClassType.name, new ClassType(props));
-  }
+	mutateState<R, T extends AgentStateSlice>(
+		ClassType: new (...args: any[]) => T,
+		callback: (state: T) => R,
+	): R {
+		const state = this.state.get(ClassType.name) as T;
+		if (!state) {
+			throw new Error(`State slice ${ClassType.name} not found`);
+		}
 
-  mutateState<R, T extends AgentStateSlice>(ClassType: new (...args: any[]) => T, callback: (state: T) => R): R {
-    const state = this.state.get(ClassType.name) as T;
-    if (!state) {
-      throw new Error(`State slice ${ClassType.name} not found`);
-    }
+		return callback(state);
+	}
 
-    return callback(state);
-  }
+	getState<T extends AgentStateSlice>(ClassType: new (...args: any[]) => T): T {
+		const stateSlice = this.state.get(ClassType.name);
+		if (stateSlice) {
+			return stateSlice as T;
+		} else {
+			throw new Error(`State slice ${ClassType.name} not found`);
+		}
+	}
 
-  getState<T extends AgentStateSlice>(ClassType: new (...args: any[]) => T): T {
-    const stateSlice = this.state.get(ClassType.name);
-    if (stateSlice) {
-      return stateSlice as T;
-    } else {
-      throw new Error(`State slice ${ClassType.name} not found`);
-    }
-  }
+	/**
+	 * Initialize the agent with commands and services
+	 */
+	async initialize(): Promise<void> {
+		this.initializeState(CommandHistoryState, {});
 
-  /**
-   * Initialize the agent with commands and services
-   */
-  async initialize(): Promise<void> {
-    this.initializeState(CommandHistoryState, {});
+		for (const service of this.team.services.getItems()) {
+			if (service.attach) await service.attach(this);
+		}
 
-    for (const service of this.team.services.getItems()) {
-      if (service.attach) await service.attach(this);
-    }
+		for (const message of this.options.initialCommands ?? []) {
+			this.emit("input.received", { message });
+			await this.runCommand(message);
+		}
 
-    for (const message of this.options.initialCommands ?? []) {
-      this.emit('input.received', {message});
-      await this.runCommand(message);
-    }
+		this.setIdle();
+	}
 
-    this.setIdle();
-  }
+	async executeHooks(hookType: HookType, ...args: any[]): Promise<void> {
+		const hooks = this.hooks.getActiveItemEntries();
+		for (const [, hook] of Object.entries(hooks)) {
+			await hook[hookType]?.(this, ...args);
+		}
+	}
 
-  async executeHooks(hookType: HookType, ...args: any[]): Promise<void> {
-    const hooks = this.hooks.getActiveItemEntries();
-    for (const [, hook] of Object.entries(hooks)) {
-      await hook[hookType]?.(this, ...args);
-    }
-  }
+	/**
+	 * Handle input from the user.
+	 * @param message
+	 */
+	async handleInput({ message }: { message: string }): Promise<void> {
+		try {
+			message = message.trim();
+			this.emit("input.received", { message });
 
-  /**
-   * Handle input from the user.
-   * @param message
-   */
-  async handleInput({message}: { message: string }): Promise<void> {
-    try {
-      message = message.trim();
-      this.emit('input.received', {message});
+			this.mutateState(CommandHistoryState, (state) => {
+				state.commands.push(message);
+			});
 
-      this.mutateState(CommandHistoryState, state => {
-        state.commands.push(message);
-      })
+			await this.runCommand(message);
+		} catch (err) {
+			if (!this.abortController?.signal?.aborted) {
+				// Only output an error if the command wasn't aborted
+				this.systemMessage(`Error running command: ${err}`, "error");
+			}
+		} finally {
+			this.setIdle();
+			this.saveCheckpoint(message);
+		}
+	}
 
-      await this.runCommand(message);
-    } catch (err) {
-      if (!this.abortController?.signal?.aborted) {
-        // Only output an error if the command wasn't aborted
-        this.systemMessage(`Error running command: ${err}`, 'error');
-      }
-    } finally {
-      this.setIdle();
-      this.saveCheckpoint(message);
-    }
-  }
+	async runCommand(message: string): Promise<void> {
+		let commandName = "chat";
+		let remainder = message
+			.replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {
+				commandName = matchedCommandName;
+				return "";
+			})
+			.trim();
 
+		commandName = commandName || "help";
 
-  async runCommand(message: string): Promise<void> {
-    let commandName = "chat";
-    let remainder = message.replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {
-      commandName = matchedCommandName;
-      return "";
-    }).trim();
+		// Get command from agent's chat commands
+		const commands = this.team.chatCommands.getAllItems();
+		let command = commands[commandName];
 
-    commandName = commandName || "help";
+		if (!command && commandName.endsWith("s")) {
+			// If the command name is plural, try it singular as well
+			command = commands[commandName.slice(0, -1)];
+		}
 
-    // Get command from agent's chat commands
-    const commands = this.team.chatCommands.getAllItems();
-    let command = commands[commandName];
+		if (command) {
+			await command.execute(remainder, this);
+		} else {
+			this.systemMessage(
+				`Unknown command: /${commandName}. Type /help for a list of commands.`,
+				"error",
+			);
+		}
+	}
 
-    if (!command && commandName.endsWith("s")) {
-      // If the command name is plural, try it singular as well
-      command = commands[commandName.slice(0, -1)];
-    }
+	// Async generator for events
+	async *events(
+		signal: AbortSignal,
+	): AsyncGenerator<AgentEventEnvelope, void, unknown> {
+		let sequence = 0;
+		while (!signal.aborted) {
+			if (this.eventLog.length > sequence) {
+				const event = this.eventLog[sequence];
+				sequence++;
 
-    if (command) {
-      await command.execute(remainder, this);
-    } else {
-      this.systemMessage(
-        `Unknown command: /${commandName}. Type /help for a list of commands.`,
-        'error'
-      );
-    }
-  }
+				if (event.type === "state.idle" || event.type === "state.busy") {
+					if (sequence !== this.eventLog.length) {
+						continue;
+					}
+				}
+				yield event;
+			} else {
+				await new Promise((resolve) => {
+					this.eventWaiters.push(resolve);
+				});
+			}
+		}
+	}
 
+	chatOutput(content: string) {
+		this.emit("output.chat", { content });
+	}
 
-  // Async generator for events
-  async* events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope, void, unknown> {
-    let sequence = 0;
-    while (!signal.aborted) {
-      if (this.eventLog.length > sequence) {
-        const event = this.eventLog[sequence];
-        sequence++;
+	reasoningOutput(content: string) {
+		this.emit("output.reasoning", { content });
+	}
 
-        if (event.type === 'state.idle' || event.type === 'state.busy') {
-          if (sequence !== this.eventLog.length) {
-            continue;
-          }
-        }
-        yield event;
-      } else {
-        await new Promise(resolve => {
-          this.eventWaiters.push(resolve);
-        });
-      }
-    }
-  }
+	systemMessage(message: string, level: "info" | "warning" | "error" = "info") {
+		this.emit("output.system", { message, level });
+	}
 
-  chatOutput(content: string) {
-    this.emit('output.chat', {content});
-  }
+	setBusy(message: string) {
+		this.emit("state.busy", { message });
+	}
 
-  reasoningOutput(content: string) {
-    this.emit('output.reasoning', {content});
-  }
+	setNotBusy() {
+		this.emit("state.notBusy", {});
+	}
 
-  systemMessage(message: string, level: 'info' | 'warning' | 'error' = 'info') {
-    this.emit('output.system', {message, level});
-  }
+	setIdle() {
+		this.emit("state.idle", {});
+	}
 
-  setBusy(message: string) {
-    this.emit('state.busy', {message});
-  }
+	requestExit() {
+		this.emit("state.exit", {});
+	}
 
-  setNotBusy() {
-    this.emit('state.notBusy', {});
-  }
+	requestAbort(reason: string) {
+		this.emit("state.aborted", { reason });
+		this.abortController.abort(reason);
+	}
 
-  setIdle() {
-    this.emit('state.idle', {});
-  }
+	reset(what: ResetWhat[]) {
+		// Apply reset to internal state first
+		for (const state of this.state.values()) {
+			state.reset(what);
+		}
+		// Also notify listeners
+		this.emit("reset", { what });
+	}
 
-  requestExit() {
-    this.emit('state.exit', {});
-  }
+	async askHuman<T extends keyof HumanInterfaceResponse>(
+		request: HumanInterfaceRequest & { type: T },
+	): Promise<HumanInterfaceResponse[T]> {
+		const sequence = this.sequenceCounter++;
+		this.emit("human.request", { request, sequence });
 
-  requestAbort(reason: string) {
-    this.emit('state.aborted', {reason});
-    this.abortController.abort(reason);
-  }
+		return new Promise((resolve) => {
+			this.pendingHumanResponses.set(sequence, resolve);
+		});
+	}
 
-  reset(what: ResetWhat[]) {
-    // Apply reset to internal state first
-    for (const state of this.state.values()) {
-      state.reset(what);
-    }
-    // Also notify listeners
-    this.emit('reset', {what});
-  }
+	async busyWhile<T>(message: string, awaitable: Promise<T>): Promise<T> {
+		this.setBusy(message);
+		try {
+			return await awaitable;
+		} finally {
+			this.setNotBusy();
+		}
+	}
 
-  async askHuman<T extends keyof HumanInterfaceResponse>(
-    request: HumanInterfaceRequest & { type: T }
-  ): Promise<HumanInterfaceResponse[T]> {
-    const sequence = this.sequenceCounter++;
-    this.emit('human.request', {request, sequence});
+	// Legacy method aliases for compatibility
+	infoLine = (...msgs: string[]) =>
+		this.systemMessage(formatLogMessages(msgs), "info");
 
-    return new Promise(resolve => {
-      this.pendingHumanResponses.set(sequence, resolve);
-    });
-  }
+	warningLine = (...msgs: string[]) =>
+		this.systemMessage(formatLogMessages(msgs), "warning");
 
-  async busyWhile<T>(message: string, awaitable: Promise<T>): Promise<T> {
-    this.setBusy(message);
-    try {
-      return await awaitable;
-    } finally {
-      this.setNotBusy();
-    }
-  }
+	errorLine = (...msgs: (string | Error)[]) =>
+		this.systemMessage(formatLogMessages(msgs), "error");
 
-  // Legacy method aliases for compatibility
-  infoLine = (...msgs: string[]) => this.systemMessage(formatLogMessages(msgs), 'info');
+	sendHumanResponse = (sequence: number, response: any) => {
+		// Resolve the corresponding pending human request
+		const resolver = this.pendingHumanResponses.get(sequence);
+		if (resolver) {
+			this.pendingHumanResponses.delete(sequence);
+			resolver(response);
+			// Also emit a human.response event for visibility
+			this.emit("human.response", { responseTo: sequence, response });
+		}
+	};
 
-  warningLine = (...msgs: string[]) => this.systemMessage(formatLogMessages(msgs), 'warning');
+	getAbortSignal() {
+		return this.abortController.signal;
+	}
 
-  errorLine = (...msgs: (string | Error)[]) => this.systemMessage(formatLogMessages(msgs), 'error');
+	private saveCheckpoint(message: string): void {
+		const storage = this.getServiceByType(AgentCheckpointService);
+		if (storage) {
+			setTimeout(() => storage.saveAgentCheckpoint(message, this), 0);
+		}
+	}
 
-  sendHumanResponse = (sequence: number, response: any) => {
-    // Resolve the corresponding pending human request
-    const resolver = this.pendingHumanResponses.get(sequence);
-    if (resolver) {
-      this.pendingHumanResponses.delete(sequence);
-      resolver(response);
-      // Also emit a human.response event for visibility
-      this.emit('human.response', {responseTo: sequence, response});
-    }
-  };
-
-  getAbortSignal() {
-    return this.abortController.signal;
-  }
-
-  private saveCheckpoint(message: string): void {
-    const storage = this.getServiceByType(AgentCheckpointService);
-    if (storage) {
-      setTimeout(() => storage.saveAgentCheckpoint(message, this), 0);
-    }
-  }
-
-  private emit<K extends keyof AgentEvents>(type: K, data: AgentEvents[K]): void {
-    const envelope = {type, data} as AgentEventEnvelope;
-    this.eventLog.push(envelope);
-    let waiters = this.eventWaiters;
-    this.eventWaiters = [];
-    for (const waiter of waiters) {
-      waiter(envelope);
-    }
-  }
+	private emit<K extends keyof AgentEvents>(
+		type: K,
+		data: AgentEvents[K],
+	): void {
+		const envelope = { type, data } as AgentEventEnvelope;
+		this.eventLog.push(envelope);
+		let waiters = this.eventWaiters;
+		this.eventWaiters = [];
+		for (const waiter of waiters) {
+			waiter(envelope);
+		}
+	}
 }

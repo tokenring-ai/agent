@@ -1,13 +1,13 @@
-import {TokenRingService} from "./types.js";
+import type { TokenRingService } from "./types.js";
 
 /**
  * Configuration options for HistoryStorage
  */
 export interface HistoryConfig {
-  /** Maximum number of history entries to store */
-  limit?: number;
-  /** Commands to exclude from history */
-  blacklist?: string[];
+	/** Maximum number of history entries to store */
+	limit?: number;
+	/** Commands to exclude from history */
+	blacklist?: string[];
 }
 
 /**
@@ -20,67 +20,67 @@ export interface HistoryConfig {
  * adding commands, retrieving previous/next commands, and listing all commands.
  */
 export default abstract class HistoryStorage implements TokenRingService {
-  name = "HistoryStorage";
-  description = "A service for storing CLI history";
+	name = "HistoryStorage";
+	description = "A service for storing CLI history";
 
-  /** Configuration options */
-  public config: HistoryConfig;
-  /** Current position in history list when navigating */
-  protected historyIndex: number = -1;
-  /** Current line being edited */
-  protected currentLine: string = "";
+	/** Configuration options */
+	public config: HistoryConfig;
+	/** Current position in history list when navigating */
+	protected historyIndex: number = -1;
+	/** Current line being edited */
+	protected currentLine: string = "";
 
-  // noinspection TypeScriptAbstractClassConstructorCanBeMadeProtected
-  /**
-   * Creates a new HistoryStorage instance
-   */
-  constructor(config: HistoryConfig = {}) {
-    this.config = {
-      limit: 100,
-      blacklist: [],
-      ...config, // User-provided config overrides defaults
-    };
-  }
+	// noinspection TypeScriptAbstractClassConstructorCanBeMadeProtected
+	/**
+	 * Creates a new HistoryStorage instance
+	 */
+	constructor(config: HistoryConfig = {}) {
+		this.config = {
+			limit: 100,
+			blacklist: [],
+			...config, // User-provided config overrides defaults
+		};
+	}
 
-  /**
-   * Initialize the history storage
-   * This method should handle any setup needed before using the history
-   */
-  abstract init(): void;
+	/**
+	 * Initialize the history storage
+	 * This method should handle any setup needed before using the history
+	 */
+	abstract init(): void;
 
-  /**
-   * Add a command to history
-   */
-  abstract add(command: string): void;
+	/**
+	 * Add a command to history
+	 */
+	abstract add(command: string): void;
 
-  /**
-   * Get the previous command in history
-   */
-  abstract getPrevious(): string | null;
+	/**
+	 * Get the previous command in history
+	 */
+	abstract getPrevious(): string | null;
 
-  /**
-   * Get the next command in history
-   */
-  abstract getNext(): string | null;
+	/**
+	 * Get the next command in history
+	 */
+	abstract getNext(): string | null;
 
-  /**
-   * Get all commands in history
-   */
-  abstract getAll(): string[];
+	/**
+	 * Get all commands in history
+	 */
+	abstract getAll(): string[];
 
-  /**
-   * Set the current line of input (for saving when navigating history)
-   */
-  setCurrent(line: string): void {
-    this.currentLine = line;
-  }
+	/**
+	 * Set the current line of input (for saving when navigating history)
+	 */
+	setCurrent(line: string): void {
+		this.currentLine = line;
+	}
 
-  /**
-   * Update configuration settings
-   */
-  setConfig(config: HistoryConfig): void {
-    if (typeof config === "object") {
-      this.config = {...this.config, ...config};
-    }
-  }
+	/**
+	 * Update configuration settings
+	 */
+	setConfig(config: HistoryConfig): void {
+		if (typeof config === "object") {
+			this.config = { ...this.config, ...config };
+		}
+	}
 }

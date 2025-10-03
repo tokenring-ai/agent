@@ -1,66 +1,75 @@
-import type {Tool} from "ai";
-import Agent, {AgentConfig} from "./Agent.js";
+import type { Tool } from "ai";
+import Agent, { type AgentConfig } from "./Agent.js";
 import AgentTeam from "./AgentTeam.js";
 
 export type TokenRingChatCommand = {
-  name?: string;
-  description: string;
-  execute: (input: string, agent: Agent) => Promise<void | string> | void | string;
-  help: () => string | string[];
-  // allow arbitrary extras
-  [key: string]: unknown;
+	name?: string;
+	description: string;
+	execute: (
+		input: string,
+		agent: Agent,
+	) => Promise<void | string> | void | string;
+	help: () => string | string[];
+	// allow arbitrary extras
+	[key: string]: unknown;
 };
 export type HookConfig = {
-  name: string;
-  packageName: string;
-  description: string;
-  beforeChatCompletion?: HookCallback;
-  afterChatCompletion?: HookCallback;
-  afterTesting?: HookCallback;
-}
+	name: string;
+	packageName: string;
+	description: string;
+	beforeChatCompletion?: HookCallback;
+	afterChatCompletion?: HookCallback;
+	afterTesting?: HookCallback;
+};
 export type HookType = "afterChatCompletion" | "beforeChatCompletion";
-export type HookCallback = (agent: Agent, ...args: any[]) => Promise<void> | void;
+export type HookCallback = (
+	agent: Agent,
+	...args: any[]
+) => Promise<void> | void;
 export type TokenRingToolDefinition = {
-  name: string;
-  description: string;
-  execute: (input: object, agent: Agent) => Promise<string | object>;
-  inputSchema: Tool["inputSchema"];
-  start?: (agent: Agent) => Promise<void>;
-  stop?: (agent: Agent) => Promise<void>;
+	name: string;
+	description: string;
+	execute: (input: object, agent: Agent) => Promise<string | object>;
+	inputSchema: Tool["inputSchema"];
+	start?: (agent: Agent) => Promise<void>;
+	stop?: (agent: Agent) => Promise<void>;
 };
 export type TokenRingTool = {
-  packageName: string;
+	packageName: string;
 } & TokenRingToolDefinition;
 export type TokenRingPackage = {
-  name: string;
-  version: string;
-  description: string;
-  start?: (agentTeam: AgentTeam) => Promise<void>;
-  stop?: (agentTeam: AgentTeam) => Promise<void>;
-  tools?: Record<string, TokenRingToolDefinition>;
-  chatCommands?: Record<string, TokenRingChatCommand>;
-  hooks?: Record<string, Omit<Omit<HookConfig, "name">, "packageName">>;
-  agents?: Record<string, AgentConfig>;
+	name: string;
+	version: string;
+	description: string;
+	start?: (agentTeam: AgentTeam) => Promise<void>;
+	stop?: (agentTeam: AgentTeam) => Promise<void>;
+	tools?: Record<string, TokenRingToolDefinition>;
+	chatCommands?: Record<string, TokenRingChatCommand>;
+	hooks?: Record<string, Omit<Omit<HookConfig, "name">, "packageName">>;
+	agents?: Record<string, AgentConfig>;
 };
 
-export type ContextItemPosition = "afterSystemMessage" | "afterPriorMessages" | "afterCurrentMessage";
+export type ContextItemPosition =
+	| "afterSystemMessage"
+	| "afterPriorMessages"
+	| "afterCurrentMessage";
 export type ContextItem = {
-  role: "system" | "user";
-  position: ContextItemPosition;
-  content: string;
+	role: "system" | "user";
+	position: ContextItemPosition;
+	content: string;
 };
 
 export interface TokenRingService {
-  name: string; // Must match class name
-  description: string;
+	name: string; // Must match class name
+	description: string;
 
-  start?(agentTeam: AgentTeam): Promise<void>;
+	start?(agentTeam: AgentTeam): Promise<void>;
 
-  stop?(agentTeam: AgentTeam): Promise<void>;
+	stop?(agentTeam: AgentTeam): Promise<void>;
 
-  attach?(agent: Agent): Promise<void>;
+	attach?(agent: Agent): Promise<void>;
 
-  detach?(agent: Agent): Promise<void>;
+	detach?(agent: Agent): Promise<void>;
 
-  getContextItems?(agent: Agent): AsyncGenerator<ContextItem>;
+	getContextItems?(agent: Agent): AsyncGenerator<ContextItem>;
 }

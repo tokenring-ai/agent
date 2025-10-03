@@ -1,24 +1,24 @@
 {
- "name": "@tokenring-ai/agent",
- "version": "0.1.0",
- "description": "Agent package for TokenRing Coder.",
- "dependencies": {
-  "@tokenring-ai/utility": "0.1.0",
-  "eventemitter3": "^5.0.1",
-  "glob-gitignore": "^1.0.15",
-  "uuid": "^13.0.0"
- },
- "exports": {
-  ".": "./index.ts",
-  "./*": "./*.ts"
- },
- "types": "./index.ts",
- "license": "MIT",
- "scripts": {
-  "build": "tsc -p tsconfig.tson"
- },
- "devDependencies": {
-  "typescript": "^5.9.2"
- },
- "type": "module"
+	"name": "@tokenring-ai/agent",
+	"version": "0.1.0",
+	"description": "Agent package for TokenRing Coder.",
+	"dependencies": {
+		"@tokenring-ai/utility": "0.1.0",
+		"eventemitter3": "^5.0.1",
+		"glob-gitignore": "^1.0.15",
+		"uuid": "^13.0.0"
+	},
+	"exports": {
+		".": "./index.ts",
+		"./*": "./*.ts"
+	},
+	"types": "./index.ts",
+	"license": "MIT",
+	"scripts": {
+		"build": "tsc -p tsconfig.tson"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	},
+	"type": "module"
 }
