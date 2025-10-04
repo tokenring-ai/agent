@@ -1,7 +1,7 @@
 import type { AIConfig } from "@tokenring-ai/ai-client/AIService";
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import RegistryMultiSelector from "@tokenring-ai/utility/RegistryMultiSelector";
-import type Chalk from "chalk";
+import type { ChalkInstance } from "chalk";
 import { v4 as uuid } from "uuid";
 import type { AgentCheckpointData } from "./AgentCheckpointProvider.js";
 import AgentCheckpointService from "./AgentCheckpointService.js";
@@ -62,7 +62,7 @@ export interface AgentConfig {
 	name: string;
 	description: string;
 	visual: {
-		color: keyof Chalk.Chalk;
+		color: keyof ChalkInstance ;
 	};
 	workHandler?: (prompt: string, agent: Agent) => Promise<void>;
 	ai: AIConfig;
