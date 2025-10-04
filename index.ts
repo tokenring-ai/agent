@@ -29,5 +29,5 @@ export const packageInfo: TokenRingPackage = {
 
 export { default as Agent } from "./Agent.ts";
 export { default as AgentTeam } from "./AgentTeam.ts";
-export { default as AgentStateStorage } from "./AgentCheckpointService.ts";
+export { default as AgentStateStorage } from "../checkpoint/AgentCheckpointService.ts";
 export { type TokenRingPackage } from "./types.js";

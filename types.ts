@@ -15,13 +15,13 @@ export type TokenRingChatCommand = {
 };
 export type HookConfig = {
 	name: string;
-	packageName: string;
 	description: string;
 	beforeChatCompletion?: HookCallback;
 	afterChatCompletion?: HookCallback;
 	afterTesting?: HookCallback;
+	afterAgentInputComplete?: HookCallback;
 };
-export type HookType = "afterChatCompletion" | "beforeChatCompletion";
+export type HookType = "afterChatCompletion" | "beforeChatCompletion" | "afterAgentInputComplete";
 export type HookCallback = (
 	agent: Agent,
 	...args: any[]

@@ -48,9 +48,9 @@ export default class AgentTeam implements TokenRingService {
     this.config = config;
   }
 
-  getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> | undefined {
+  getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
     try {
-      return schema.parse(this.config[key]) as z.infer<T> | undefined;
+      return schema.parse(this.config[key]);
     } catch (error) {
       throw new Error(`Invalid config value for key "${key}": ${(error as Error).message}`);
     }

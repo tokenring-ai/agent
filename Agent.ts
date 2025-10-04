@@ -2,8 +2,6 @@ import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import RegistryMultiSelector from "@tokenring-ai/utility/RegistryMultiSelector";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
-import type {AgentCheckpointData} from "./AgentCheckpointProvider.js";
-import AgentCheckpointService from "./AgentCheckpointService.js";
 import type {AgentEventEnvelope, AgentEvents, ResetWhat,} from "./AgentEvents.js";
 import AgentTeam, {type NamedTool} from "./AgentTeam.ts";
 import type {HumanInterfaceRequest, HumanInterfaceResponse,} from "./HumanInterfaceRequest.js";
@@ -77,6 +75,17 @@ export const AgentConfigSchema = z.object({
   type: z.enum(["interactive", "background"]),
 });
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+
+export interface AgentCheckpointData {
+  agentId: string;
+  createdAt: number;
+  state: {
+    //contextStorage: object;
+    agentState: Record<string, object>;
+    toolsEnabled: string[];
+    hooksEnabled: string[];
+  };
+}
 
 export default class Agent
 	implements
@@ -225,8 +234,8 @@ export default class Agent
 				this.systemMessage(`Error running command: ${err}`, "error");
 			}
 		} finally {
+			await this.executeHooks("afterAgentInputComplete", message);
 			this.setIdle();
-			this.saveCheckpoint(message);
 		}
 	}
 
@@ -369,13 +378,6 @@ export default class Agent
 
 	getAbortSignal() {
 		return this.abortController.signal;
-	}
-
-	private saveCheckpoint(message: string): void {
-		const storage = this.getServiceByType(AgentCheckpointService);
-		if (storage) {
-			setTimeout(() => storage.saveAgentCheckpoint(message, this), 0);
-		}
 	}
 
 	private emit<K extends keyof AgentEvents>(
