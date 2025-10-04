@@ -1,31 +1,31 @@
-import Agent, { type AgentConfig } from "@tokenring-ai/agent/Agent";
+import Agent, {type AgentConfig} from "@tokenring-ai/agent/Agent";
 import type {
-	HookConfig,
-	TokenRingChatCommand,
-	TokenRingPackage,
-	TokenRingService,
-	TokenRingTool,
+  HookConfig,
+  TokenRingChatCommand,
+  TokenRingPackage,
+  TokenRingService,
+  TokenRingToolDefinition,
 } from "@tokenring-ai/agent/types";
-import { tokenRingTool } from "@tokenring-ai/ai-client/util/tokenRingTool";
+import {tokenRingTool} from "@tokenring-ai/ai-client/util/tokenRingTool";
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
 import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
-import type { Tool } from "ai";
-import { EventEmitter } from "eventemitter3";
+import type {Tool} from "ai";
+import {EventEmitter} from "eventemitter3";
+import {z} from "zod";
 
 export interface AgentPersistentStorage {
 	storeState: (agent: Agent) => Promise<string>;
 	loadState: (stateId: string, agentTeam: AgentTeam) => Promise<Agent>;
 }
 
-export type AgentTeamConfig = {
-	persistentStorage: AgentPersistentStorage;
-};
+export type AgentTeamConfig = Record<string, any>;
 
 export type NamedTool = {
 	name: string;
 	tool: Tool;
 };
+
 
 export default class AgentTeam implements TokenRingService {
 	name = "AgentTeam";
@@ -42,8 +42,22 @@ export default class AgentTeam implements TokenRingService {
 	getAgentConfigs = this.agentConfigRegistry.getAllItems;
 	private agentInstanceRegistry = new KeyedRegistry<Agent>();
 	private agents: Map<string, Agent> = new Map();
+  private config: AgentTeamConfig;
 
-	/**
+  constructor(config: AgentTeamConfig) {
+    this.config = config;
+  }
+
+  getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> | undefined {
+    try {
+      return schema.parse(this.config[key]) as z.infer<T> | undefined;
+    } catch (error) {
+      throw new Error(`Invalid config value for key "${key}": ${(error as Error).message}`);
+    }
+  }
+
+
+  /**
 	 * Log a system message
 	 */
 	serviceOutput(...msgs: any[]): void {
@@ -56,36 +70,50 @@ export default class AgentTeam implements TokenRingService {
 
 	async addPackages(packages: TokenRingPackage[]) {
 		for (const pkg of packages) {
-			if (pkg.chatCommands) {
-				for (const [cmdName, command] of Object.entries(pkg.chatCommands)) {
-					this.chatCommands.register(cmdName, command);
-				}
-			}
-			if (pkg.tools) {
-				for (const [toolName, tool] of Object.entries(pkg.tools)) {
-					this.tools.register(
-						`${pkg.name}/${toolName}`,
-						tokenRingTool({ ...tool }),
-					);
-				}
-			}
-			if (pkg.hooks) {
-				for (const [hookName, hook] of Object.entries(pkg.hooks)) {
-					this.hooks.register(`${pkg.name}/${hookName}`, {
-						...hook,
-						name: hookName,
-						packageName: pkg.name,
-					});
-				}
-			}
-			if (pkg.agents) {
-				for (const agentName in pkg.agents) {
-					this.addAgentConfig(agentName, pkg.agents[agentName]);
-				}
-			}
-			if (pkg.start) await pkg.start(this);
-		}
-	}
+      this.packages.register(pkg.name, pkg);
+
+      if (pkg.install) await pkg.install(this);
+    }
+
+    for (const pkg of packages) {
+      if (pkg.start) {
+        await pkg.start(this);
+      }
+    }
+  }
+
+  addServices(...services: TokenRingService[]) {
+    for (const service of services) {
+      this.services.register(service);
+    }
+  }
+
+  addTools(pkg: TokenRingPackage, tools: Record<string, TokenRingToolDefinition>) {
+    for (const toolName in tools) {
+      this.tools.register(
+        `${pkg.name}/${toolName}`,
+        tokenRingTool({...tools[toolName]}),
+      );
+    }
+  }
+
+  addChatCommands(chatCommands: Record<string, TokenRingChatCommand>) {
+    for (const cmdName in chatCommands) {
+      this.chatCommands.register(cmdName, chatCommands[cmdName]);
+    }
+  }
+
+  addHooks(pkg: TokenRingPackage, hooks: Record<string, HookConfig>) {
+    for (const hookName in hooks) {
+      this.hooks.register(`${pkg.name}/${hookName}`, hooks[hookName]);
+    }
+  }
+
+  addAgentConfigs(agentConfigs: Record<string, AgentConfig>) {
+    for (const agentName in agentConfigs) {
+      this.addAgentConfig(agentName, agentConfigs[agentName]);
+    }
+  }
 
 	getAgentTypes(): string[] {
 		return this.agentConfigRegistry.getAllItemNames();
