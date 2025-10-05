@@ -1,4 +1,4 @@
-import {Agent} from "@tokenring-ai/agent";
+import { Agent } from "@tokenring-ai/agent";
 
 export const description =
 	"/work [message] - Runs the agents work handler with the message";
@@ -13,7 +13,7 @@ export async function execute(remainder: string, agent: Agent): Promise<void> {
 
 	/* If the agent has a custom workflow defined, use it */
 	if (agent.options.workHandler) {
-    await agent.options.workHandler(remainder, agent);
+		await agent.options.workHandler(remainder, agent);
 	} else {
 		await agent.runCommand(remainder);
 	}

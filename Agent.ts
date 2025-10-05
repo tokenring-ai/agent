@@ -1,12 +1,19 @@
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import RegistryMultiSelector from "@tokenring-ai/utility/RegistryMultiSelector";
-import {v4 as uuid} from "uuid";
-import {z} from "zod";
-import type {AgentEventEnvelope, AgentEvents, ResetWhat,} from "./AgentEvents.js";
-import AgentTeam, {type NamedTool} from "./AgentTeam.ts";
-import type {HumanInterfaceRequest, HumanInterfaceResponse,} from "./HumanInterfaceRequest.js";
-import {CommandHistoryState} from "./state/commandHistoryState.js";
-import type {HookConfig, HookType, TokenRingService} from "./types.js";
+import { v4 as uuid } from "uuid";
+import { z } from "zod";
+import type {
+	AgentEventEnvelope,
+	AgentEvents,
+	ResetWhat,
+} from "./AgentEvents.js";
+import AgentTeam, { type NamedTool } from "./AgentTeam.ts";
+import type {
+	HumanInterfaceRequest,
+	HumanInterfaceResponse,
+} from "./HumanInterfaceRequest.js";
+import { CommandHistoryState } from "./state/commandHistoryState.js";
+import type { HookConfig, HookType, TokenRingService } from "./types.js";
 
 export type MessageLevel = "info" | "warning" | "error";
 
@@ -40,15 +47,14 @@ export interface StateStorageInterface {
 }
 
 export interface ServiceRegistryInterface {
-  requireServiceByType<R extends TokenRingService>(
-    type: abstract new (...args: any[]) => R,
-  ): R;
+	requireServiceByType<R extends TokenRingService>(
+		type: abstract new (...args: any[]) => R,
+	): R;
 
-  getServiceByType<R extends TokenRingService>(
-    type: abstract new (...args: any[]) => R,
-  ): R | undefined;
+	getServiceByType<R extends TokenRingService>(
+		type: abstract new (...args: any[]) => R,
+	): R | undefined;
 }
-
 
 export interface AgentStateSlice {
 	name: string;
@@ -59,32 +65,34 @@ export interface AgentStateSlice {
 }
 
 export const AgentConfigSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  visual: z.object({
-    color: z.string(),
-  }),
-  workHandler: z.function({
-    input: z.tuple([z.string(), z.any()]),
-    output: z.any()
-  }).optional(),
-  ai: z.any(),
-  initialCommands: z.array(z.string()),
-  persistent: z.boolean().optional(),
-  storagePath: z.string().optional(),
-  type: z.enum(["interactive", "background"]),
+	name: z.string(),
+	description: z.string(),
+	visual: z.object({
+		color: z.string(),
+	}),
+	workHandler: z
+		.function({
+			input: z.tuple([z.string(), z.any()]),
+			output: z.any(),
+		})
+		.optional(),
+	ai: z.any(),
+	initialCommands: z.array(z.string()),
+	persistent: z.boolean().optional(),
+	storagePath: z.string().optional(),
+	type: z.enum(["interactive", "background"]),
 });
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
 export interface AgentCheckpointData {
-  agentId: string;
-  createdAt: number;
-  state: {
-    //contextStorage: object;
-    agentState: Record<string, object>;
-    toolsEnabled: string[];
-    hooksEnabled: string[];
-  };
+	agentId: string;
+	createdAt: number;
+	state: {
+		//contextStorage: object;
+		agentState: Record<string, object>;
+		toolsEnabled: string[];
+		hooksEnabled: string[];
+	};
 }
 
 export default class Agent

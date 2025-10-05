@@ -1,18 +1,18 @@
-import Agent, {type AgentConfig} from "@tokenring-ai/agent/Agent";
+import Agent, { type AgentConfig } from "@tokenring-ai/agent/Agent";
 import type {
-  HookConfig,
-  TokenRingChatCommand,
-  TokenRingPackage,
-  TokenRingService,
-  TokenRingToolDefinition,
+	HookConfig,
+	TokenRingChatCommand,
+	TokenRingPackage,
+	TokenRingService,
+	TokenRingToolDefinition,
 } from "@tokenring-ai/agent/types";
-import {tokenRingTool} from "@tokenring-ai/ai-client/util/tokenRingTool";
+import { tokenRingTool } from "@tokenring-ai/ai-client/util/tokenRingTool";
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
 import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
-import type {Tool} from "ai";
-import {EventEmitter} from "eventemitter3";
-import {z} from "zod";
+import type { Tool } from "ai";
+import { EventEmitter } from "eventemitter3";
+import { z } from "zod";
 
 export interface AgentPersistentStorage {
 	storeState: (agent: Agent) => Promise<string>;
@@ -25,7 +25,6 @@ export type NamedTool = {
 	name: string;
 	tool: Tool;
 };
-
 
 export default class AgentTeam implements TokenRingService {
 	name = "AgentTeam";
@@ -42,22 +41,23 @@ export default class AgentTeam implements TokenRingService {
 	getAgentConfigs = this.agentConfigRegistry.getAllItems;
 	private agentInstanceRegistry = new KeyedRegistry<Agent>();
 	private agents: Map<string, Agent> = new Map();
-  private config: AgentTeamConfig;
+	private config: AgentTeamConfig;
 
-  constructor(config: AgentTeamConfig) {
-    this.config = config;
-  }
+	constructor(config: AgentTeamConfig) {
+		this.config = config;
+	}
 
-  getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
-    try {
-      return schema.parse(this.config[key]);
-    } catch (error) {
-      throw new Error(`Invalid config value for key "${key}": ${(error as Error).message}`);
-    }
-  }
+	getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
+		try {
+			return schema.parse(this.config[key]);
+		} catch (error) {
+			throw new Error(
+				`Invalid config value for key "${key}": ${(error as Error).message}`,
+			);
+		}
+	}
 
-
-  /**
+	/**
 	 * Log a system message
 	 */
 	serviceOutput(...msgs: any[]): void {
@@ -70,50 +70,53 @@ export default class AgentTeam implements TokenRingService {
 
 	async addPackages(packages: TokenRingPackage[]) {
 		for (const pkg of packages) {
-      this.packages.register(pkg.name, pkg);
+			this.packages.register(pkg.name, pkg);
 
-      if (pkg.install) await pkg.install(this);
-    }
+			if (pkg.install) await pkg.install(this);
+		}
 
-    for (const pkg of packages) {
-      if (pkg.start) {
-        await pkg.start(this);
-      }
-    }
-  }
+		for (const pkg of packages) {
+			if (pkg.start) {
+				await pkg.start(this);
+			}
+		}
+	}
 
-  addServices(...services: TokenRingService[]) {
-    for (const service of services) {
-      this.services.register(service);
-    }
-  }
+	addServices(...services: TokenRingService[]) {
+		for (const service of services) {
+			this.services.register(service);
+		}
+	}
 
-  addTools(pkg: TokenRingPackage, tools: Record<string, TokenRingToolDefinition>) {
-    for (const toolName in tools) {
-      this.tools.register(
-        `${pkg.name}/${toolName}`,
-        tokenRingTool({...tools[toolName]}),
-      );
-    }
-  }
+	addTools(
+		pkg: TokenRingPackage,
+		tools: Record<string, TokenRingToolDefinition>,
+	) {
+		for (const toolName in tools) {
+			this.tools.register(
+				`${pkg.name}/${toolName}`,
+				tokenRingTool({ ...tools[toolName] }),
+			);
+		}
+	}
 
-  addChatCommands(chatCommands: Record<string, TokenRingChatCommand>) {
-    for (const cmdName in chatCommands) {
-      this.chatCommands.register(cmdName, chatCommands[cmdName]);
-    }
-  }
+	addChatCommands(chatCommands: Record<string, TokenRingChatCommand>) {
+		for (const cmdName in chatCommands) {
+			this.chatCommands.register(cmdName, chatCommands[cmdName]);
+		}
+	}
 
-  addHooks(pkg: TokenRingPackage, hooks: Record<string, HookConfig>) {
-    for (const hookName in hooks) {
-      this.hooks.register(`${pkg.name}/${hookName}`, hooks[hookName]);
-    }
-  }
+	addHooks(pkg: TokenRingPackage, hooks: Record<string, HookConfig>) {
+		for (const hookName in hooks) {
+			this.hooks.register(`${pkg.name}/${hookName}`, hooks[hookName]);
+		}
+	}
 
-  addAgentConfigs(agentConfigs: Record<string, AgentConfig>) {
-    for (const agentName in agentConfigs) {
-      this.addAgentConfig(agentName, agentConfigs[agentName]);
-    }
-  }
+	addAgentConfigs(agentConfigs: Record<string, AgentConfig>) {
+		for (const agentName in agentConfigs) {
+			this.addAgentConfig(agentName, agentConfigs[agentName]);
+		}
+	}
 
 	getAgentTypes(): string[] {
 		return this.agentConfigRegistry.getAllItemNames();
