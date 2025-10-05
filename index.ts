@@ -7,7 +7,7 @@ import packageJSON from "./package.json" with {type: "json"};
 import * as tools from "./tools.ts";
 import type {TokenRingPackage} from "./types.js";
 
-const agentsSchema = z.record(z.string(), AgentConfigSchema).optional();
+export const AgentPackageConfigSchema = z.record(z.string(), AgentConfigSchema).optional();
 
 export const packageInfo: TokenRingPackage = {
 	name: packageJSON.name,
@@ -18,7 +18,7 @@ export const packageInfo: TokenRingPackage = {
     agentTeam.addChatCommands(chatCommands);
     agentTeam.addServices(new AgentContextService());
 
-    const agentsConfig = agentTeam.getConfigSlice("agents", agentsSchema);
+    const agentsConfig = agentTeam.getConfigSlice("agents", AgentPackageConfigSchema);
     if (agentsConfig) {
       for (const name in agentsConfig) {
         agentTeam.addAgentConfig(name, agentsConfig[name])
@@ -29,5 +29,4 @@ export const packageInfo: TokenRingPackage = {
 
 export { default as Agent } from "./Agent.ts";
 export { default as AgentTeam } from "./AgentTeam.ts";
-export { default as AgentStateStorage } from "../checkpoint/AgentCheckpointService.ts";
 export { type TokenRingPackage } from "./types.js";
