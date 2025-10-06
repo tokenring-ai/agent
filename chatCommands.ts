@@ -3,3 +3,4 @@ export * as hooks from "./commands/hook.ts";
 export * as settings from "./commands/settings.ts";
 export * as tools from "./commands/tool.ts";
 export * as work from "./commands/work.ts";
+export * as debug from "./commands/debug.ts";

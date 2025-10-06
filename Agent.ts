@@ -101,6 +101,7 @@ export default class Agent
 	state = new Map<string, AgentStateSlice>();
 	tools: RegistryMultiSelector<NamedTool>;
 	hooks: RegistryMultiSelector<HookConfig>;
+	debugEnabled = false;
 	//contextStorage = new ContextStorage();
 	requireServiceByType: <R extends TokenRingService>(
 		type: abstract new (...args: any[]) => R,
@@ -364,6 +365,12 @@ export default class Agent
 
 	errorLine = (...msgs: (string | Error)[]) =>
 		this.systemMessage(formatLogMessages(msgs), "error");
+
+	debugLine = (...msgs: string[]) => {
+		if (this.debugEnabled) {
+			this.systemMessage(formatLogMessages(msgs), "info");
+		}
+	};
 
 	sendHumanResponse = (sequence: number, response: any) => {
 		// Resolve the corresponding pending human request
