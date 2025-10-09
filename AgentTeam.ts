@@ -1,5 +1,6 @@
-import Agent, {type AgentConfig} from "@tokenring-ai/agent/Agent";
+import Agent from "@tokenring-ai/agent/Agent";
 import type {
+  AgentConfig,
   HookConfig,
   TokenRingChatCommand,
   TokenRingPackage,
@@ -13,6 +14,7 @@ import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
 import type {Tool} from "ai";
 import {EventEmitter} from "eventemitter3";
 import {z} from "zod";
+import StateManager, {type StateStorageInterface} from "./StateManager.js";
 
 export interface AgentPersistentStorage {
 	storeState: (agent: Agent) => Promise<string>;
@@ -27,7 +29,7 @@ export type NamedTool = {
 };
 
 
-export default class AgentTeam implements TokenRingService {
+export default class AgentTeam implements TokenRingService, StateStorageInterface {
 	name = "AgentTeam";
 	description = "A team of AI agents that work together";
 
@@ -43,10 +45,15 @@ export default class AgentTeam implements TokenRingService {
 	private agentInstanceRegistry = new KeyedRegistry<Agent>();
 	private agents: Map<string, Agent> = new Map();
   private config: AgentTeamConfig;
+  private stateManager = new StateManager();
 
   constructor(config: AgentTeamConfig) {
     this.config = config;
   }
+
+  initializeState = this.stateManager.initializeState.bind(this.stateManager);
+  mutateState = this.stateManager.mutateState.bind(this.stateManager);
+  getState = this.stateManager.getState.bind(this.stateManager);
 
   getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
     try {

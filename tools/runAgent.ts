@@ -1,5 +1,5 @@
 import trimMiddle from "@tokenring-ai/utility/trimMiddle";
-import { z } from "zod";
+import {z} from "zod";
 import Agent from "../Agent.js";
 
 export const name = "agent/run";
@@ -27,23 +27,9 @@ export async function execute(
 	}
 
 	// Create a new agent of the specified type
-	const newAgent = await agent.team.createAgent(agentType);
+  const newAgent = await agent.createSubAgent(agentType);
 
-	try {
-		agent.systemMessage(
-			`Created new agent: ${newAgent.options.name} (${newAgent.id.slice(0, 8)})`,
-		);
-
-		for (const [itemName, item] of agent.state.entries()) {
-			if (item.persistToSubAgents) {
-				const newItem = newAgent.state.get(itemName);
-				if (newItem) {
-					agent.infoLine(`Copying persistent state item ${itemName} to agent`);
-					newItem.deserialize(item.serialize());
-				}
-			}
-		}
-
+  try {
 		let response = "";
 
 		agent.setBusy("Waiting for agent response...");

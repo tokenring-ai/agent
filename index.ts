@@ -1,11 +1,10 @@
 import {z} from "zod";
-import {AgentConfigSchema} from "./Agent.js";
 import AgentContextService from "./AgentContextService.js";
 import type AgentTeam from "./AgentTeam.ts";
 import * as chatCommands from "./chatCommands.ts";
 import packageJSON from "./package.json" with {type: "json"};
 import * as tools from "./tools.ts";
-import type {TokenRingPackage} from "./types.js";
+import {AgentConfigSchema, TokenRingPackage} from "./types.js";
 
 const agentsSchema = z.record(z.string(), AgentConfigSchema).optional();
 
@@ -29,5 +28,4 @@ export const packageInfo: TokenRingPackage = {
 
 export { default as Agent } from "./Agent.ts";
 export { default as AgentTeam } from "./AgentTeam.ts";
-export { default as AgentStateStorage } from "../checkpoint/AgentCheckpointService.ts";
 export { type TokenRingPackage } from "./types.js";
