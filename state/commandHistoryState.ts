@@ -1,7 +1,7 @@
-import type { AgentStateSlice } from "../Agent.js";
-import type { ResetWhat } from "../AgentEvents.js";
+import type {ResetWhat} from "../AgentEvents.js";
+import type {StateSlice} from "../StateManager.js";
 
-export class CommandHistoryState implements AgentStateSlice {
+export class CommandHistoryState implements StateSlice {
 	name = "CommandHistoryState";
 	commands: string[] = [];
 
