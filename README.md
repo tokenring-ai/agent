@@ -2,197 +2,354 @@
 
 ## Overview
 
-The `@tokenring-ai/agent` package is a core component of the TokenRing AI system, designed to create, manage, and orchestrate AI agents. These agents can process commands, utilize tools, execute hooks, maintain state, and interact with users or other services through events and chat interfaces. The package supports building collaborative AI teams where agents can share resources like tools, commands, and storage. It emphasizes modularity via registries for extensibility, persistence through checkpoints, and asynchronous event handling for real-time interactions. This package is particularly suited for AI-driven applications involving natural language processing, task automation, and multi-agent workflows.
+The `@tokenring-ai/agent` package is the core orchestration system for TokenRing AI, enabling creation and management of AI agents that can execute commands, use tools, run hooks, maintain state, and communicate through asynchronous events. Agents operate within teams (AgentTeam) that share registries of tools, commands, hooks, and services. The package supports interactive and background agent types, sub-agent creation, state persistence via checkpoints, and human interaction requests. Built for modularity and extensibility, it's ideal for AI-driven task automation, multi-agent workflows, and collaborative AI systems.
 
-## Installation/Setup
+## Installation
 
-To use this package in a Node.js/TypeScript project:
+```bash
+npm install @tokenring-ai/agent @tokenring-ai/utility
+```
 
-1. Ensure you have Node.js (v18+) and npm/yarn installed.
-2. Install the package and its peer dependencies:
-   ```
-   npm install @tokenring-ai/agent @tokenring-ai/utility @tokenring-ai/ai-client
-   ```
-   (Note: `@tokenring-ai/ai-client` is required for AI configurations.)
-3. For development, clone the repository and build:
-   ```
-   cd pkg/agent
-   npm install
-   npm run build  # Compiles TypeScript to JavaScript
-   ```
-4. Import and use as an ES module (package type is "module").
-
-Environment variables or configs for AI services (e.g., API keys) should be set per the `@tokenring-ai/ai-client` documentation.
+This package is an ES module and requires Node.js 18+. Dependencies:
+- `@tokenring-ai/utility` (^0.1.0) - Registries and utilities
+- `eventemitter3` (^5.0.1) - Event handling
+- `glob-gitignore` (^1.0.15) - File pattern matching
+- `uuid` (^13.0.0) - ID generation
 
 ## Package Structure
 
-The package is organized as a TypeScript library with the following key directories and files:
-
-- **Root files**:
-  - `package.json`: Defines the package metadata, dependencies, and exports.
-  - `index.ts`: Main entry point exporting core classes and package info.
-  - `types.ts`: Type definitions for tools, commands, hooks, services, etc.
-  - `Agent.ts`: Core `Agent` class implementation.
-  - `AgentTeam.ts`: Manages teams of agents and registries.
-  - `ContextStorage.ts`: Handles context items for agent memory.
-  - `HistoryStorage.ts`: Abstract base for CLI history management.
-
-- **Commands** (`commands/`):
-  - Files like `history.ts`, `checkpoint.ts`, `reset.ts`, `hook.ts`, `tool.ts`, `settings.ts`: Implement chat commands for agent control (e.g., saving checkpoints, resetting state).
-
-- **Tools** (`tools/`):
-  - `runAgent.ts`: Tool to execute an agent.
-  - `listAgents.ts`: Tool to list available agents.
-  - `tools.ts`: Exports tools for the package.
-
-- **Other**:
-  - `AgentCheckpointService.ts`, `AgentCheckpointProvider.ts`: Handle agent state persistence.
-  - `AgentEvents.ts`: Defines event types for agent lifecycle.
-  - `chatCommands.ts`: Base chat command implementations.
-  - Config files: `tsconfig.json`, `vitest.config.ts` for building and testing.
-  - `LICENSE`: MIT license.
-
-Directories like `commands/` and `tools/` contain modular extensions that can be registered dynamically.
+```
+pkg/agent/
+├── Agent.ts                    # Core Agent class
+├── AgentTeam.ts                # Team orchestrator and registries
+├── AgentContextService.ts      # Context provider for agents
+├── AgentEvents.ts              # Event type definitions
+├── HumanInterfaceRequest.ts    # Human interaction types
+├── StateManager.ts             # State slice management
+├── types.ts                    # Core type definitions
+├── index.ts                    # Package entry point
+├── chatCommands.ts             # Command exports
+├── tools.ts                    # Tool exports
+├── commands/
+│   ├── debug.ts                # Debug logging toggle
+│   ├── hook.ts                 # Hook management
+│   ├── reset.ts                # State reset
+│   ├── settings.ts             # Settings display
+│   ├── tool.ts                 # Tool management
+│   └── work.ts                 # Work handler invocation
+├── tools/
+│   └── runAgent.ts             # Sub-agent execution tool
+└── state/
+    └── commandHistoryState.ts  # Command history tracking
+```
 
 ## Core Components
 
 ### AgentTeam
 
-`AgentTeam` is the central orchestrator for managing multiple agents, packages, and shared resources. It uses registries to handle tools, commands, hooks, and services.
+Central orchestrator managing agents, packages, and shared registries.
 
-- **Key Methods**:
-  - `addPackages(packages: TokenRingPackage[])`: Registers tools, commands, hooks, and agents from packages. Starts package-specific initialization.
-  - `createAgent(type: string): Promise<Agent>`: Creates and initializes a new agent instance by type.
-  - `getAgents(): Agent[]`: Retrieves all active agents.
-  - `deleteAgent(agent: Agent): Promise<void>`: Shuts down and removes an agent.
+**Key Methods:**
+- `addPackages(packages: TokenRingPackage[])` - Install and start packages
+- `createAgent(type: string): Promise<Agent>` - Create agent by type
+- `getAgents(): Agent[]` - Get all active agents
+- `deleteAgent(agent: Agent): Promise<void>` - Shutdown and remove agent
+- `getConfigSlice<T>(key: string, schema: T)` - Get validated config
+- `addAgentConfig(name: string, config: AgentConfig)` - Register agent type
 
-- **Interactions**: Acts as a service itself (`implements TokenRingService`), emitting events for outputs/errors. Registries (e.g., `tools`, `chatCommands`) are shared across agents.
+**Registries:**
+- `packages` - TokenRing packages
+- `services` - Shared services (typed registry)
+- `chatCommands` - Chat commands
+- `tools` - Available tools
+- `hooks` - Lifecycle hooks
+
+**State Management:**
+- Implements `StateStorageInterface` with `initializeState`, `mutateState`, `getState`
 
 ### Agent
 
-The `Agent` class represents an individual AI agent. It maintains state, processes inputs via commands, emits events, and integrates with tools/hooks/services.
+Individual AI agent with state management, event emission, and command processing.
 
-- **Description**: Configured via `AgentConfig`, an agent can be persistent, handle initial commands, and interact with AI services. It supports checkpointing for state restoration.
+**Constructor:**
+```typescript
+new Agent(agentTeam: AgentTeam, options: AgentConfig)
+```
 
-- **Key Methods**:
-  - Constructor: `new Agent(agentTeam: AgentTeam, options: AgentConfig)`
-    - Initializes tools, hooks, and services from the team.
-  - `initialize(): Promise<void>`: Attaches services and runs initial commands.
-  - `handleInput({message: string}): Promise<void>`: Processes user input, dispatching to chat commands (e.g., `/help`, `/reset`).
-  - `generateCheckpoint(): AgentCheckpointData`: Serializes state, tools, and hooks for persistence.
-  - `restoreCheckpoint(data: AgentCheckpointData): void`: Deserializes and restores state.
-  - `events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope>`: Yields real-time events (e.g., 'output.chat', 'state.busy').
-  - `askHuman(request: HumanInterfaceRequest): Promise<any>`: Requests human input, resolving via `sendHumanResponse`.
-  - `reset(what: ResetWhat[])`: Resets specific state slices (e.g., memory, tools).
+**Core Methods:**
+- `initialize(): Promise<void>` - Attach services, run initial commands
+- `handleInput({message: string}): Promise<void>` - Process user input
+- `runCommand(message: string): Promise<void>` - Execute command or chat
+- `createSubAgent(agentType: string): Promise<Agent>` - Create child agent
 
-- **State Management**:
-  - `initializeState(ClassType, props)`: Adds a state slice (implements `AgentStateSlice` with `serialize`/`deserialize`).
-  - `getState<T>(ClassType): T`: Retrieves a state slice.
-  - State slices handle serialization for checkpoints.
+**State Management:**
+- `initializeState<T>(ClassType, props)` - Add state slice
+- `getState<T>(ClassType): T` - Retrieve state slice
+- `mutateState<T>(ClassType, callback)` - Modify state slice
+- `generateCheckpoint(): AgentCheckpointData` - Serialize state
+- `restoreCheckpoint(data: AgentCheckpointData)` - Restore state
+- `reset(what: ResetWhat[])` - Reset state slices
 
-- **Interactions**: Emits events for outputs (chat, reasoning, system), state changes (busy/idle), and human interactions. Uses team's registries for tools/hooks. Auto-saves checkpoints on idle/reset/response events.
+**Event System:**
+- `events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope>` - Event stream
+- `chatOutput(content: string)` - Emit chat output
+- `reasoningOutput(content: string)` - Emit reasoning output
+- `systemMessage(message: string, level?)` - Emit system message
+- `setBusy(message: string)` / `setNotBusy()` / `setIdle()` - State changes
+- `requestAbort(reason: string)` - Abort operations
 
-### ContextStorage
+**Human Interaction:**
+- `askHuman<T>(request: HumanInterfaceRequest): Promise<T>` - Request input
+- `sendHumanResponse(sequence: number, response: any)` - Resolve request
 
-Manages ordered context items (e.g., chat messages) for agent memory.
+**Utilities:**
+- `busyWhile<T>(message: string, awaitable: Promise<T>): Promise<T>`
+- `getAbortSignal(): AbortSignal`
+- `executeHooks(hookType: HookType, ...args)` - Run lifecycle hooks
 
-- **Key Methods**:
-  - `addItem(item: ContextItem)`: Adds a context item with ID and optional delete callback.
-  - `getItemsInOrder(): ContextItem[]`: Returns sorted items by creation time.
-  - `toJSON()` / `fromJSON(items)`: For persistence.
+### StateManager
 
-- **Interactions**: Can be integrated into agent state for maintaining conversation history.
+Manages state slices with serialization/deserialization.
 
-### HistoryStorage
+**Methods:**
+- `initializeState<T>(ClassType, props)` - Register state slice
+- `getState<T>(ClassType): T` - Get state slice
+- `mutateState<T>(ClassType, callback)` - Modify state
+- `serialize(): Record<string, object>` - Serialize all slices
+- `deserialize(data, onMissing?)` - Restore state
+- `reset(what: ResetWhat[])` - Reset slices
+- `entries()` - Iterate state slices
 
-Abstract class for storing CLI command history, useful for interactive agent sessions.
+**State Slices** implement:
+```typescript
+interface StateSlice {
+  name: string;
+  reset(what: ResetWhat[]): void;
+  serialize(): object;
+  deserialize(data: object): void;
+  persistToSubAgents?: boolean;
+}
+```
 
-- **Key Methods** (abstract):
-  - `init()`: Setup storage.
-  - `add(command: string)`: Append to history.
-  - `getPrevious()` / `getNext(): string | null`: Navigate history.
-  - `getAll(): string[]`: List all entries.
+### AgentContextService
 
-- **Configuration**: `HistoryConfig` with `limit` (default 100) and `blacklist`.
+Provides context items to agents, such as available agent types when the `runAgent` tool is enabled.
 
-- **Interactions**: Implements `TokenRingService` for team integration.
-
-### Other Components
-
-- **Tools and Hooks**: Registered via `TokenRingTool` and `HookConfig`. Tools have `execute` with Zod schemas; hooks run before/after chat completions.
-- **Chat Commands**: `TokenRingChatCommand` with `execute` and `help` methods for handling inputs like `/checkpoint` or `/tool`.
-- **Services**: `TokenRingService` interface for attachable components (e.g., memory providers via `getMemories()` generator).
-
-Components interact through the `AgentTeam`'s registries and the agent's event system, enabling modular extensions.
+**Methods:**
+- `getContextItems(agent: Agent): AsyncGenerator<ContextItem>` - Yield context items
 
 ## Usage Examples
 
-### 1. Creating an Agent Team and Adding Packages
+### Creating an Agent Team
 
 ```typescript
-import { AgentTeam, TokenRingPackage } from '@tokenring-ai/agent';
-import { packageInfo as utilityPackage } from '@tokenring-ai/utility'; // Example package
+import { AgentTeam, packageInfo } from '@tokenring-ai/agent';
 
-const team = new AgentTeam({ persistentStorage: /* implement AgentPersistentStorage */ });
-await team.addPackages([utilityPackage /*, other packages */]);
+const team = new AgentTeam({ /* config */ });
+await team.addPackages([packageInfo]);
 
-const agent = await team.createAgent('myAgentType'); // Assumes config registered
+// Register agent types
+team.addAgentConfig('myAgent', {
+  name: 'My Agent',
+  description: 'Custom agent',
+  visual: { color: 'blue' },
+  ai: { /* AI config */ },
+  initialCommands: [],
+  type: 'interactive'
+});
+
+const agent = await team.createAgent('myAgent');
+await agent.initialize();
 ```
 
-### 2. Handling Agent Input and Events
+### Processing Input and Events
 
 ```typescript
-// Listen to events
-const eventIterator = agent.events(new AbortController().signal);
-for await (const event of eventIterator) {
-  if (event.type === 'output.chat') {
-    console.log('Agent says:', event.data.content);
-  } else if (event.type === 'state.idle') {
-    console.log('Agent is ready.');
+// Event stream
+const controller = new AbortController();
+for await (const event of agent.events(controller.signal)) {
+  switch (event.type) {
+    case 'output.chat':
+      console.log('Chat:', event.data.content);
+      break;
+    case 'output.system':
+      console.log(`[${event.data.level}]`, event.data.message);
+      break;
+    case 'state.idle':
+      console.log('Agent ready');
+      break;
+    case 'human.request':
+      const response = await getUserInput(event.data.request);
+      agent.sendHumanResponse(event.data.sequence, response);
+      break;
   }
 }
 
-// Process user input
-await agent.handleInput({ message: '/help' }); // Runs help command
-await agent.handleInput({ message: 'Hello, agent!' }); // Falls back to chat
+// Handle input
+await agent.handleInput({ message: '/tools enable myTool' });
+await agent.handleInput({ message: 'Hello!' });
 ```
 
-### 3. Checkpointing and Reset
+### Creating Sub-Agents
 
 ```typescript
-// Generate and save checkpoint (via service)
-const checkpoint = agent.generateCheckpoint();
-await storage.saveAgentCheckpoint('Manual save', agent);
-
-// Restore
-await agent.restoreCheckpoint(checkpoint);
-
-// Reset specific state
-agent.reset(['memory', 'tools']);
+const subAgent = await agent.createSubAgent('backgroundWorker');
+// Persistent state is copied to sub-agent
+// Sub-agent runs independently
+await team.deleteAgent(subAgent); // Cleanup
 ```
 
-## Configuration Options
+### State Management
 
-- **AgentConfig**:
-  - `name: string`: Agent identifier.
-  - `description: string`: Purpose.
-  - `visual: { color: ColorName }`: UI color (e.g., 'blue').
-  - `ai: AIConfig`: From `@tokenring-ai/ai-client` for LLM integration.
-  - `initialCommands: string[]`: Startup messages/commands.
-  - `persistent?: boolean`: Enable checkpointing.
-  - `storagePath?: string`: Custom storage location.
+```typescript
+// Define state slice
+class MyState implements StateSlice {
+  name = 'MyState';
+  data: string[] = [];
+  
+  reset(what: ResetWhat[]) {
+    if (what.includes('chat')) this.data = [];
+  }
+  
+  serialize() { return { data: this.data }; }
+  deserialize(obj: any) { this.data = obj.data || []; }
+}
 
-- **Team Config** (`AgentTeamConfig`): `persistentStorage: AgentPersistentStorage` for state loading/saving.
+// Use state
+agent.initializeState(MyState, {});
+agent.mutateState(MyState, state => state.data.push('item'));
+const state = agent.getState(MyState);
 
-- **Hooks/Tools/Commands**: Configured via `TokenRingPackage` records, registered dynamically.
+// Checkpointing
+const checkpoint = agent.generateCheckpoint();
+agent.restoreCheckpoint(checkpoint);
+```
 
-- Environment: No specific vars; AI configs handle API keys.
+## Built-in Commands
 
-## API Reference
+- `/debug [on|off]` - Toggle debug logging
+- `/hooks [list|enable|disable] [hookName]` - Manage hooks
+- `/reset [chat|memory|settings|all]` - Reset state
+- `/settings` - Show active services and tools
+- `/tools [enable|disable|set] <tool1> <tool2>` - Manage tools
+- `/work [message]` - Invoke agent's work handler
 
-- **AgentTeam**:
-  - `addPackages(packages: TokenRingPackage[]): Promise<void>`
-  - `createAgent(type: string): Promise<Agent>`
+## Built-in Tools
+
+- `agent/run` - Create sub-agent, send message, wait for response, cleanup
+  - Parameters: `agentType`, `message`, `context`
+
+## Event Types
+
+- `output.chat` - Chat output
+- `output.reasoning` - Reasoning output
+- `output.system` - System messages (info/warning/error)
+- `state.busy` - Agent busy
+- `state.notBusy` - Agent not busy
+- `state.idle` - Agent idle and ready
+- `state.aborted` - Operation aborted
+- `state.exit` - Exit requested
+- `input.received` - Input received
+- `human.request` - Human input requested
+- `human.response` - Human response provided
+- `reset` - State reset
+
+## Configuration
+
+**AgentConfig:**
+```typescript
+{
+  name: string;                    // Agent identifier
+  description: string;              // Purpose
+  visual: { color: string };        // UI color
+  ai: any;                          // AI configuration
+  initialCommands: string[];        // Startup commands
+  persistent?: boolean;             // Enable checkpointing
+  storagePath?: string;             // Storage location
+  type: 'interactive' | 'background'; // Agent type
+  workHandler?: (msg: string, agent: Agent) => Promise<void>; // Custom work handler
+}
+```
+
+**AgentTeamConfig:**
+```typescript
+Record<string, any> // Arbitrary config, accessed via getConfigSlice()
+```
+
+## Type Definitions
+
+**TokenRingPackage:**
+```typescript
+{
+  name: string;
+  version: string;
+  description: string;
+  install?(agentTeam: AgentTeam): Promise<void> | void;
+  start?(agentTeam: AgentTeam): Promise<void> | void;
+}
+```
+
+**TokenRingService:**
+```typescript
+{
+  name: string;
+  description: string;
+  start?(agentTeam: AgentTeam): Promise<void>;
+  stop?(agentTeam: AgentTeam): Promise<void>;
+  attach?(agent: Agent): Promise<void>;
+  detach?(agent: Agent): Promise<void>;
+  getContextItems?(agent: Agent): AsyncGenerator<ContextItem>;
+}
+```
+
+**TokenRingToolDefinition:**
+```typescript
+{
+  name: string;
+  description: string;
+  execute: (input: object, agent: Agent) => Promise<string | object>;
+  inputSchema: Tool['inputSchema']; // Zod schema
+  start?(agent: Agent): Promise<void>;
+  stop?(agent: Agent): Promise<void>;
+}
+```
+
+**TokenRingChatCommand:**
+```typescript
+{
+  name?: string;
+  description: string;
+  execute: (input: string, agent: Agent) => Promise<void | string> | void | string;
+  help: () => string | string[];
+}
+```
+
+**HookConfig:**
+```typescript
+{
+  name: string;
+  description: string;
+  beforeChatCompletion?(agent: Agent, ...args): Promise<void> | void;
+  afterChatCompletion?(agent: Agent, ...args): Promise<void> | void;
+  afterAgentInputComplete?(agent: Agent, ...args): Promise<void> | void;
+}
+```
+
+## Human Interface Requests
+
+Supported request types:
+- `askForConfirmation` - Yes/no prompt
+- `openWebPage` - Open URL
+- `askForSelection` - Single choice
+- `ask` - Text input
+- `askForPassword` - Password input
+- `askForMultipleSelections` - Multiple choices
+- `askForSingleTreeSelection` - Tree navigation (single)
+- `askForMultipleTreeSelection` - Tree navigation (multiple)
+
+## License
+
+MIT License - Copyright (c) 2025 Mark Dierolfnt(type: string): Promise<Agent>`
   - `getAgents(): Agent[]`
 
 - **Agent**:
