@@ -41,24 +41,21 @@ export async function execute(
 			switch (event.type) {
 				case "output.chat":
 					response += event.data.content;
-					agent.chatOutput(event.data.content);
 					break;
 				case "output.system":
-					agent.systemMessage(event.data.message, event.data.level);
 					// Include system messages in the response for debugging
 					if (event.data.level === "error") {
 						response += `[System Error: ${event.data.message}]\n`;
 					}
 					break;
 				case "state.idle":
-					agent.systemMessage("Agent is idle");
 					if (!inputSent) {
 						inputSent = true;
 
 						if (context) {
 							message = `${message}\n\nImportant Context:\n${context}`;
 						}
-						agent.infoLine("Sending message to agent:", message);
+
 						newAgent.handleInput({ message: `/work ${message}` });
 					} else if (response) {
 						return {

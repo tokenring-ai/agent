@@ -97,12 +97,12 @@ export default class AgentTeam implements TokenRingService, StateStorageInterfac
 	}
 
 	addTools(
-		pkg: TokenRingPackage,
+		pkgName: string,
 		tools: Record<string, TokenRingToolDefinition>,
 	) {
 		for (const toolName in tools) {
 			this.tools.register(
-				`${pkg.name}/${toolName}`,
+				`${pkgName}/${toolName}`,
 				tokenRingTool({ ...tools[toolName] }),
 			);
 		}
@@ -114,9 +114,9 @@ export default class AgentTeam implements TokenRingService, StateStorageInterfac
 		}
 	}
 
-	addHooks(pkg: TokenRingPackage, hooks: Record<string, HookConfig>) {
+	addHooks(pkgName: string, hooks: Record<string, HookConfig>) {
 		for (const hookName in hooks) {
-			this.hooks.register(`${pkg.name}/${hookName}`, hooks[hookName]);
+			this.hooks.register(`${pkgName}/${hookName}`, hooks[hookName]);
 		}
 	}
 
