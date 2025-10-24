@@ -8,7 +8,7 @@ import {CommandHistoryState} from "./state/commandHistoryState.js";
 import StateManager, {type StateStorageInterface} from "./StateManager.js";
 import type {
   AgentCheckpointData,
-  AgentConfig,
+  AgentConfig, AgentStateSlice,
   AskHumanInterface,
   ChatOutputStream,
   HookConfig,
@@ -91,11 +91,19 @@ export default class Agent
   /**
    * Initialize the agent with commands and services
    */
-  async initialize(): Promise<void> {
+  async initialize(initialState: Record<string, AgentStateSlice> = {}): Promise<void> {
     this.initializeState(CommandHistoryState, {});
 
     for (const service of this.team.services.getItems()) {
       if (service.attach) await service.attach(this);
+    }
+
+    for (const itemName in initialState) {
+      const newItem = this.stateManager.state.get(itemName);
+      if (newItem) {
+        this.infoLine(`Copying persistent state item ${itemName} to agent`);
+        newItem.deserialize(initialState[itemName].serialize());
+      }
     }
 
     for (const message of this.options.initialCommands ?? []) {
@@ -289,17 +297,12 @@ export default class Agent
       `Created new agent: ${newAgent.options.name} (${newAgent.id.slice(0, 8)})`,
     );
 
-    await newAgent.initialize();
+    const initialStateForSubAgent = Object.fromEntries(
+      Object.entries(this.stateManager).filter(item => item[1].persistToSubAgents)
+    );
 
-    for (const [itemName, item] of this.stateManager.entries()) {
-      if (item.persistToSubAgents) {
-        const newItem = newAgent.stateManager.state.get(itemName);
-        if (newItem) {
-          this.infoLine(`Copying persistent state item ${itemName} to agent`);
-          newItem.deserialize(item.serialize());
-        }
-      }
-    }
+    await newAgent.initialize(initialStateForSubAgent);
+
     return newAgent;
   }
 
