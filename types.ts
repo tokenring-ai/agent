@@ -1,9 +1,9 @@
-import type {Tool} from "ai";
 import {z} from "zod";
 import Agent from "./Agent.js";
 import AgentTeam from "./AgentTeam.js";
 import type {HumanInterfaceRequest, HumanInterfaceResponse} from "./HumanInterfaceRequest.js";
 import type {StateSlice} from "./StateManager.js";
+import { AITool } from "@tokenring-ai/ai-client/AIService";
 
 export type TokenRingChatCommand = {
 	name?: string;
@@ -33,7 +33,7 @@ export type TokenRingToolDefinition = {
 	name: string;
 	description: string;
 	execute: (input: object, agent: Agent) => Promise<string | object>;
-	inputSchema: Tool["inputSchema"];
+	inputSchema: AITool["inputSchema"];
 	start?: (agent: Agent) => Promise<void>;
 	stop?: (agent: Agent) => Promise<void>;
 };

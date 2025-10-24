@@ -11,10 +11,10 @@ import { tokenRingTool } from "@tokenring-ai/ai-client/util/tokenRingTool";
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
 import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
 import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
-import type { Tool } from "ai";
 import { EventEmitter } from "eventemitter3";
 import { z } from "zod";
 import StateManager, {type StateStorageInterface} from "./StateManager.js";
+import { AITool } from "@tokenring-ai/ai-client/AIService";
 
 export interface AgentPersistentStorage {
 	storeState: (agent: Agent) => Promise<string>;
@@ -25,7 +25,7 @@ export type AgentTeamConfig = Record<string, any>;
 
 export type NamedTool = {
 	name: string;
-	tool: Tool;
+	tool: AITool;
 };
 
 
