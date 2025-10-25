@@ -1,11 +1,11 @@
 import {z} from "zod";
 import Agent from "./Agent.js";
+import {ResetWhat} from "./AgentEvents.ts";
 import AgentTeam from "./AgentTeam.js";
 import type {HumanInterfaceRequest, HumanInterfaceResponse} from "./HumanInterfaceRequest.js";
-import type {StateSlice} from "./StateManager.js";
-import { AITool } from "@tokenring-ai/ai-client/AIService";
+import type {SerializableStateSlice} from "./StateManager.js";
 
-export type TokenRingChatCommand = {
+export type TokenRingAgentCommand = {
 	name?: string;
 	description: string;
 	execute: (
@@ -29,17 +29,6 @@ export type HookCallback = (
 	agent: Agent,
 	...args: any[]
 ) => Promise<void> | void;
-export type TokenRingToolDefinition = {
-	name: string;
-	description: string;
-	execute: (input: object, agent: Agent) => Promise<string | object>;
-	inputSchema: AITool["inputSchema"];
-	start?: (agent: Agent) => Promise<void>;
-	stop?: (agent: Agent) => Promise<void>;
-};
-export type TokenRingTool = {
-	packageName: string;
-} & TokenRingToolDefinition;
 export type MessageLevel = "info" | "warning" | "error";
 
 export interface ChatOutputStream {
@@ -72,7 +61,12 @@ export interface ServiceRegistryInterface {
   ): R | undefined;
 }
 
-export type AgentStateSlice = StateSlice;
+export type AgentStateSlice = SerializableStateSlice & {
+  reset: (what: ResetWhat[]) => void;
+  show: () => string[];
+  persistToSubAgents?: boolean;
+}
+
 export const AgentConfigSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -95,10 +89,7 @@ export interface AgentCheckpointData {
   agentId: string;
   createdAt: number;
   state: {
-    //contextStorage: object;
     agentState: Record<string, object>;
-    toolsEnabled: string[];
-    hooksEnabled: string[];
   };
 }
 
@@ -109,7 +100,7 @@ export type TokenRingPackage = {
   //start?: (agentTeam: AgentTeam) => Promise<void>;
   //stop?: (agentTeam: AgentTeam) => Promise<void>;
   //tools?: Record<string, TokenRingToolDefinition>;
-  //chatCommands?: Record<string, TokenRingChatCommand>;
+  //chatCommands?: Record<string, TokenRingAgentCommand>;
   //hooks?: Record<string, Omit<Omit<HookConfig, "name">, "packageName">>;
 	agents?: Record<string, AgentConfig>;
 

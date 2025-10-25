@@ -4,8 +4,7 @@ import Agent from "../Agent.ts";
 export const description = "/settings - Show current chat settings." as const;
 
 export function execute(_remainder: string | undefined, agent: Agent): void {
-	const activeServices = agent.team.services.getItems();
-	const activeTools = agent.tools.getActiveItemNames();
+  const activeServices = agent.team.getServices();
 
 	agent.infoLine("Current settings:");
 	agent.infoLine(
@@ -15,9 +14,14 @@ export function execute(_remainder: string | undefined, agent: Agent): void {
 			"No services active.",
 		)}`,
 	);
-	agent.infoLine(
-		`Active tools: ${joinDefault(", ", activeTools, "No tools enabled.")}`,
-	);
+
+  agent.infoLine("\nState:");
+  agent.stateManager.forEach((slice) => {
+    agent.infoLine(`\n${slice.name}:`);
+    for (const line of slice.show()) {
+      agent.infoLine(`  ${line}`);
+    }
+  });
 }
 
 // noinspection JSUnusedGlobalSymbols

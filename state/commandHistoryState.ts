@@ -1,7 +1,7 @@
 import type {ResetWhat} from "../AgentEvents.js";
-import type {StateSlice} from "../StateManager.js";
+import type {SerializableStateSlice} from "../StateManager.js";
 
-export class CommandHistoryState implements StateSlice {
+export class CommandHistoryState implements SerializableStateSlice {
 	name = "CommandHistoryState";
 	commands: string[] = [];
 
@@ -22,4 +22,11 @@ export class CommandHistoryState implements StateSlice {
 	deserialize(data: any): void {
 		this.commands = data.commands ? [...data.commands] : [];
 	}
+
+  show(): string[] {
+    return [
+      `Commands: ${this.commands.length}`,
+      ...this.commands.slice(-5).map((cmd, i) => `  [${this.commands.length - 5 + i + 1}] ${cmd}`)
+    ];
+  }
 }

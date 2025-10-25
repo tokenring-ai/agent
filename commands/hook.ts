@@ -1,4 +1,5 @@
 import Agent from "../Agent.ts";
+import AgentLifecycleService from "../services/AgentLifecycleService.js";
 
 export const description =
 	"/hooks [list|enable|disable] [hookName] - List registered hooks or enable/disable hook execution." as const;
@@ -7,7 +8,8 @@ export async function execute(
 	remainder: string | undefined,
 	agent: Agent,
 ): Promise<void> {
-	const registeredHooks = agent.hooks.getAllItems();
+  const agentLifecycleService = agent.requireServiceByType(AgentLifecycleService);
+  const registeredHooks = agentLifecycleService.getRegisteredHooks();
 
 	const directOperation = remainder?.trim();
 	if (directOperation) {
@@ -37,6 +39,7 @@ export async function execute(
 					agent.errorLine(`Unknown hook: ${hookName}`);
 					return;
 				}
+        agentLifecycleService.enableHooks([hookName], agent);
 				agent.infoLine(`Hook '${hookName}' enabled`);
 				break;
 			}
@@ -49,6 +52,7 @@ export async function execute(
 					agent.errorLine(`Unknown hook: ${hookName}`);
 					return;
 				}
+        agentLifecycleService.disableHooks([hookName], agent);
 				agent.infoLine(`Hook '${hookName}' disabled`);
 				break;
 			}

@@ -1,14 +1,18 @@
-import type { ContextItem, TokenRingService } from "@tokenring-ai/agent/types";
-import Agent from "./Agent.js";
+import {AIService} from "@tokenring-ai/ai-client";
+import Agent from "../Agent.js";
+import type {ContextItem, TokenRingService} from "../types.js";
+import AgentConfigService from "./AgentConfigService.js";
 
 export default class AgentContextService implements TokenRingService {
 	name = "AgentContextService";
 	description = "Dispatches sub-agents to handle tasks";
 
 	async *getContextItems(agent: Agent): AsyncGenerator<ContextItem> {
-		if (agent.tools.getActiveItemNames().has("@tokenring-ai/agent/runAgent")) {
+    const aiService = agent.getServiceByType(AIService);
+    const agentConfigService = agent.requireServiceByType(AgentConfigService);
+    if (aiService?.getEnabledTools(agent).includes("@tokenring-ai/agent/runAgent")) {
 			// Get the list of available agent types from the agent team
-			const agentTypes = agent.team.getAgentConfigs();
+      const agentTypes = agentConfigService.getAgentConfigs();
 
 			yield {
 				position: "afterSystemMessage",

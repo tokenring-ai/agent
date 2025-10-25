@@ -1,18 +1,19 @@
 import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
-import RegistryMultiSelector from "@tokenring-ai/utility/RegistryMultiSelector";
 import {v4 as uuid} from "uuid";
 import type {AgentEventEnvelope, AgentEvents, ResetWhat,} from "./AgentEvents.js";
-import AgentTeam, {type NamedTool} from "./AgentTeam.ts";
+import AgentTeam from "./AgentTeam.ts";
 import type {HumanInterfaceRequest, HumanInterfaceResponse,} from "./HumanInterfaceRequest.js";
+import AgentCommandService from "./services/AgentCommandService.js";
+import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
-import StateManager, {type StateStorageInterface} from "./StateManager.js";
+import {HooksState} from "./state/hooksState.js";
+import StateManager from "./StateManager.js";
 import type {
   AgentCheckpointData,
-  AgentConfig, AgentStateSlice,
+  AgentConfig,
+  AgentStateSlice,
   AskHumanInterface,
   ChatOutputStream,
-  HookConfig,
-  HookType,
   ServiceRegistryInterface,
   TokenRingService
 } from "./types.js";
@@ -22,16 +23,12 @@ export default class Agent
 	implements
 		AskHumanInterface,
 		ChatOutputStream,
-		StateStorageInterface,
     ServiceRegistryInterface {
   readonly name = "Agent";
   readonly description = "Agent implementation";
 
   readonly id: string = uuid();
-  tools: RegistryMultiSelector<NamedTool>;
-  hooks: RegistryMultiSelector<HookConfig>;
   debugEnabled = false;
-  //contextStorage = new ContextStorage();
   requireServiceByType: <R extends TokenRingService>(
     type: abstract new (...args: any[]) => R,
   ) => R;
@@ -40,7 +37,7 @@ export default class Agent
   ) => R | undefined;
   readonly team!: AgentTeam;
   options: AgentConfig;
-  private stateManager = new StateManager();
+  stateManager = new StateManager<AgentStateSlice>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
   mutateState = this.stateManager.mutateState.bind(this.stateManager);
   getState = this.stateManager.getState.bind(this.stateManager);
@@ -55,10 +52,8 @@ export default class Agent
   constructor(agentTeam: AgentTeam, options: AgentConfig) {
     this.team = agentTeam;
     this.options = options;
-    this.tools = new RegistryMultiSelector(agentTeam.tools);
-    this.hooks = new RegistryMultiSelector(agentTeam.hooks);
-    this.requireServiceByType = this.team.services.requireItemByType;
-    this.getServiceByType = this.team.services.getItemByType;
+    this.requireServiceByType = this.team.requireService;
+    this.getServiceByType = this.team.getService;
   }
 
   get state() {
@@ -68,8 +63,6 @@ export default class Agent
   }
 
   restoreCheckpoint({state}: AgentCheckpointData): void {
-    this.tools.setEnabledItems(state.toolsEnabled || []);
-    this.hooks.setEnabledItems(state.hooksEnabled || []);
     this.stateManager.deserialize(state.agentState, (key) => {
       this.systemMessage(`State slice ${key} not found in agent state`);
     });
@@ -81,8 +74,6 @@ export default class Agent
       createdAt: Date.now(),
       state: {
         agentState: this.stateManager.serialize(),
-        toolsEnabled: Array.from(this.tools.getActiveItemNames()),
-        hooksEnabled: Array.from(this.hooks.getActiveItemNames()),
       },
     };
   }
@@ -93,8 +84,9 @@ export default class Agent
    */
   async initialize(initialState: Record<string, AgentStateSlice> = {}): Promise<void> {
     this.initializeState(CommandHistoryState, {});
+    this.initializeState(HooksState, {});
 
-    for (const service of this.team.services.getItems()) {
+    for (const service of this.team.getServices()) {
       if (service.attach) await service.attach(this);
     }
 
@@ -106,19 +98,13 @@ export default class Agent
       }
     }
 
+    const agentCommandService = this.requireServiceByType(AgentCommandService);
     for (const message of this.options.initialCommands ?? []) {
       this.emit("input.received", {message});
-      await this.runCommand(message);
+      await agentCommandService.executeAgentCommand(this, message);
     }
 
     this.setIdle();
-  }
-
-  async executeHooks(hookType: HookType, ...args: any[]): Promise<void> {
-    const hooks = this.hooks.getActiveItemEntries();
-    for (const [, hook] of Object.entries(hooks)) {
-      await hook[hookType]?.(this, ...args);
-    }
   }
 
   /**
@@ -134,45 +120,15 @@ export default class Agent
         state.commands.push(message);
       });
 
-      await this.runCommand(message);
+      await this.requireServiceByType(AgentCommandService).executeAgentCommand(this, message);
     } catch (err) {
       if (!this.abortController?.signal?.aborted) {
         // Only output an error if the command wasn't aborted
         this.systemMessage(`Error running command: ${err}`, "error");
       }
     } finally {
-      await this.executeHooks("afterAgentInputComplete", message);
+      await this.getServiceByType(AgentLifecycleService)?.executeHooks(this, "afterAgentInputComplete", message);
       this.setIdle();
-    }
-  }
-
-  async runCommand(message: string): Promise<void> {
-    let commandName = "chat";
-    let remainder = message
-      .replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {
-        commandName = matchedCommandName;
-        return "";
-      })
-      .trim();
-
-    commandName = commandName || "help";
-
-    // Get command from agent's chat commands
-    const commands = this.team.chatCommands.getAllItems();
-    let command = commands[commandName];
-
-    if (!command && commandName.endsWith("s")) {
-      // If the command name is plural, try it singular as well
-      command = commands[commandName.slice(0, -1)];
-    }
-
-    if (command) {
-      await command.execute(remainder, this);
-    } else {
-      this.systemMessage(
-        `Unknown command: /${commandName}. Type /help for a list of commands.`,
-        "error",
-      );
     }
   }
 
@@ -234,7 +190,9 @@ export default class Agent
   }
 
   reset(what: ResetWhat[]) {
-    this.stateManager.reset(what);
+    this.stateManager.forEach((_itemName, item) => {
+      item.reset(what);
+    });
     this.emit("reset", {what});
   }
 
@@ -287,23 +245,6 @@ export default class Agent
 
   getAbortSignal() {
     return this.abortController.signal;
-  }
-
-  async createSubAgent(agentType: string): Promise<Agent> {
-    // Create a new agent of the specified type
-    const newAgent = await this.team.createAgent(agentType);
-
-    this.systemMessage(
-      `Created new agent: ${newAgent.options.name} (${newAgent.id.slice(0, 8)})`,
-    );
-
-    const initialStateForSubAgent = Object.fromEntries(
-      Object.entries(this.stateManager).filter(item => item[1].persistToSubAgents)
-    );
-
-    await newAgent.initialize(initialStateForSubAgent);
-
-    return newAgent;
   }
 
   private emit<K extends keyof AgentEvents>(

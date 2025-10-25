@@ -1,6 +1,7 @@
 import trimMiddle from "@tokenring-ai/utility/trimMiddle";
 import {z} from "zod";
 import Agent from "../Agent.js";
+import AgentConfigService from "../services/AgentConfigService.js";
 
 export const name = "agent/run";
 
@@ -26,8 +27,9 @@ export async function execute(
 		throw new Error("Message is required");
 	}
 
+  const agentConfigService = agent.requireServiceByType(AgentConfigService);
 	// Create a new agent of the specified type
-  const newAgent = await agent.createSubAgent(agentType);
+  const newAgent = await agentConfigService.spawnSubAgent(agent, agentType);
 
   try {
 		let response = "";
