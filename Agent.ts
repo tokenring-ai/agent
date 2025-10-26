@@ -35,7 +35,7 @@ export default class Agent
   getServiceByType: <R extends TokenRingService>(
     type: abstract new (...args: any[]) => R,
   ) => R | undefined;
-  readonly team!: AgentTeam;
+  readonly team: AgentTeam;
   options: AgentConfig;
   stateManager = new StateManager<AgentStateSlice>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
@@ -60,6 +60,11 @@ export default class Agent
     return {
       entries: () => this.stateManager.entries(),
     };
+  }
+
+  runCommand(command: string): Promise<void> {
+    const agentCommandService = this.requireServiceByType(AgentCommandService);
+    return agentCommandService.executeAgentCommand(this, command);
   }
 
   restoreCheckpoint({state}: AgentCheckpointData): void {
@@ -190,9 +195,7 @@ export default class Agent
   }
 
   reset(what: ResetWhat[]) {
-    this.stateManager.forEach((_itemName, item) => {
-      item.reset(what);
-    });
+    this.stateManager.forEach(item => item.reset(what))
     this.emit("reset", {what});
   }
 
