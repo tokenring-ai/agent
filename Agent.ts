@@ -20,9 +20,8 @@ import type {
 
 
 export default class Agent
-	implements
-		AskHumanInterface,
-		ChatOutputStream,
+  implements AskHumanInterface,
+    ChatOutputStream,
     ServiceRegistryInterface {
   readonly name = "Agent";
   readonly description = "Agent implementation";

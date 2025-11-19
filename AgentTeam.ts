@@ -20,7 +20,16 @@ export default class AgentTeam implements TokenRingService, StateStorageInterfac
   addServices = this.services.register;
   readonly events = new EventEmitter();
   //private agentInstanceRegistry = new KeyedRegistry<Agent>();
-	private agents: Map<string, Agent> = new Map();
+  private agents: Map<string, Agent> = new Map();
+  private config: AgentTeamConfig;
+  private stateManager = new StateManager();
+  initializeState = this.stateManager.initializeState.bind(this.stateManager);
+  mutateState = this.stateManager.mutateState.bind(this.stateManager);
+  getState = this.stateManager.getState.bind(this.stateManager);
+
+  constructor(config: AgentTeamConfig) {
+    this.config = config;
+  }
 
   waitForService = <R extends TokenRingService>(
     serviceType: abstract new (...args: any[]) => R,
@@ -30,37 +39,27 @@ export default class AgentTeam implements TokenRingService, StateStorageInterfac
       console.error(err);
     });
   }
-	private config: AgentTeamConfig;
-  private stateManager = new StateManager();
 
-	constructor(config: AgentTeamConfig) {
-		this.config = config;
-	}
+  getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
+    try {
+      return schema.parse(this.config[key]);
+    } catch (error) {
+      throw new Error(
+        `Invalid config value for key "${key}": ${(error as Error).message}`,
+      );
+    }
+  }
 
-  initializeState = this.stateManager.initializeState.bind(this.stateManager);
-  mutateState = this.stateManager.mutateState.bind(this.stateManager);
-  getState = this.stateManager.getState.bind(this.stateManager);
+  /**
+   * Log a system message
+   */
+  serviceOutput(...msgs: any[]): void {
+    this.events.emit("serviceOutput", formatLogMessages(msgs));
+  }
 
-	getConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
-		try {
-			return schema.parse(this.config[key]);
-		} catch (error) {
-			throw new Error(
-				`Invalid config value for key "${key}": ${(error as Error).message}`,
-			);
-		}
-	}
-
-	/**
-	 * Log a system message
-	 */
-	serviceOutput(...msgs: any[]): void {
-		this.events.emit("serviceOutput", formatLogMessages(msgs));
-	}
-
-	serviceError(...msgs: any[]): void {
-		this.events.emit("serviceError", formatLogMessages(msgs));
-	}
+  serviceError(...msgs: any[]): void {
+    this.events.emit("serviceError", formatLogMessages(msgs));
+  }
 
   async createAgent(agentConfig: AgentConfig): Promise<Agent> {
     const agent = new Agent(this, agentConfig);
@@ -72,17 +71,17 @@ export default class AgentTeam implements TokenRingService, StateStorageInterfac
     return agent;
   }
 
-	async deleteAgent(agent: Agent): Promise<void> {
-		agent.requestAbort("AgentManager initiated shutdown");
+  async deleteAgent(agent: Agent): Promise<void> {
+    agent.requestAbort("AgentManager initiated shutdown");
 
-		this.agents.delete(agent.id);
-	}
+    this.agents.delete(agent.id);
+  }
 
-	getAgents(): Agent[] {
-		return Array.from(this.agents.values());
-	}
+  getAgents(): Agent[] {
+    return Array.from(this.agents.values());
+  }
 
-	getAgent(id: string): Agent | undefined {
-		return this.agents.get(id);
-	}
+  getAgent(id: string): Agent | undefined {
+    return this.agents.get(id);
+  }
 }

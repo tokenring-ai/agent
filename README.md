@@ -2,7 +2,12 @@
 
 ## Overview
 
-The `@tokenring-ai/agent` package is the core orchestration system for TokenRing AI, enabling creation and management of AI agents that can execute commands, use tools, run hooks, maintain state, and communicate through asynchronous events. Agents operate within teams (AgentTeam) that share registries of tools, commands, hooks, and services. The package supports interactive and background agent types, sub-agent creation, state persistence via checkpoints, and human interaction requests. Built for modularity and extensibility, it's ideal for AI-driven task automation, multi-agent workflows, and collaborative AI systems.
+The `@tokenring-ai/agent` package is the core orchestration system for TokenRing AI, enabling creation and management of
+AI agents that can execute commands, use tools, run hooks, maintain state, and communicate through asynchronous events.
+Agents operate within teams (AgentTeam) that share registries of tools, commands, hooks, and services. The package
+supports interactive and background agent types, sub-agent creation, state persistence via checkpoints, and human
+interaction requests. Built for modularity and extensibility, it's ideal for AI-driven task automation, multi-agent
+workflows, and collaborative AI systems.
 
 ## Installation
 
@@ -11,6 +16,7 @@ npm install @tokenring-ai/agent @tokenring-ai/utility
 ```
 
 This package is an ES module and requires Node.js 18+. Dependencies:
+
 - `@tokenring-ai/utility` (^0.1.0) - Registries and utilities
 - `eventemitter3` (^5.0.1) - Event handling
 - `glob-gitignore` (^1.0.15) - File pattern matching
@@ -50,6 +56,7 @@ pkg/agent/
 Central orchestrator managing agents, packages, and shared registries.
 
 **Key Methods:**
+
 - `addPackages(packages: TokenRingPackage[])` - Install and start packages
 - `createAgent(type: string): Promise<Agent>` - Create agent by type
 - `getAgents(): Agent[]` - Get all active agents
@@ -58,6 +65,7 @@ Central orchestrator managing agents, packages, and shared registries.
 - `addAgentConfig(name: string, config: AgentConfig)` - Register agent type
 
 **Registries:**
+
 - `packages` - TokenRing packages
 - `services` - Shared services (typed registry)
 - `chatCommands` - Chat commands
@@ -65,6 +73,7 @@ Central orchestrator managing agents, packages, and shared registries.
 - `hooks` - Lifecycle hooks
 
 **State Management:**
+
 - Implements `StateStorageInterface` with `initializeState`, `mutateState`, `getState`
 
 ### Agent
@@ -72,17 +81,20 @@ Central orchestrator managing agents, packages, and shared registries.
 Individual AI agent with state management, event emission, and command processing.
 
 **Constructor:**
+
 ```typescript
 new Agent(agentTeam: AgentTeam, options: AgentConfig)
 ```
 
 **Core Methods:**
+
 - `initialize(): Promise<void>` - Attach services, run initial commands
 - `handleInput({message: string}): Promise<void>` - Process user input
 - `runCommand(message: string): Promise<void>` - Execute command or chat
 - `createSubAgent(agentType: string): Promise<Agent>` - Create child agent
 
 **State Management:**
+
 - `initializeState<T>(ClassType, props)` - Add state slice
 - `getState<T>(ClassType): T` - Retrieve state slice
 - `mutateState<T>(ClassType, callback)` - Modify state slice
@@ -91,6 +103,7 @@ new Agent(agentTeam: AgentTeam, options: AgentConfig)
 - `reset(what: ResetWhat[])` - Reset state slices
 
 **Event System:**
+
 - `events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope>` - Event stream
 - `chatOutput(content: string)` - Emit chat output
 - `reasoningOutput(content: string)` - Emit reasoning output
@@ -99,10 +112,12 @@ new Agent(agentTeam: AgentTeam, options: AgentConfig)
 - `requestAbort(reason: string)` - Abort operations
 
 **Human Interaction:**
+
 - `askHuman<T>(request: HumanInterfaceRequest): Promise<T>` - Request input
 - `sendHumanResponse(sequence: number, response: any)` - Resolve request
 
 **Utilities:**
+
 - `busyWhile<T>(message: string, awaitable: Promise<T>): Promise<T>`
 - `getAbortSignal(): AbortSignal`
 - `executeHooks(hookType: HookType, ...args)` - Run lifecycle hooks
@@ -112,6 +127,7 @@ new Agent(agentTeam: AgentTeam, options: AgentConfig)
 Manages state slices with serialization/deserialization.
 
 **Methods:**
+
 - `initializeState<T>(ClassType, props)` - Register state slice
 - `getState<T>(ClassType): T` - Get state slice
 - `mutateState<T>(ClassType, callback)` - Modify state
@@ -121,6 +137,7 @@ Manages state slices with serialization/deserialization.
 - `entries()` - Iterate state slices
 
 **State Slices** implement:
+
 ```typescript
 interface StateSlice {
   name: string;
@@ -136,6 +153,7 @@ interface StateSlice {
 Provides context items to agents, such as available agent types when the `runAgent` tool is enabled.
 
 **Methods:**
+
 - `getContextItems(agent: Agent): AsyncGenerator<ContextItem>` - Yield context items
 
 ## Usage Examples
@@ -237,7 +255,7 @@ agent.restoreCheckpoint(checkpoint);
 ## Built-in Tools
 
 - `agent/run` - Create sub-agent, send message, wait for response, cleanup
-  - Parameters: `agentType`, `message`, `context`
+ - Parameters: `agentType`, `message`, `context`
 
 ## Event Types
 
@@ -257,6 +275,7 @@ agent.restoreCheckpoint(checkpoint);
 ## Configuration
 
 **AgentConfig:**
+
 ```typescript
 {
   name: string;                    // Agent identifier
@@ -272,6 +291,7 @@ agent.restoreCheckpoint(checkpoint);
 ```
 
 **AgentTeamConfig:**
+
 ```typescript
 Record<string, any> // Arbitrary config, accessed via getConfigSlice()
 ```
@@ -279,6 +299,7 @@ Record<string, any> // Arbitrary config, accessed via getConfigSlice()
 ## Type Definitions
 
 **TokenRingPackage:**
+
 ```typescript
 {
   name: string;
@@ -290,6 +311,7 @@ Record<string, any> // Arbitrary config, accessed via getConfigSlice()
 ```
 
 **TokenRingService:**
+
 ```typescript
 {
   name: string;
@@ -303,6 +325,7 @@ Record<string, any> // Arbitrary config, accessed via getConfigSlice()
 ```
 
 **TokenRingToolDefinition:**
+
 ```typescript
 {
   name: string;
@@ -315,6 +338,7 @@ Record<string, any> // Arbitrary config, accessed via getConfigSlice()
 ```
 
 **TokenRingChatCommand:**
+
 ```typescript
 {
   name?: string;
@@ -325,6 +349,7 @@ Record<string, any> // Arbitrary config, accessed via getConfigSlice()
 ```
 
 **HookConfig:**
+
 ```typescript
 {
   name: string;
@@ -338,6 +363,7 @@ Record<string, any> // Arbitrary config, accessed via getConfigSlice()
 ## Human Interface Requests
 
 Supported request types:
+
 - `askForConfirmation` - Yes/no prompt
 - `openWebPage` - Open URL
 - `askForSelection` - Single choice
@@ -350,20 +376,21 @@ Supported request types:
 ## License
 
 MIT License - Copyright (c) 2025 Mark Dierolfnt(type: string): Promise<Agent>`
-  - `getAgents(): Agent[]`
+
+- `getAgents(): Agent[]`
 
 - **Agent**:
-  - `new Agent(team: AgentTeam, config: AgentConfig)`
-  - `handleInput(input: {message: string}): Promise<void>`
-  - `events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope>`
-  - `generateCheckpoint(): AgentCheckpointData`
-  - `askHuman(request: HumanInterfaceRequest): Promise<any>`
+ - `new Agent(team: AgentTeam, config: AgentConfig)`
+ - `handleInput(input: {message: string}): Promise<void>`
+ - `events(signal: AbortSignal): AsyncGenerator<AgentEventEnvelope>`
+ - `generateCheckpoint(): AgentCheckpointData`
+ - `askHuman(request: HumanInterfaceRequest): Promise<any>`
 
 - **Types**:
-  - `TokenRingTool`: `{ name, description, execute, inputSchema }`
-  - `TokenRingChatCommand`: `{ description, execute(input: string, agent: Agent) }`
-  - `HookConfig`: `{ name, beforeChatCompletion?, afterChatCompletion? }`
-  - `AgentStateSlice`: `{ reset(what: ResetWhat[]), serialize(): object, deserialize(data: object) }`
+ - `TokenRingTool`: `{ name, description, execute, inputSchema }`
+ - `TokenRingChatCommand`: `{ description, execute(input: string, agent: Agent) }`
+ - `HookConfig`: `{ name, beforeChatCompletion?, afterChatCompletion? }`
+ - `AgentStateSlice`: `{ reset(what: ResetWhat[]), serialize(): object, deserialize(data: object) }`
 
 See `types.ts` for full signatures.
 
@@ -381,5 +408,6 @@ Peer: `@tokenring-ai/ai-client` for AI integration (not listed, but imported).
 
 - **Building/Testing**: Run `npm run build` for compilation. Use Vitest for tests (`npm test`).
 - **Extending**: Implement `TokenRingPackage` to add custom agents/tools/commands.
-- **Limitations**: Early version (0.1.0); checkpointing relies on external storage services. Human input requires manual resolution via `sendHumanResponse`. No built-in LLM; configure via AI config.
+- **Limitations**: Early version (0.1.0); checkpointing relies on external storage services. Human input requires manual
+  resolution via `sendHumanResponse`. No built-in LLM; configure via AI config.
 - Contributions: Fork, add features/tests, submit PRs. Follow TypeScript best practices and MIT license.

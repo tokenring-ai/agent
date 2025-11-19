@@ -1,7 +1,6 @@
-import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
-import type {TokenRingPackage, TokenRingService} from "../types.js";
-import type AgentTeam from "../AgentTeam.js";
 import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
+import type AgentTeam from "../AgentTeam.js";
+import type {TokenRingPackage, TokenRingService} from "../types.js";
 
 export default class AgentPackageManager implements TokenRingService {
   name = "AgentPackageManager";
