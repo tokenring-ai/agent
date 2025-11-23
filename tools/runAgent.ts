@@ -1,4 +1,4 @@
-import trimMiddle from "@tokenring-ai/utility/trimMiddle";
+import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 import {z} from "zod";
 import Agent from "../Agent.js";
 import AgentConfigService from "../services/AgentConfigService.js";

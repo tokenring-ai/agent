@@ -1,7 +1,7 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import type {AgentConfig, AgentStateSlice, TokenRingService,} from "@tokenring-ai/agent/types";
-import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
-import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
+import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
+import TypedRegistry from "@tokenring-ai/utility/registry/TypedRegistry";
 import {EventEmitter} from "eventemitter3";
 import {z} from "zod";
 import StateManager, {type StateStorageInterface} from "./StateManager.js";

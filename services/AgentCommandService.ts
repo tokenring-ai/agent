@@ -1,4 +1,4 @@
-import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
+import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
 import type {TokenRingAgentCommand, TokenRingService} from "../types.js";
 

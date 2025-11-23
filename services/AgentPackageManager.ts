@@ -1,4 +1,4 @@
-import TypedRegistry from "@tokenring-ai/utility/TypedRegistry";
+import TypedRegistry from "@tokenring-ai/utility/registry/TypedRegistry";
 import type AgentTeam from "../AgentTeam.js";
 import type {TokenRingPackage, TokenRingService} from "../types.js";
 

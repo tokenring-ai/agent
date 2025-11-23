@@ -1,4 +1,4 @@
-import joinDefault from "@tokenring-ai/utility/joinDefault";
+import joinDefault from "@tokenring-ai/utility/string/joinDefault";
 import Agent from "../Agent.ts";
 
 export const description = "/settings - Show current chat settings." as const;

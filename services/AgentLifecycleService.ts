@@ -1,4 +1,4 @@
-import KeyedRegistry from "@tokenring-ai/utility/KeyedRegistry";
+import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
 import {HooksState} from "../state/hooksState.js";
 import type {HookConfig, HookType, TokenRingService} from "../types.js";

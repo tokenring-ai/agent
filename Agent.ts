@@ -1,4 +1,4 @@
-import formatLogMessages from "@tokenring-ai/utility/formatLogMessage";
+import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import type {AgentEventEnvelope, AgentEvents, ResetWhat,} from "./AgentEvents.js";
 import AgentTeam from "./AgentTeam.ts";
