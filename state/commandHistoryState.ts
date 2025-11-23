@@ -1,5 +1,5 @@
 import type {ResetWhat} from "../AgentEvents.js";
-import type {SerializableStateSlice} from "../StateManager.js";
+import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 
 export class CommandHistoryState implements SerializableStateSlice {
   name = "CommandHistoryState";

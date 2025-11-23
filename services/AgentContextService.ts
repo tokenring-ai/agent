@@ -1,7 +1,8 @@
 import {ChatService} from "@tokenring-ai/chat";
+import {TokenRingService} from "@tokenring-ai/app/types";
 import Agent from "../Agent.js";
-import type {ContextItem, TokenRingService} from "../types.js";
-import AgentConfigService from "./AgentConfigService.js";
+import type {ContextItem} from "../types.js";
+import AgentManager from "./AgentManager.js";
 
 export default class AgentContextService implements TokenRingService {
   name = "AgentContextService";
@@ -9,10 +10,10 @@ export default class AgentContextService implements TokenRingService {
 
   async* getContextItems(agent: Agent): AsyncGenerator<ContextItem> {
     const chatService = agent.getServiceByType(ChatService);
-    const agentConfigService = agent.requireServiceByType(AgentConfigService);
+    const agentManager = agent.requireServiceByType(AgentManager);
     if (chatService?.getEnabledTools(agent).includes("@tokenring-ai/agent/runAgent")) {
       // Get the list of available agent types from the agent team
-      const agentTypes = agentConfigService.getAgentConfigs();
+      const agentTypes = agentManager.getAgentConfigs();
 
       yield {
         position: "afterSystemMessage",

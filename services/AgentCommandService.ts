@@ -1,6 +1,7 @@
+import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
-import type {TokenRingAgentCommand, TokenRingService} from "../types.js";
+import type {TokenRingAgentCommand} from "../types.js";
 
 export default class AgentCommandService implements TokenRingService {
   name = "AgentCommandService";

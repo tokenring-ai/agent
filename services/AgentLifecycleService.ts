@@ -1,7 +1,8 @@
+import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
 import {HooksState} from "../state/hooksState.js";
-import type {HookConfig, HookType, TokenRingService} from "../types.js";
+import type {HookConfig, HookType} from "../types.js";
 
 export default class AgentLifecycleService implements TokenRingService {
   name = "AgentLifecycleService";

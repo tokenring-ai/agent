@@ -1,6 +1,9 @@
+import convertBoolean from "@tokenring-ai/utility/string/convertBoolean";
 import Agent from "../Agent.ts";
+import {TokenRingAgentCommand} from "../types.ts";
 
-export const description = "/debug [on|off] - Toggle debug logging." as const;
+const description = "/debug [on|off] - Toggle debug logging." as const;
+
 
 export function execute(remainder: string | undefined, agent: Agent): void {
   const arg = remainder?.trim().toLowerCase();
@@ -10,15 +13,7 @@ export function execute(remainder: string | undefined, agent: Agent): void {
     return;
   }
 
-  if (arg === "on") {
-    agent.debugEnabled = true;
-    agent.infoLine("Debug logging enabled");
-  } else if (arg === "off") {
-    agent.debugEnabled = false;
-    agent.infoLine("Debug logging disabled");
-  } else {
-    agent.errorLine("Usage: /debug [on|off]");
-  }
+  agent.debugEnabled = convertBoolean(arg);
 }
 
 export function help(): string[] {
@@ -29,3 +24,9 @@ export function help(): string[] {
     "  - off: Disable debug logging",
   ];
 }
+
+export default {
+  description,
+  execute,
+  help,
+} as TokenRingAgentCommand

@@ -1,10 +1,11 @@
 import Agent from "../Agent.ts";
 import AgentLifecycleService from "../services/AgentLifecycleService.js";
+import {TokenRingAgentCommand} from "../types.ts";
 
-export const description =
+const description =
   "/hooks [list|enable|disable] [hookName] - List registered hooks or enable/disable hook execution." as const;
 
-export async function execute(
+async function execute(
   remainder: string | undefined,
   agent: Agent,
 ): Promise<void> {
@@ -88,3 +89,8 @@ export function help(): string[] {
     "  - disable <hookName>: Disable hook execution",
   ];
 }
+export default {
+  description,
+  execute,
+  help,
+} as TokenRingAgentCommand

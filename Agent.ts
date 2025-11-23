@@ -1,21 +1,22 @@
+import {TokenRingService} from "@tokenring-ai/app/types";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
+import {z} from "zod";
 import type {AgentEventEnvelope, AgentEvents, ResetWhat,} from "./AgentEvents.js";
-import AgentTeam from "./AgentTeam.ts";
+import TokenRingApp from "@tokenring-ai/app";
 import type {HumanInterfaceRequest, HumanInterfaceResponse,} from "./HumanInterfaceRequest.js";
 import AgentCommandService from "./services/AgentCommandService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {HooksState} from "./state/hooksState.js";
-import StateManager from "./StateManager.js";
+import StateManager from "@tokenring-ai/app/StateManager";
 import type {
   AgentCheckpointData,
   AgentConfig,
   AgentStateSlice,
   AskHumanInterface,
   ChatOutputStream,
-  ServiceRegistryInterface,
-  TokenRingService
+  ServiceRegistryInterface
 } from "./types.js";
 
 
@@ -23,8 +24,8 @@ export default class Agent
   implements AskHumanInterface,
     ChatOutputStream,
     ServiceRegistryInterface {
-  readonly name = "Agent";
-  readonly description = "Agent implementation";
+  readonly name;
+  readonly description;
 
   readonly id: string = uuid();
   debugEnabled = false;
@@ -34,8 +35,9 @@ export default class Agent
   getServiceByType: <R extends TokenRingService>(
     type: abstract new (...args: any[]) => R,
   ) => R | undefined;
-  readonly team: AgentTeam;
-  options: AgentConfig;
+  readonly app: TokenRingApp;
+  readonly config: AgentConfig;
+
   stateManager = new StateManager<AgentStateSlice>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
   mutateState = this.stateManager.mutateState.bind(this.stateManager);
@@ -48,11 +50,14 @@ export default class Agent
   // Map of pending human responses
   private pendingHumanResponses = new Map<number, (response: any) => void>();
 
-  constructor(agentTeam: AgentTeam, options: AgentConfig) {
-    this.team = agentTeam;
-    this.options = options;
-    this.requireServiceByType = this.team.requireService;
-    this.getServiceByType = this.team.getService;
+  constructor(app: TokenRingApp, config: AgentConfig) {
+    this.app = app;
+    this.config = config;
+    this.name = config.name;
+    this.description = config.description;
+    this.debugEnabled = config.debug ?? false;
+    this.requireServiceByType = this.app.requireService;
+    this.getServiceByType = this.app.getService;
   }
 
   get state() {
@@ -90,7 +95,7 @@ export default class Agent
     this.initializeState(CommandHistoryState, {});
     this.initializeState(HooksState, {});
 
-    for (const service of this.team.getServices()) {
+    for (const service of this.app.getServices()) {
       if (service.attach) await service.attach(this);
     }
 
@@ -103,13 +108,26 @@ export default class Agent
     }
 
     const agentCommandService = this.requireServiceByType(AgentCommandService);
-    for (const message of this.options.initialCommands ?? []) {
+    for (const message of this.config.initialCommands ?? []) {
       this.emit("input.received", {message});
       await agentCommandService.executeAgentCommand(this, message);
     }
 
     this.setIdle();
   }
+
+
+  getAgentConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
+    try {
+      return schema.parse(this.config[key as keyof AgentConfig]);
+    } catch (error) {
+      throw new Error(
+        `Invalid config value for key "${key}": ${(error as Error).message}`,
+      );
+    }
+  }
+
+
 
   /**
    * Handle input from the user.

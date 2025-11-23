@@ -1,7 +1,8 @@
 import Agent from "../Agent.ts";
 import type {ResetWhat} from "../AgentEvents.js";
+import {TokenRingAgentCommand} from "../types.ts";
 
-export const description =
+const description =
   "/reset [chat|memory|settings|all]... - Clear chat state and/or memory and/or settings." as const;
 
 export function execute(remainder: string | undefined, agent: Agent): void {
@@ -57,3 +58,8 @@ export function help(): string[] {
     "  - Multiple arguments can be specified (e.g., /reset chat memory)",
   ];
 }
+export default {
+  description,
+  execute,
+  help,
+} as TokenRingAgentCommand

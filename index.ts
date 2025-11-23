@@ -1,14 +1,15 @@
 import {ChatService} from "@tokenring-ai/chat";
+import {TokenRingPlugin} from "@tokenring-ai/app";
 import {z} from "zod";
-import type AgentTeam from "./AgentTeam.ts";
+import TokenRingApp from "@tokenring-ai/app";
 import * as chatCommands from "./chatCommands.ts";
 import packageJSON from "./package.json" with {type: "json"};
 import AgentCommandService from "./services/AgentCommandService.js";
-import AgentConfigService from "./services/AgentConfigService.js";
+import AgentManager from "./services/AgentManager.js";
 import AgentContextService from "./services/AgentContextService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import * as tools from "./tools.ts";
-import {AgentConfigSchema, TokenRingPackage} from "./types.js";
+import {AgentConfigSchema} from "./types.js";
 
 export const AgentPackageConfigSchema = z
   .record(z.string(), AgentConfigSchema)
@@ -18,35 +19,32 @@ export default {
   name: packageJSON.name,
   version: packageJSON.version,
   description: packageJSON.description,
-  install(agentTeam: AgentTeam) {
-    agentTeam.waitForService(ChatService, chatService =>
+  install(app: TokenRingApp) {
+    app.waitForService(ChatService, chatService =>
       chatService.addTools(packageJSON.name, tools)
     );
 
     const agentCommandService = new AgentCommandService();
     agentCommandService.addAgentCommands(chatCommands);
-    agentTeam.addServices(agentCommandService);
+    app.addServices(agentCommandService);
 
-    const agentConfigService = new AgentConfigService();
-    const agentsConfig = agentTeam.getConfigSlice(
+    const agentManager = new AgentManager(app);
+    const agentsConfig = app.getConfigSlice(
       "agents",
       AgentPackageConfigSchema,
     );
     if (agentsConfig) {
-      agentConfigService.addAgentConfigs(agentsConfig);
+      agentManager.addAgentConfigs(agentsConfig);
     }
-    agentTeam.addServices(agentConfigService);
+    app.addServices(agentManager);
 
-    agentTeam.addServices(new AgentContextService(), new AgentLifecycleService());
+    app.addServices(new AgentContextService(), new AgentLifecycleService());
   },
-} as TokenRingPackage;
+} as TokenRingPlugin;
 
 export {default as Agent} from "./Agent.ts";
-export {default as AgentTeam} from "./AgentTeam.ts";
-export {type TokenRingPackage} from "./types.js";
 
-export {default as AgentConfigService} from './services/AgentConfigService.js';
+export {default as AgentManager} from './services/AgentManager.js';
 export {default as AgentLifecycleService} from "./services/AgentLifecycleService.js";
 export {default as AgentContextService} from "./services/AgentContextService.js";
 export {default as AgentCommandService} from "./services/AgentCommandService.js";
-export {default as AgentPackageManager} from "./services/AgentPackageManager.js";

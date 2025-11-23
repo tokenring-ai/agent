@@ -1,9 +1,9 @@
+import {TokenRingService} from "@tokenring-ai/app/types";
 import {z} from "zod";
 import Agent from "./Agent.js";
 import {ResetWhat} from "./AgentEvents.ts";
-import AgentTeam from "./AgentTeam.js";
 import type {HumanInterfaceRequest, HumanInterfaceResponse} from "./HumanInterfaceRequest.js";
-import type {SerializableStateSlice} from "./StateManager.js";
+import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 
 export type TokenRingAgentCommand = {
   name?: string;
@@ -67,9 +67,10 @@ export type AgentStateSlice = SerializableStateSlice & {
   persistToSubAgents?: boolean;
 }
 
-export const AgentConfigSchema = z.object({
+export const AgentConfigSchema = z.looseObject({
   name: z.string(),
   description: z.string(),
+  debug: z.boolean().optional(),
   visual: z.object({
     color: z.string(),
   }),
@@ -77,7 +78,6 @@ export const AgentConfigSchema = z.object({
     input: z.tuple([z.string(), z.any()]),
     output: z.any()
   }).optional(),
-  ai: z.any(),
   initialCommands: z.array(z.string()),
   persistent: z.boolean().optional(),
   storagePath: z.string().optional(),
@@ -93,21 +93,6 @@ export interface AgentCheckpointData {
   };
 }
 
-export type TokenRingPackage = {
-  name: string;
-  version: string;
-  description: string;
-  //start?: (agentTeam: AgentTeam) => Promise<void>;
-  //stop?: (agentTeam: AgentTeam) => Promise<void>;
-  //tools?: Record<string, TokenRingToolDefinition>;
-  //chatCommands?: Record<string, TokenRingAgentCommand>;
-  //hooks?: Record<string, Omit<Omit<HookConfig, "name">, "packageName">>;
-  agents?: Record<string, AgentConfig>;
-
-  install?: (agentTeam: AgentTeam) => Promise<void> | void;
-  start?: (agentTeam: AgentTeam) => Promise<void> | void;
-};
-
 export type ContextItemPosition =
   | "afterSystemMessage"
   | "afterPriorMessages"
@@ -118,17 +103,3 @@ export type ContextItem = {
   content: string;
 };
 
-export interface TokenRingService {
-  name: string; // Must match class name
-  description: string;
-
-  start?(agentTeam: AgentTeam): Promise<void>;
-
-  stop?(agentTeam: AgentTeam): Promise<void>;
-
-  attach?(agent: Agent): Promise<void>;
-
-  detach?(agent: Agent): Promise<void>;
-
-  getContextItems?(agent: Agent): AsyncGenerator<ContextItem>;
-}

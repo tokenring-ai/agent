@@ -1,10 +1,11 @@
 import joinDefault from "@tokenring-ai/utility/string/joinDefault";
 import Agent from "../Agent.ts";
+import {TokenRingAgentCommand} from "../types.ts";
 
-export const description = "/settings - Show current chat settings." as const;
+const description = "/settings - Show current chat settings." as const;
 
 export function execute(_remainder: string | undefined, agent: Agent): void {
-  const activeServices = agent.team.getServices();
+  const activeServices = agent.app.getServices();
 
   agent.infoLine("Current settings:");
   agent.infoLine(
@@ -27,9 +28,11 @@ export function execute(_remainder: string | undefined, agent: Agent): void {
 // noinspection JSUnusedGlobalSymbols
 export function help(): string[] {
   return [
-    "/settings",
-    "  - Show current chat settings, including:",
-    "  - Active services",
-    "  - Active tools",
+    "/settings - Show current agent settings for all configured items"
   ];
 }
+export default {
+  description,
+  execute,
+  help,
+} as TokenRingAgentCommand
