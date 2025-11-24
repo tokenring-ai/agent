@@ -22,7 +22,7 @@ async function execute(remainder: string, agent: Agent): Promise<void> {
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function help(): string[] {
+function help(): string[] {
   return [
     "/work [message]",
     "  - Invokes the work handler for the agent, with the message corresponding to the work which needs to be completed",

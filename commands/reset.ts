@@ -47,7 +47,7 @@ export function execute(remainder: string | undefined, agent: Agent): void {
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function help(): string[] {
+function help(): string[] {
   return [
     "/reset [chat|memory|settings|all]...",
     "  - No arguments: resets chat state",

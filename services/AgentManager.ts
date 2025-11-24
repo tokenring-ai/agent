@@ -8,7 +8,7 @@ import {formatAgentId} from "../util/formatAgentId.js";
 export default class AgentManager implements TokenRingService {
   name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
-  private app: TokenRingApp;
+  private readonly app: TokenRingApp;
 
   constructor(app: TokenRingApp) {
     this.app = app;

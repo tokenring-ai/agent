@@ -16,7 +16,7 @@ export function execute(remainder: string | undefined, agent: Agent): void {
   agent.debugEnabled = convertBoolean(arg);
 }
 
-export function help(): string[] {
+function help(): string[] {
   return [
     "/debug [on|off]",
     "  - No arguments: Show current debug logging status",

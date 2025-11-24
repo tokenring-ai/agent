@@ -80,7 +80,7 @@ async function execute(
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function help(): string[] {
+function help(): string[] {
   return [
     "/hooks [list|enable|disable] [hookName]",
     "  - With no arguments: Lists all registered hooks with enabled status",

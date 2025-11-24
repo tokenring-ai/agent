@@ -26,7 +26,7 @@ export function execute(_remainder: string | undefined, agent: Agent): void {
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function help(): string[] {
+function help(): string[] {
   return [
     "/settings - Show current agent settings for all configured items"
   ];
