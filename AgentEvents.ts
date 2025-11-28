@@ -1,7 +1,6 @@
 import type {
   HumanInterfaceRequest,
   HumanInterfaceResponse,
-  HumanInterfaceType,
 } from "./HumanInterfaceRequest.js";
 
 export type ResetWhat = "chat" | "history" | "settings" | "memory";

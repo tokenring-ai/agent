@@ -1,13 +1,9 @@
+import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import {z} from "zod";
 import Agent from "./Agent.js";
 import {ResetWhat} from "./AgentEvents.ts";
-import type {
-  HumanInterfaceRequestFor,
-  HumanInterfaceResponseFor,
-  HumanInterfaceType
-} from "./HumanInterfaceRequest.js";
-import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
+import type {HumanInterfaceRequestFor, HumanInterfaceResponseFor, HumanInterfaceType} from "./HumanInterfaceRequest.js";
 
 export type TokenRingAgentCommand = {
   name?: string;
@@ -16,9 +12,7 @@ export type TokenRingAgentCommand = {
     input: string,
     agent: Agent,
   ) => Promise<void | string> | void | string;
-  help: string | (() => string | string[]);
-  // allow arbitrary extras
-  [key: string]: unknown;
+  help: string;
 };
 export type HookConfig = {
   name: string;
@@ -42,11 +36,11 @@ export interface ChatOutputStream {
 
   reasoningOutput(content: string): void;
 
-  infoLine(...msgs: string[]): void;
+  infoLine(...messages: string[]): void;
 
-  warningLine(...msgs: string[]): void;
+  warningLine(...messages: string[]): void;
 
-  errorLine(...msgs: (string | Error)[]): void;
+  errorLine(...messages: (string | Error)[]): void;
 }
 
 export interface AskHumanInterface {

@@ -242,18 +242,18 @@ export default class Agent
   }
 
   // Legacy method aliases for compatibility
-  infoLine = (...msgs: string[]) =>
-    this.systemMessage(formatLogMessages(msgs), "info");
+  infoLine = (...messages: string[]) =>
+    this.systemMessage(formatLogMessages(messages), "info");
 
-  warningLine = (...msgs: string[]) =>
-    this.systemMessage(formatLogMessages(msgs), "warning");
+  warningLine = (...messages: string[]) =>
+    this.systemMessage(formatLogMessages(messages), "warning");
 
-  errorLine = (...msgs: (string | Error)[]) =>
-    this.systemMessage(formatLogMessages(msgs), "error");
+  errorLine = (...messages: (string | Error)[]) =>
+    this.systemMessage(formatLogMessages(messages), "error");
 
-  debugLine = (...msgs: string[]) => {
+  debugLine = (...messages: string[]) => {
     if (this.debugEnabled) {
-      this.systemMessage(formatLogMessages(msgs), "info");
+      this.systemMessage(formatLogMessages(messages), "info");
     }
   };
 

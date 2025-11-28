@@ -27,11 +27,9 @@ const help: string = `# /work
 Invokes the work handler for the agent, with the message corresponding to the work which needs to be completed.
 
 ## Usage
-\`\`\`
 /work Write a blog post about AI safety
 /work Analyze the latest market trends
 /work Create a new user account
-\`\`\`
 
 ## Notes
 - If the agent has a custom workHandler configured, it will be used

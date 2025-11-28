@@ -2,13 +2,13 @@ import {ChatService} from "@tokenring-ai/chat";
 import {TokenRingPlugin} from "@tokenring-ai/app";
 import {z} from "zod";
 import TokenRingApp from "@tokenring-ai/app";
-import * as chatCommands from "./chatCommands.ts";
+import chatCommands from "./chatCommands.ts";
 import packageJSON from "./package.json" with {type: "json"};
 import AgentCommandService from "./services/AgentCommandService.js";
 import AgentManager from "./services/AgentManager.js";
 import AgentContextService from "./services/AgentContextService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
-import * as tools from "./tools.ts";
+import tools from "./tools.ts";
 import {AgentConfigSchema} from "./types.js";
 
 export const AgentPackageConfigSchema = z
