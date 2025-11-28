@@ -3,7 +3,7 @@ import type {ResetWhat} from "../AgentEvents.js";
 import {TokenRingAgentCommand} from "../types.ts";
 
 const description =
-  "/reset [chat|memory|settings|all]... - Clear chat state and/or memory and/or settings." as const;
+  "/reset - Clear chat state and/or memory and/or settings." as const;
 
 export function execute(remainder: string | undefined, agent: Agent): void {
   // Parse arguments
@@ -46,20 +46,33 @@ export function execute(remainder: string | undefined, agent: Agent): void {
   }
 }
 
-// noinspection JSUnusedGlobalSymbols
-function help(): string[] {
-  return [
-    "/reset [chat|memory|settings|all]...",
-    "  - No arguments: resets chat state",
-    "  - chat: resets chat state",
-    "  - memory: resets memory items",
-    "  - settings: resets settings to defaults",
-    "  - all: resets chat, memory, and settings",
-    "  - Multiple arguments can be specified (e.g., /reset chat memory)",
-  ];
-}
+const help: string = `# /reset
+
+## Description
+Clears various aspects of agent state. Multiple targets can be specified.
+
+## Available targets
+- **chat** - Resets chat history and conversation state
+- **memory** - Clears memory items and cached data
+- **settings** - Resets configuration to default values
+- **all** - Resets everything (chat, memory, and settings)
+
+## Usage examples
+/reset                    # Resets chat only (default)
+/reset chat               # Resets chat history
+/reset memory             # Clears memory items
+/reset settings           # Resets settings to defaults
+/reset all                # Resets everything
+/reset chat memory        # Resets both chat and memory
+/reset chat memory settings  # Resets all three
+
+## Notes
+- No arguments defaults to 'chat' only
+- Multiple arguments can be combined
+- Use 'all' to reset everything at once`;
+
 export default {
   description,
   execute,
   help,
-} as TokenRingAgentCommand
+} as TokenRingAgentCommand;

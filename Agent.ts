@@ -4,7 +4,12 @@ import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import type {AgentEventEnvelope, AgentEvents, ResetWhat,} from "./AgentEvents.js";
 import TokenRingApp from "@tokenring-ai/app";
-import type {HumanInterfaceRequest, HumanInterfaceResponse,} from "./HumanInterfaceRequest.js";
+import type {
+  HumanInterfaceRequest,
+  HumanInterfaceRequestFor,
+  HumanInterfaceResponse,
+  HumanInterfaceResponseFor, HumanInterfaceType,
+} from "./HumanInterfaceRequest.js";
 import AgentCommandService from "./services/AgentCommandService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
@@ -216,11 +221,11 @@ export default class Agent
     this.emit("reset", {what});
   }
 
-  async askHuman<T extends keyof HumanInterfaceResponse>(
-    request: HumanInterfaceRequest & { type: T },
-  ): Promise<HumanInterfaceResponse[T]> {
+  async askHuman<T extends HumanInterfaceType>(
+    request: HumanInterfaceRequestFor<T>,
+  ): Promise<HumanInterfaceResponseFor<T>> {
     const sequence = this.sequenceCounter++;
-    this.emit("human.request", {request, sequence});
+    this.emit("human.request", { request: request as HumanInterfaceRequest, sequence });
 
     return new Promise((resolve) => {
       this.pendingHumanResponses.set(sequence, resolve);
@@ -252,7 +257,7 @@ export default class Agent
     }
   };
 
-  sendHumanResponse = (sequence: number, response: any) => {
+  sendHumanResponse = (sequence: number, response: HumanInterfaceResponse) => {
     // Resolve the corresponding pending human request
     const resolver = this.pendingHumanResponses.get(sequence);
     if (resolver) {
@@ -270,8 +275,9 @@ export default class Agent
   private emit<K extends keyof AgentEvents>(
     type: K,
     data: AgentEvents[K],
+    timestamp: number = Date.now(),
   ): void {
-    const envelope = {type, data} as AgentEventEnvelope;
+    const envelope = {type, data, timestamp} as AgentEventEnvelope;
     this.eventLog.push(envelope);
     let waiters = this.eventWaiters;
     this.eventWaiters = [];

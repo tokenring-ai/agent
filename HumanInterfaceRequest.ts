@@ -2,101 +2,50 @@ export type TreeLeaf = {
   name: string;
   value?: string;
   hasChildren?: boolean;
-  children?:
-    | Array<TreeLeaf>
-    | (() => Promise<Array<TreeLeaf>>)
-    | (() => Array<TreeLeaf>);
+  children?: Array<TreeLeaf> | (() => Promise<TreeLeaf[]> | TreeLeaf[]);
 };
 
-export type AskForConfirmationOptions = {
-  message: string;
-  default?: boolean;
+export type HumanInterfaceDefinitions = {
+  askForConfirmation: {
+    request: { message: string; default?: boolean };
+    response: boolean;
+  };
+  openWebPage: {
+    request: { url: string };
+    response: boolean;
+  };
+  askForText: {
+    request: { message: string };
+    response: string | null;
+  };
+  askForPassword: {
+    request: { message: string };
+    response: string | null;
+  };
+  askForSingleTreeSelection: {
+    request: { message?: string; tree: TreeLeaf; initialSelection?: string; loop?: boolean };
+    response: string | null;
+  };
+  askForMultipleTreeSelection: {
+    request: { message?: string; tree: TreeLeaf; initialSelection?: Iterable<string>; loop?: boolean };
+    response: string[] | null;
+  };
 };
 
-export type AskForSelectionOptions = {
-  message: string;
-  choices: Array<{ name: string; value: string }>;
-};
+// Derive all types automatically
+export type HumanInterfaceType = keyof HumanInterfaceDefinitions;
 
-export type AskForMultipleSelectionOptions = {
-  message: string;
-  options: Array<{ name: string; value: string }>;
-};
+export type HumanInterfaceRequestFor<T extends HumanInterfaceType> =
+  { type: T } & HumanInterfaceDefinitions[T]["request"];
 
-export type AskForCommandOptions = {
-  autoCompletion?: string[];
-  history?: string[];
-};
+export type HumanInterfaceResponseFor<T extends HumanInterfaceType> =
+  HumanInterfaceDefinitions[T]["response"];
 
-export type AskForSingleTreeSelectionOptions = {
-  message?: string | undefined;
-  tree: TreeLeaf;
-  initialSelection?: string | undefined;
-  loop?: boolean;
-};
+// Union types (if you still need them)
+export type HumanInterfaceRequest = {
+  [K in HumanInterfaceType]: HumanInterfaceRequestFor<K>;
+}[HumanInterfaceType];
 
-export type AskForMultipleTreeSelectionOptions = {
-  message?: string | undefined;
-  tree: TreeLeaf;
-  initialSelection?: Iterable<string> | undefined;
-  loop?: boolean;
-};
-
-export interface AskForConfirmationRequest extends AskForConfirmationOptions {
-  type: "askForConfirmation";
-}
-
-export interface OpenWebPageRequest {
-  type: "openWebPage";
-  url: string;
-}
-
-export interface AskForSelectionRequest extends AskForSelectionOptions {
-  type: "askForSelection";
-}
-
-export interface AskRequest {
-  type: "ask";
-  message: string;
-}
-
-export interface AskForPasswordOptions {
-  type: "askForPassword";
-  message: string;
-}
-
-export interface AskForMultipleSelectionsRequest
-  extends AskForMultipleSelectionOptions {
-  type: "askForMultipleSelections";
-}
-
-export interface AskForSingleTreeSelectionRequest
-  extends AskForSingleTreeSelectionOptions {
-  type: "askForSingleTreeSelection";
-}
-
-export interface AskForMultipleTreeSelectionRequest
-  extends AskForMultipleTreeSelectionOptions {
-  type: "askForMultipleTreeSelection";
-}
-
-export type HumanInterfaceRequest =
-  | AskForConfirmationRequest
-  | OpenWebPageRequest
-  | AskForSelectionRequest
-  | AskForPasswordOptions
-  | AskRequest
-  | AskForMultipleSelectionsRequest
-  | AskForSingleTreeSelectionRequest
-  | AskForMultipleTreeSelectionRequest;
-
-export interface HumanInterfaceResponse {
-  askForConfirmation: boolean;
-  openWebPage: void;
-  askForSelection: string;
-  askForPassword: string;
-  ask: string;
-  askForMultipleSelections: string[];
-  askForSingleTreeSelection: string | null;
-  askForMultipleTreeSelection: string[] | null;
-}
+export type HumanInterfaceResponse = {
+  [K in HumanInterfaceType]: HumanInterfaceResponseFor<K>;
+}[HumanInterfaceType];

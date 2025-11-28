@@ -25,14 +25,33 @@ export function execute(_remainder: string | undefined, agent: Agent): void {
   });
 }
 
-// noinspection JSUnusedGlobalSymbols
-function help(): string[] {
-  return [
-    "/settings - Show current agent settings for all configured items"
-  ];
-}
+const help: string = `# /settings
+
+## Description
+Displays current agent settings and configuration state.
+
+## Output includes
+- Active services currently running
+- State information from all state managers
+- Configuration details and settings
+
+## Usage
+/settings
+
+## Example output
+Current settings:
+Active services: AgentCommandService, LifecycleService
+
+State:
+ChatHistory:
+  Messages: 42
+  Current session: active
+AgentConfig:
+  Model: gpt-4
+  Temperature: 0.7`;
+
 export default {
   description,
   execute,
   help,
-} as TokenRingAgentCommand
+} as TokenRingAgentCommand;

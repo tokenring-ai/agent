@@ -11,6 +11,7 @@ export default class AgentCommandService implements TokenRingService {
 
   getCommandNames = this.agentCommands.getAllItemNames;
   getCommands = this.agentCommands.getAllItems;
+  getCommand = this.agentCommands.requireItemByName;
 
   addAgentCommands(chatCommands: Record<string, TokenRingAgentCommand>) {
     for (const cmdName in chatCommands) {

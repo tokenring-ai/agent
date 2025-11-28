@@ -74,7 +74,7 @@ export default class AgentManager implements TokenRingService {
     return Array.from(this.agents.values());
   }
 
-  getAgent(id: string): Agent | undefined {
-    return this.agents.get(id);
+  getAgent(id: string): Agent | null {
+    return this.agents.get(id) ?? null;
   }
 }

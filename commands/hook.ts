@@ -3,7 +3,35 @@ import AgentLifecycleService from "../services/AgentLifecycleService.js";
 import {TokenRingAgentCommand} from "../types.ts";
 
 const description =
-  "/hooks [list|enable|disable] [hookName] - List registered hooks or enable/disable hook execution." as const;
+  "/hooks - List registered hooks or enable/disable hook execution." as const;
+
+const help: string = `# /hooks
+
+## Description
+Manage registered hooks and their execution state. Hooks are special functions that can be triggered during agent lifecycle events.
+
+## Commands
+- **list** - Lists all registered hooks
+- **enable <hookName>** - Enables hook execution
+- **disable <hookName>** - Disables hook execution
+
+## Usage examples
+/hooks                    # Lists all registered hooks
+/hooks list               # Lists all registered hooks
+/hooks enable preProcess  # Enables the preProcess hook
+/hooks disable postProcess # Disables the postProcess hook
+
+## Hook types typically include
+- **preProcess**: Runs before agent processing
+- **postProcess**: Runs after agent processing
+- **onMessage**: Runs when a new message is received
+- **onStateChange**: Runs when agent state changes
+- **custom**: User-defined hooks
+
+## Notes
+- Hook names are case-sensitive
+- Use /hooks list to see available hooks
+- Disabled hooks are not executed but remain registered`;
 
 async function execute(
   remainder: string | undefined,
@@ -79,16 +107,6 @@ async function execute(
   }
 }
 
-// noinspection JSUnusedGlobalSymbols
-function help(): string[] {
-  return [
-    "/hooks [list|enable|disable] [hookName]",
-    "  - With no arguments: Lists all registered hooks with enabled status",
-    "  - list: Lists all registered hooks with callback counts and enabled status",
-    "  - enable <hookName>: Enable hook execution",
-    "  - disable <hookName>: Disable hook execution",
-  ];
-}
 export default {
   description,
   execute,

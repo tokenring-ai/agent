@@ -2,7 +2,11 @@ import {TokenRingService} from "@tokenring-ai/app/types";
 import {z} from "zod";
 import Agent from "./Agent.js";
 import {ResetWhat} from "./AgentEvents.ts";
-import type {HumanInterfaceRequest, HumanInterfaceResponse} from "./HumanInterfaceRequest.js";
+import type {
+  HumanInterfaceRequestFor,
+  HumanInterfaceResponseFor,
+  HumanInterfaceType
+} from "./HumanInterfaceRequest.js";
 import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 
 export type TokenRingAgentCommand = {
@@ -12,7 +16,7 @@ export type TokenRingAgentCommand = {
     input: string,
     agent: Agent,
   ) => Promise<void | string> | void | string;
-  help: () => string | string[];
+  help: string | (() => string | string[]);
   // allow arbitrary extras
   [key: string]: unknown;
 };
@@ -46,9 +50,9 @@ export interface ChatOutputStream {
 }
 
 export interface AskHumanInterface {
-  askHuman<T extends keyof HumanInterfaceResponse>(
-    request: HumanInterfaceRequest & { type: T },
-  ): Promise<HumanInterfaceResponse[T]>;
+  askHuman<T extends HumanInterfaceType>(
+    request: HumanInterfaceRequestFor<T>,
+  ): Promise<HumanInterfaceResponseFor<T>>;
 }
 
 export interface ServiceRegistryInterface {
