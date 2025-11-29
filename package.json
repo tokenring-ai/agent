@@ -1,10 +1,12 @@
 {
  "name": "@tokenring-ai/agent",
- "version": "0.1.0",
+ "version": "0.2.0",
  "description": "Agent package for TokenRing Coder.",
  "dependencies": {
-  "@tokenring-ai/utility": "0.1.0",
-  "@tokenring-ai/app": "0.1.0",
+  "@tokenring-ai/chat": "0.2.0",
+  "zod": "^4.1.13",
+  "@tokenring-ai/utility": "0.2.0",
+  "@tokenring-ai/app": "0.2.0",
   "eventemitter3": "^5.0.1",
   "glob-gitignore": "^1.0.15",
   "uuid": "^13.0.0"
