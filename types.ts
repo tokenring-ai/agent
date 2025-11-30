@@ -68,6 +68,7 @@ export type AgentStateSlice = SerializableStateSlice & {
 export const AgentConfigSchema = z.looseObject({
   name: z.string(),
   description: z.string(),
+  category: z.string(),
   debug: z.boolean().optional(),
   visual: z.object({
     color: z.string(),
