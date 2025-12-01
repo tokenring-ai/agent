@@ -42,6 +42,7 @@ export default class Agent
   ) => R | undefined;
   readonly app: TokenRingApp;
   readonly config: ParsedAgentConfig;
+  headless: boolean = false;
 
   stateManager = new StateManager<AgentStateSlice>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
@@ -54,6 +55,7 @@ export default class Agent
   private eventWaiters: Array<(ev: AgentEventEnvelope) => void> = [];
   // Map of pending human responses
   private pendingHumanResponses = new Map<number, (response: any) => void>();
+  private lastActivityTime: number = Date.now();
 
   constructor(app: TokenRingApp, config: AgentConfig) {
     this.app = app;
@@ -69,11 +71,6 @@ export default class Agent
     return {
       entries: () => this.stateManager.entries(),
     };
-  }
-
-  runCommand(command: string): Promise<void> {
-    const agentCommandService = this.requireServiceByType(AgentCommandService);
-    return agentCommandService.executeAgentCommand(this, command);
   }
 
   restoreCheckpoint({state}: AgentCheckpointData): void {
@@ -196,6 +193,7 @@ export default class Agent
   }
 
   setBusy(message: string) {
+    this.lastActivityTime = Date.now();
     this.emit("state.busy", {message});
   }
 
@@ -204,7 +202,16 @@ export default class Agent
   }
 
   setIdle() {
+    this.lastActivityTime = Date.now();
     this.emit("state.idle", {});
+  }
+
+  getLastActivityTime(): number {
+    return this.lastActivityTime;
+  }
+
+  getIdleDuration(): number {
+    return Date.now() - this.lastActivityTime;
   }
 
   requestExit() {
@@ -224,6 +231,9 @@ export default class Agent
   async askHuman<T extends HumanInterfaceType>(
     request: HumanInterfaceRequestFor<T>,
   ): Promise<HumanInterfaceResponseFor<T>> {
+    if (this.headless) {
+      throw new Error("Cannot ask human for feedback when agent is running in headless mode");
+    }
     const sequence = this.sequenceCounter++;
     this.emit("human.request", { request: request as HumanInterfaceRequest, sequence });
 

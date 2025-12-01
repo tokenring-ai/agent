@@ -9,9 +9,11 @@ export default class AgentManager implements TokenRingService {
   name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
   private readonly app: TokenRingApp;
+  private readonly cleanupCheckIntervalMs = 60000;
 
   constructor(app: TokenRingApp) {
     this.app = app;
+    app.scheduleEvery(this.cleanupCheckIntervalMs, () => this.checkAndDeleteIdleAgents())
   }
 
   private agents: Map<string, Agent> = new Map();
@@ -68,5 +70,23 @@ export default class AgentManager implements TokenRingService {
 
   getAgent(id: string): Agent | null {
     return this.agents.get(id) ?? null;
+  }
+
+  private async checkAndDeleteIdleAgents() {
+    const agentsToDelete: Agent[] = [];
+    for (const agent of this.agents.values()) {
+      const idleTimeout = agent.config.idleTimeout;
+      if (idleTimeout && agent.getIdleDuration() > idleTimeout) {
+        agentsToDelete.push(agent);
+      }
+    }
+    for (const agent of agentsToDelete) {
+      try {
+        await this.deleteAgent(agent);
+        this.app.serviceOutput(`Agent ${agent.id} has been deleted due to inactivity.`);
+      } catch(err) {
+        this.app.serviceError(`Failed to delete idle agent ${agent.id}:`, err);
+      }
+    }
   }
 }
