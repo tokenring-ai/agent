@@ -77,7 +77,7 @@ export const AgentConfigSchema = z.looseObject({
     input: z.tuple([z.string(), z.any()]),
     output: z.any()
   }).optional(),
-  initialCommands: z.array(z.string()),
+  initialCommands: z.array(z.string()).optional(),
   persistent: z.boolean().optional(),
   storagePath: z.string().optional(),
   type: z.enum(["interactive", "background"]),

@@ -3,7 +3,7 @@ import type {
   HumanInterfaceResponse,
 } from "./HumanInterfaceRequest.js";
 
-export type ResetWhat = "chat" | "history" | "settings" | "memory";
+export type ResetWhat = "context" | "chat" | "history" | "settings" | "memory";
 
 export interface AgentEvents {
   "output.chat": { content: string };

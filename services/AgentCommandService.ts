@@ -8,10 +8,12 @@ export default class AgentCommandService implements TokenRingService {
   description = "A service which registers and dispatches agent commands.";
 
   private agentCommands = new KeyedRegistry<TokenRingAgentCommand>();
+  private readonly defaultCommand = "/chat send";
 
   getCommandNames = this.agentCommands.getAllItemNames;
   getCommands = this.agentCommands.getAllItems;
   getCommand = this.agentCommands.requireItemByName;
+
 
   addAgentCommands(chatCommands: Record<string, TokenRingAgentCommand>) {
     for (const cmdName in chatCommands) {
@@ -20,7 +22,12 @@ export default class AgentCommandService implements TokenRingService {
   }
 
   async executeAgentCommand(agent: Agent, message: string): Promise<void> {
-    let commandName = "chat";
+    message = message.trim();
+    if (message && ! message.startsWith("/")) {
+     message = `${this.defaultCommand} ${message}`
+    }
+
+    let commandName = "help"
     let remainder = message
       .replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {
         commandName = matchedCommandName;
@@ -28,7 +35,6 @@ export default class AgentCommandService implements TokenRingService {
       })
       .trim();
 
-    commandName = commandName || "help";
     // Get command from agent's chat commands
     const commands = this.agentCommands.getAllItems();
     let command = commands[commandName];
