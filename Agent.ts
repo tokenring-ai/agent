@@ -15,12 +15,12 @@ import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {HooksState} from "./state/hooksState.js";
 import StateManager from "@tokenring-ai/app/StateManager";
-import type {
+import {
   AgentCheckpointData,
-  AgentConfig,
+  AgentConfig, AgentConfigSchema,
   AgentStateSlice,
   AskHumanInterface,
-  ChatOutputStream,
+  ChatOutputStream, ParsedAgentConfig,
   ServiceRegistryInterface
 } from "./types.js";
 
@@ -41,7 +41,7 @@ export default class Agent
     type: abstract new (...args: any[]) => R,
   ) => R | undefined;
   readonly app: TokenRingApp;
-  readonly config: AgentConfig;
+  readonly config: ParsedAgentConfig;
 
   stateManager = new StateManager<AgentStateSlice>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
@@ -57,7 +57,7 @@ export default class Agent
 
   constructor(app: TokenRingApp, config: AgentConfig) {
     this.app = app;
-    this.config = config;
+    this.config = AgentConfigSchema.parse(config);
     this.name = config.name;
     this.description = config.description;
     this.debugEnabled = config.debug ?? false;

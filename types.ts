@@ -77,12 +77,14 @@ export const AgentConfigSchema = z.looseObject({
     input: z.tuple([z.string(), z.any()]),
     output: z.any()
   }).optional(),
-  initialCommands: z.array(z.string()).optional(),
+  initialCommands: z.array(z.string()).default([]),
   persistent: z.boolean().optional(),
   storagePath: z.string().optional(),
   type: z.enum(["interactive", "background"]),
+  callable: z.boolean().default(true),
 });
-export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+export type AgentConfig = z.input<typeof AgentConfigSchema>;
+export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;
 
 export interface AgentCheckpointData {
   agentId: string;
