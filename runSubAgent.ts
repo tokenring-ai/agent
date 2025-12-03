@@ -17,6 +17,8 @@ export interface RunSubAgentOptions {
   forwardSystemOutput?: boolean;
   /** Whether to forward human requests to the parent agent (default: true) */
   forwardHumanRequests?: boolean;
+  /** Whether to forward reasoning output to the parent agent (default: true) */
+  forwardReasoning?: boolean;
   /** Custom timeout in seconds (overrides agent config if provided) */
   timeout?: number;
   /** Maximum length for response truncation (default: 500) */
@@ -79,6 +81,7 @@ export async function runSubAgent(
     message,
     context,
     forwardChatOutput = true,
+    forwardReasoning = true,
     forwardSystemOutput = true,
     forwardHumanRequests = true,
     timeout,
@@ -123,6 +126,12 @@ export async function runSubAgent(
                 parentAgent.chatOutput(event.data.content);
               }
               response += event.data.content;
+              break;
+
+            case "output.reasoning":
+              if (forwardReasoning) {
+                parentAgent.reasoningOutput(event.data.content);
+              }
               break;
 
             case "output.system":

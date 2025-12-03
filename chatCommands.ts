@@ -3,9 +3,7 @@ import hooks from "./commands/hook.ts";
 import settings from "./commands/settings.ts";
 import work from "./commands/work.ts";
 import debug from "./commands/debug.ts";
-import exit from "./commands/exit.ts";
 import help from "./commands/help.ts";
-import quit from "./commands/quit.ts";
 import logs from "./commands/logs.ts";
 
-export default { reset, hooks, settings, work, debug, exit, help, quit, logs}
+export default { reset, hooks, settings, work, debug, help, logs}
