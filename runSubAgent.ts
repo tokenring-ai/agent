@@ -1,0 +1,247 @@
+import Agent from "@tokenring-ai/agent/Agent";
+import AgentManager from "@tokenring-ai/agent/services/AgentManager";
+import {AgentEventState} from "@tokenring-ai/agent/state/agentEventState";
+import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
+import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
+
+export interface RunSubAgentOptions {
+  /** The type of agent to create */
+  agentType: string;
+  /** The message to send to the agent */
+  message: string;
+  /** Additional context to include with the message */
+  context?: string;
+  /** Whether to forward chat output to the parent agent (default: true) */
+  forwardChatOutput?: boolean;
+  /** Whether to forward system messages to the parent agent (default: true) */
+  forwardSystemOutput?: boolean;
+  /** Whether to forward human requests to the parent agent (default: true) */
+  forwardHumanRequests?: boolean;
+  /** Custom timeout in seconds (overrides agent config if provided) */
+  timeout?: number;
+  /** Maximum length for response truncation (default: 500) */
+  maxResponseLength?: number;
+  /** Minimum context length when truncating (default: 300) */
+  minContextLength?: number;
+}
+
+export interface RunSubAgentResult {
+  /** Status of the agent execution */
+  status: "success" | "error" | "cancelled";
+  /** Response from the agent (potentially truncated) */
+  response: string;
+  /** The child agent instance (for advanced use cases - remember to clean up) */
+  childAgent?: Agent;
+}
+
+/**
+ * Runs a sub-agent with configurable options for output forwarding.
+ *
+ * @param options - Configuration options for the sub-agent execution
+ * @param parentAgent - The parent agent instance
+ * @param autoCleanup - Whether to automatically delete the child agent after execution (default: true)
+ * @returns Promise resolving to the execution result
+ *
+ * @example
+ * ```typescript
+ * // Run with chat output forwarding (default behavior)
+ * const result = await runSubAgent({
+ *   agentType: "code-assistant",
+ *   message: "Write a function to sort an array"
+ * }, parentAgent);
+ *
+ * // Run silently without forwarding output
+ * const result = await runSubAgent({
+ *   agentType: "code-assistant",
+ *   message: "Analyze this code",
+ *   context: codeSnippet,
+ *   forwardChatOutput: false,
+ *   forwardSystemOutput: false
+ * }, parentAgent);
+ *
+ * // Custom timeout and keep agent alive
+ * const result = await runSubAgent({
+ *   agentType: "researcher",
+ *   message: "Research topic",
+ *   timeout: 120
+ * }, parentAgent, false);
+ * // ... use result.childAgent
+ * await agentManager.deleteAgent(result.childAgent);
+ * ```
+ */
+export async function runSubAgent(
+  options: RunSubAgentOptions,
+  parentAgent: Agent,
+  autoCleanup: boolean = true
+): Promise<RunSubAgentResult> {
+  const {
+    agentType,
+    message,
+    context,
+    forwardChatOutput = true,
+    forwardSystemOutput = true,
+    forwardHumanRequests = true,
+    timeout,
+    maxResponseLength = 500,
+    minContextLength = 300,
+  } = options;
+
+  if (!agentType) {
+    throw new Error("Agent type is required");
+  }
+  if (!message) {
+    throw new Error("Message is required");
+  }
+
+  const agentManager = parentAgent.requireServiceByType(AgentManager);
+  const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType);
+
+  try {
+    let response = "";
+    let fullMessage = message;
+
+    if (context) {
+      fullMessage = `${message}\n\nImportant Context:\n${context}`;
+    }
+
+    const eventCursor = (
+      await childAgent.waitForState(AgentEventState, (state) => state.idle)
+    ).getEventCursorFromCurrentPosition();
+
+    if (forwardChatOutput || forwardSystemOutput) {
+      childAgent.infoLine("Sending message to agent:", fullMessage);
+    }
+
+    const requestId = childAgent.handleInput({ message: `/work ${fullMessage}` });
+
+    return await new Promise((resolve, reject) => {
+      const unsubscribe = childAgent.subscribeState(AgentEventState, (state) => {
+        for (const event of state.yieldEventsByCursor(eventCursor)) {
+          switch (event.type) {
+            case "output.chat":
+              if (forwardChatOutput) {
+                parentAgent.chatOutput(event.data.content);
+              }
+              response += event.data.content;
+              break;
+
+            case "output.system":
+              if (forwardSystemOutput) {
+                parentAgent.systemMessage(event.data.message, event.data.level);
+              }
+              // Always include system errors in the response for debugging
+              if (event.data.level === "error") {
+                response += `[System Error: ${event.data.message}]\n`;
+              }
+              break;
+
+            case "input.handled":
+              if (event.data.requestId === requestId) {
+                unsubscribe();
+                const truncatedResponse = trimMiddle(
+                  event.data.message,
+                  minContextLength,
+                  maxResponseLength
+                );
+                resolve({
+                  status: event.data.status,
+                  response: truncatedResponse,
+                  childAgent: autoCleanup ? undefined : childAgent,
+                });
+              }
+              break;
+
+            case "human.request":
+              if (forwardHumanRequests) {
+                const humanRequestId = event.data.id;
+                parentAgent
+                  .askHuman(event.data.request)
+                  .then((humanResponse) =>
+                    childAgent?.sendHumanResponse(humanRequestId, humanResponse)
+                  )
+                  .catch((err) => reject(err));
+              } else {
+                // If not forwarding, reject the human request
+                const humanRequestId = event.data.id;
+                childAgent?.sendHumanResponse(
+                  humanRequestId,
+                  "Human input is not available in this context."
+                );
+              }
+              break;
+          }
+        }
+      });
+
+      // Use custom timeout if provided, otherwise use agent config
+      const timeoutSeconds = timeout ?? parentAgent.config.maxRunTime;
+      if (timeoutSeconds > 0) {
+        setTimeout(() => {
+          unsubscribe();
+          resolve({
+            status: "cancelled",
+            response: `Agent timed out after ${timeoutSeconds} seconds.`,
+            childAgent: autoCleanup ? undefined : childAgent,
+          });
+        }, timeoutSeconds * 1000);
+      }
+    });
+  } catch (err) {
+    return {
+      status: "error",
+      response: formatLogMessages(["Error running sub-agent: ", err as Error]),
+      childAgent: autoCleanup ? undefined : childAgent,
+    };
+  } finally {
+    // Clean up the agent if auto-cleanup is enabled
+    if (autoCleanup) {
+      await agentManager.deleteAgent(childAgent);
+    }
+  }
+}
+
+/**
+ * Runs a sub-agent silently without forwarding any output to the parent.
+ * Useful for background tasks or when you only need the result.
+ */
+export async function runSubAgentSilently(
+  agentType: string,
+  message: string,
+  context: string | undefined,
+  parentAgent: Agent
+): Promise<RunSubAgentResult> {
+  return runSubAgent(
+    {
+      agentType,
+      message,
+      context,
+      forwardChatOutput: false,
+      forwardSystemOutput: false,
+      forwardHumanRequests: false,
+    },
+    parentAgent
+  );
+}
+
+/**
+ * Runs a sub-agent with full output forwarding (default behavior).
+ * This is equivalent to calling runSubAgent with default options.
+ */
+export async function runSubAgentWithForwarding(
+  agentType: string,
+  message: string,
+  context: string | undefined,
+  parentAgent: Agent
+): Promise<RunSubAgentResult> {
+  return runSubAgent(
+    {
+      agentType,
+      message,
+      context,
+      forwardChatOutput: true,
+      forwardSystemOutput: true,
+      forwardHumanRequests: true,
+    },
+    parentAgent
+  );
+}

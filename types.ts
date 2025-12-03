@@ -82,7 +82,8 @@ export const AgentConfigSchema = z.looseObject({
   storagePath: z.string().optional(),
   type: z.enum(["interactive", "background"]),
   callable: z.boolean().default(true),
-  idleTimeout: z.number().optional().default(86400),
+  idleTimeout: z.number().optional().default(86400), // In seconds
+  maxRunTime: z.number().optional().default(1800), // In seconds
 });
 export type AgentConfig = z.input<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;

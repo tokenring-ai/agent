@@ -7,7 +7,7 @@ export type TreeLeaf = {
 
 export type HumanInterfaceDefinitions = {
   askForConfirmation: {
-    request: { message: string; default?: boolean };
+    request: { message: string; default?: boolean; timeout?: number };
     response: boolean;
   };
   openWebPage: {

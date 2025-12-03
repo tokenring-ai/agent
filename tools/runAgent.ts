@@ -1,9 +1,7 @@
 import {TokenRingToolDefinition} from "@tokenring-ai/chat/types";
-import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 import {z} from "zod";
 import Agent from "../Agent.js";
-import AgentManager from "../services/AgentManager.js";
-
+import {runSubAgent} from "../runSubAgent.ts";
 
 const name = "agent/run";
 
@@ -15,12 +13,14 @@ export async function execute(
     agentType,
     message,
     context,
+    forwardChatOutput = true,
+    forwardSystemOutput = true,
+    timeout,
   }: z.infer<typeof inputSchema>,
-  agent: Agent,
+  parentAgent: Agent,
 ): Promise<{
-  ok: boolean;
-  response?: string;
-  error?: string;
+  status: "success" | "error" | "cancelled",
+  response: string;
 }> {
   if (!agentType) {
     throw new Error("Agent type is required");
@@ -29,73 +29,22 @@ export async function execute(
     throw new Error("Message is required");
   }
 
-  const agentManager = agent.requireServiceByType(AgentManager);
-  // Create a new agent of the specified type
-  const newAgent = await agentManager.spawnSubAgent(agent, agentType);
-
-  try {
-    let response = "";
-
-    agent.setBusy("Waiting for agent response...");
-
-    let inputSent = false;
-
-    // Promise to collect the response
-    for await (const event of newAgent.events(agent.getAbortSignal())) {
-      switch (event.type) {
-        case "output.chat":
-          response += event.data.content;
-          agent.chatOutput(event.data.content);
-          break;
-        case "output.system":
-          agent.systemMessage(event.data.message, event.data.level);
-          // Include system messages in the response for debugging
-          if (event.data.level === "error") {
-            response += `[System Error: ${event.data.message}]\n`;
-          }
-          break;
-        case "state.idle":
-          if (!inputSent) {
-            inputSent = true;
-
-            if (context) {
-              message = `${message}\n\nImportant Context:\n${context}`;
-            }
-            agent.infoLine("Sending message to agent:", message);
-            newAgent.handleInput({message: `/work ${message}`});
-          } else if (response) {
-            return {
-              ok: true,
-              response: trimMiddle(response, 300, 500),
-            };
-          } else {
-            return {
-              ok: false,
-              response: "[Something went wrong, No response generated]",
-            };
-          }
-          break;
-        case "state.aborted":
-          return {
-            ok: false,
-            response: response.trim() || "[Agent was terminated]",
-          };
-        case "human.request":
-          // Forward human requests to the parent agent
-          const humanResponse = await agent.askHuman(event.data.request);
-          newAgent.sendHumanResponse(event.data.sequence, humanResponse);
-          break;
-      }
-    }
-
-    return {
-      ok: false,
-      response: "[Agent ended prematurely]",
-    };
-  } finally {
-    // Clean up the agent
-    await agentManager.deleteAgent(newAgent);
-  }
+  // Use the helper function with the configured options
+  return await runSubAgent(
+    {
+      agentType,
+      message,
+      context,
+      forwardChatOutput,
+      forwardSystemOutput,
+      forwardHumanRequests: true, // Always forward human requests for the tool
+      timeout,
+      maxResponseLength: 500,
+      minContextLength: 300,
+    },
+    parentAgent,
+    true // Auto-cleanup
+  );
 }
 
 const description =
@@ -110,8 +59,29 @@ const inputSchema = z.object({
   message: z.string().describe("The message to send to the agent."),
   context: z
     .string()
+    .optional()
     .describe(
       "Important contextual information to pass to the agent, such as file names, task plans, descriptions, instructions, etc. This information is critical to proper agent functionality, and should be detailed and comprehensive. It needs to explain absolutely everything to the agent that will be dispatched. The ONLY information this agent has is the information provided here.",
+    ),
+  forwardChatOutput: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      "Whether to forward the sub-agent's chat output to the parent agent. Set to false for silent execution.",
+    ),
+  forwardSystemOutput: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      "Whether to forward the sub-agent's system messages to the parent agent.",
+    ),
+  timeout: z
+    .number()
+    .optional()
+    .describe(
+      "Custom timeout in seconds for the sub-agent execution. Overrides the default agent timeout.",
     ),
 });
 
