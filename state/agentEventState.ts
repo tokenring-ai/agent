@@ -1,4 +1,5 @@
-import type {AgentEventEnvelope, HumanRequestEnvelope, ResetWhat} from "../AgentEvents.js";
+import {z} from "zod";
+import {AgentEventEnvelope, HumanRequestSchema, ResetWhat} from "../AgentEvents.js";
 import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 
 export type AgentEventCursor = {
@@ -9,7 +10,7 @@ export class AgentEventState implements SerializableStateSlice {
   name = "AgentEventState";
   busyWith: string | null = null;
   idle: boolean = false;
-  waitingOn: HumanRequestEnvelope | null = null;
+  waitingOn: z.infer<typeof HumanRequestSchema> | null = null;
   events: AgentEventEnvelope[] = [];
 
   constructor({events, busyWith, idle}: { events?: AgentEventEnvelope[], busyWith?: string, idle?: boolean }) {
@@ -45,7 +46,7 @@ export class AgentEventState implements SerializableStateSlice {
       `Events: ${this.events.length}`,
       `Busy With: ${this.busyWith ?? "None"}`,
       `Idle: ${this.idle ? "Yes" : "No"}`,
-      ...this.events.slice(-5).map((event, i) => `  [${this.events.length - 5 + i + 1}] ${event.type}: ${JSON.stringify(event.data)}`)
+      ...this.events.slice(-5).map((event, i) => `  [${this.events.length - 5 + i + 1}] ${event.type}: ${JSON.stringify(event)}`)
     ];
   }
 

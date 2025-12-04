@@ -1,43 +1,80 @@
-import type {
-  HumanInterfaceRequest,
-  HumanInterfaceResponse,
+import { z } from "zod";
+import {
+  HumanInterfaceDefinitionSchemas,
+  AskForConfirmationRequestSchema,
+  OpenWebPageRequestSchema,
+  AskForTextRequestSchema,
+  AskForPasswordRequestSchema,
+  AskForSingleTreeSelectionRequestSchema,
+  AskForMultipleTreeSelectionRequestSchema, HumanInterfaceRequestSchema,
 } from "./HumanInterfaceRequest.js";
 
-export type ResetWhat = "context" | "chat" | "history" | "settings" | "memory";
+export const ResetWhatSchema = z.enum(["context", "chat", "history", "settings", "memory"]);
+export type ResetWhat = z.infer<typeof ResetWhatSchema>;
 
-export interface AgentEvents {
-  "output.chat": { content: string };
-  "output.reasoning": { content: string };
-  "output.system": { message: string; level: "info" | "warning" | "error" };
-  "input.received": { message: string, requestId: string };
-  "input.handled": { message: string, requestId: string, status: "success" | "error" | "cancelled" };
-  "human.request": { request: HumanInterfaceRequest; id: string };
-  "human.response": { requestId: string; response: HumanInterfaceResponse };
-  reset: { what: ResetWhat[] };
-}
+export const OutputChatSchema = z.object({
+  type: z.literal("output.chat"),
+  timestamp: z.number(),
+  content: z.string(),
+});
 
-export type AgentEventEnvelopesByType<T extends keyof AgentEvents> = {
-  type: T;
-  data: {
-    [K in keyof AgentEvents[T]]: AgentEvents[T][K];
-  },
-  timestamp: number
-};
-export type ChatOutputEnvelope = AgentEventEnvelopesByType<"output.chat">;
-export type ReasoningOutputEnvelope = AgentEventEnvelopesByType<"output.reasoning">;
-export type SystemEventEnvelope = AgentEventEnvelopesByType<"output.system">;
-export type InputReceivedEnvelope = AgentEventEnvelopesByType<"input.received">;
-export type InputHandledEnvelope = AgentEventEnvelopesByType<"input.handled">;
-export type HumanRequestEnvelope = AgentEventEnvelopesByType<"human.request">;
-export type HumanResponseEnvelope = AgentEventEnvelopesByType<"human.response">;
-export type ResetEnvelope = AgentEventEnvelopesByType<"reset">;
+export const OutputReasoningSchema = z.object({
+  type: z.literal("output.reasoning"),
+  timestamp: z.number(),
+  content: z.string(),
+});
 
-export type AgentEventEnvelope =
-  | ChatOutputEnvelope
-  | ReasoningOutputEnvelope
-  | SystemEventEnvelope
-  | InputReceivedEnvelope
-  | InputHandledEnvelope
-  | HumanRequestEnvelope
-  | HumanResponseEnvelope
-  | ResetEnvelope;
+export const OutputSystemSchema = z.object({
+  type: z.literal("output.system"),
+  timestamp: z.number(),
+  message: z.string(),
+  level: z.enum(["info", "warning", "error"]),
+});
+
+export const InputReceivedSchema = z.object({
+  type: z.literal("input.received"),
+  timestamp: z.number(),
+  message: z.string(),
+  requestId: z.string(),
+});
+
+export const InputHandledSchema = z.object({
+  type: z.literal("input.handled"),
+  timestamp: z.number(),
+  message: z.string(),
+  requestId: z.string(),
+  status: z.enum(["success", "error", "cancelled"]),
+});
+
+export const HumanRequestSchema = z.object({
+  type: z.literal("human.request"),
+  timestamp: z.number(),
+  request: HumanInterfaceRequestSchema,
+  id: z.string(),
+});
+
+export const HumanResponseSchema = z.object({
+  type: z.literal("human.response"),
+  timestamp: z.number(),
+  requestId: z.string(),
+  response: z.any(),
+});
+
+export const ResetSchema = z.object({
+  type: z.literal("reset"),
+  timestamp: z.number(),
+  what: z.array(ResetWhatSchema),
+});
+
+export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
+  OutputChatSchema,
+  OutputReasoningSchema,
+  OutputSystemSchema,
+  InputReceivedSchema,
+  InputHandledSchema,
+  HumanRequestSchema,
+  HumanResponseSchema,
+  ResetSchema,
+]);
+
+export type AgentEventEnvelope = z.infer<typeof AgentEventEnvelopeSchema>;

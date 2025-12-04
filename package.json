@@ -9,7 +9,8 @@
   "@tokenring-ai/app": "0.2.0",
   "eventemitter3": "^5.0.1",
   "glob-gitignore": "^1.0.15",
-  "uuid": "^13.0.0"
+  "uuid": "^13.0.0",
+  "@tokenring-ai/web-host": "0.2.0"
  },
  "exports": {
   ".": "./index.ts",

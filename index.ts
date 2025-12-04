@@ -1,6 +1,8 @@
-import {ChatService} from "@tokenring-ai/chat";
-import {TokenRingPlugin} from "@tokenring-ai/app";
-import {z} from "zod";
+import { ChatService } from "@tokenring-ai/chat";
+import { TokenRingPlugin } from "@tokenring-ai/app";
+import {WebHostService} from "@tokenring-ai/web-host";
+import JsonRpcResource from "@tokenring-ai/web-host/JsonRpcResource";
+import { z } from "zod";
 import TokenRingApp from "@tokenring-ai/app";
 import chatCommands from "./chatCommands.ts";
 import contextHandlers from "./contextHandlers.ts";
@@ -9,7 +11,8 @@ import AgentCommandService from "./services/AgentCommandService.js";
 import AgentManager from "./services/AgentManager.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import tools from "./tools.ts";
-import {AgentConfigSchema} from "./types.js";
+import { AgentConfigSchema } from "./types.js";
+import agentRPC from "./rpc/agent.ts";
 
 export const AgentPackageConfigSchema = z
   .record(z.string(), AgentConfigSchema)
@@ -40,11 +43,15 @@ export default {
     app.addServices(agentManager);
 
     app.addServices(new AgentLifecycleService());
+
+    app.waitForService(WebHostService, webHostService => {
+      webHostService.registerResource("Agent RPC endpoint", new JsonRpcResource(app, agentRPC));
+    });
   },
 } as TokenRingPlugin;
 
-export {default as Agent} from "./Agent.ts";
+export { default as Agent } from "./Agent.ts";
 
-export {default as AgentManager} from './services/AgentManager.js';
-export {default as AgentLifecycleService} from "./services/AgentLifecycleService.js";
-export {default as AgentCommandService} from "./services/AgentCommandService.js";
+export { default as AgentManager } from './services/AgentManager.js';
+export { default as AgentLifecycleService } from "./services/AgentLifecycleService.js";
+export { default as AgentCommandService } from "./services/AgentCommandService.js";

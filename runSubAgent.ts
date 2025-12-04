@@ -126,37 +126,37 @@ export async function runSubAgent(
           switch (event.type) {
             case "output.chat":
               if (forwardChatOutput) {
-                parentAgent.chatOutput(event.data.content);
+                parentAgent.chatOutput(event.content);
               }
-              response += event.data.content;
+              response += event.content;
               break;
 
             case "output.reasoning":
               if (forwardReasoning) {
-                parentAgent.reasoningOutput(event.data.content);
+                parentAgent.reasoningOutput(event.content);
               }
               break;
 
             case "output.system":
               if (forwardSystemOutput) {
-                parentAgent.systemMessage(event.data.message, event.data.level);
+                parentAgent.systemMessage(event.message, event.level);
               }
               // Always include system errors in the response for debugging
-              if (event.data.level === "error") {
-                response += `[System Error: ${event.data.message}]\n`;
+              if (event.level === "error") {
+                response += `[System Error: ${event.message}]\n`;
               }
               break;
 
             case "input.handled":
-              if (event.data.requestId === requestId) {
+              if (event.requestId === requestId) {
                 unsubscribe();
                 const truncatedResponse = trimMiddle(
-                  event.data.message,
+                  event.message,
                   minContextLength,
                   maxResponseLength
                 );
                 resolve({
-                  status: event.data.status,
+                  status: event.status,
                   response: truncatedResponse,
                   childAgent: autoCleanup ? undefined : childAgent,
                 });
@@ -165,16 +165,16 @@ export async function runSubAgent(
 
             case "human.request":
               if (forwardHumanRequests) {
-                const humanRequestId = event.data.id;
+                const humanRequestId = event.id;
                 parentAgent
-                  .askHuman(event.data.request)
+                  .askHuman(event.request)
                   .then((humanResponse) =>
                     childAgent?.sendHumanResponse(humanRequestId, humanResponse)
                   )
                   .catch((err) => reject(err));
               } else {
                 // If not forwarding, reject the human request
-                const humanRequestId = event.data.id;
+                const humanRequestId = event.id;
                 childAgent?.sendHumanResponse(
                   humanRequestId,
                   "Human input is not available in this context."

@@ -2,15 +2,14 @@ import {TokenRingService} from "@tokenring-ai/app/types";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
-import type {
+import {
   AgentEventEnvelope,
-  AgentEvents, HumanRequestEnvelope,
-  HumanResponseEnvelope,
+  HumanRequestSchema,
+  HumanResponseSchema,
   ResetWhat,
 } from "./AgentEvents.js";
 import TokenRingApp from "@tokenring-ai/app";
 import type {
-  HumanInterfaceRequest,
   HumanInterfaceRequestFor,
   HumanInterfaceResponse,
   HumanInterfaceResponseFor, HumanInterfaceType,
@@ -116,15 +115,15 @@ export default class Agent
     const agentCommandService = this.requireServiceByType(AgentCommandService);
     for (const message of this.config.initialCommands ?? []) {
       const requestId = uuid();
-      this.emit("input.received", {message, requestId});
+      this.emit({ type: "input.received", message, requestId, timestamp: Date.now()});
       try {
         await agentCommandService.executeAgentCommand(this, message);
-        this.emit("input.handled", {requestId, status: "success", message: "Request completed successfully"});
+        this.emit({ type: "input.handled", requestId, status: "success", message: "Request completed successfully", timestamp: Date.now()});
       } catch (err) {
         if (this.abortController?.signal?.aborted) {
-          this.emit("input.handled", {requestId, status: "cancelled", message: "Request cancelled"});
+          this.emit({ type: "input.handled", requestId, status: "cancelled", message: "Request cancelled", timestamp: Date.now()});
         } else {
-          this.emit("input.handled", {requestId, status: "error", message: formatLogMessages(["Error: ", err as Error])});
+          this.emit({ type: "input.handled", requestId, status: "error", message: formatLogMessages(["Error: ", err as Error]), timestamp: Date.now()});
         }
         throw err;
       }
@@ -159,7 +158,7 @@ export default class Agent
         message = message.trim();
         this.mutateState(AgentEventState, (state) => {
           state.idle = false;
-          state.emit({type: "input.received", data: {message, requestId}, timestamp: Date.now()});
+          state.emit({type: "input.received", message, requestId, timestamp: Date.now()});
         });
 
         this.mutateState(CommandHistoryState, (state) => {
@@ -172,7 +171,7 @@ export default class Agent
           state.idle = true;
           state.emit({
             type: "input.handled",
-            data: {requestId, status: "success", message: "Request completed successfully"},
+            requestId, status: "success", message: "Request completed successfully",
             timestamp: Date.now()
           });
 
@@ -185,7 +184,7 @@ export default class Agent
             state.idle = true;
             state.emit({
               type: "input.handled",
-              data: {requestId, status: "cancelled", message: "Request cancelled"},
+              requestId, status: "cancelled", message: "Request cancelled",
               timestamp: Date.now()
             });
           });
@@ -194,7 +193,7 @@ export default class Agent
             state.idle = true;
             state.emit({
               type: "input.handled",
-              data: {requestId, status: "error", message: formatLogMessages(["Error: ", err as Error])},
+              requestId, status: "error", message: formatLogMessages(["Error: ", err as Error]),
               timestamp: Date.now()
             });
           })
@@ -207,15 +206,15 @@ export default class Agent
 
 
   chatOutput(content: string) {
-    this.emit("output.chat", {content});
+    this.emit({ type: "output.chat", content, timestamp: Date.now() });
   }
 
   reasoningOutput(content: string) {
-    this.emit("output.reasoning", {content});
+    this.emit({ type: "output.reasoning", content, timestamp: Date.now() });
   }
 
   systemMessage(message: string, level: "info" | "warning" | "error" = "info") {
-    this.emit("output.system", {message, level});
+    this.emit({ type: "output.system", message, level, timestamp: Date.now() });
   }
 
   getIdleDuration(): number {
@@ -233,7 +232,7 @@ export default class Agent
 
   reset(what: ResetWhat[]) {
     this.stateManager.forEach(item => item.reset(what))
-    this.emit("reset", {what});
+    this.emit({ type: "reset", what, timestamp: Date.now() });
   }
 
   async askHuman<T extends HumanInterfaceType>(
@@ -245,17 +244,17 @@ export default class Agent
 
     let requestId = uuid();
     this.mutateState(AgentEventState, (state) => {
-      const event = {type: "human.request", data: {request: request as HumanInterfaceRequest, id: requestId}, timestamp: Date.now()} as HumanRequestEnvelope;
+      const event: z.infer<typeof HumanRequestSchema> = {type: "human.request", request: request, id: requestId, timestamp: Date.now()};
       state.emit(event);
       state.waitingOn = event;
     })
 
     return new Promise((resolve) => {
       const unsubscribe = this.subscribeState(AgentEventState, (state) => {
-        const event = state.events.find(event => event.type === "human.response" && event.data.requestId === requestId);
+        const event = state.events.find(event => event.type === "human.response" && event.requestId === requestId) as z.infer<typeof HumanResponseSchema>;
         if (event) {
           unsubscribe()
-          resolve((event as HumanResponseEnvelope).data.response);
+          resolve(event.response);
         }
       })
     });
@@ -289,7 +288,7 @@ export default class Agent
   sendHumanResponse = (requestId: string, response: HumanInterfaceResponse) => {
     this.mutateState(AgentEventState, (state) => {
       state.waitingOn = null;
-      state.events.push({type: "human.response", data: {requestId, response}, timestamp: Date.now()} as HumanResponseEnvelope);
+      state.events.push({type: "human.response", requestId, response, timestamp: Date.now()});
     });
   };
 
@@ -297,11 +296,7 @@ export default class Agent
     return this.abortController.signal;
   }
 
-  private emit<K extends keyof AgentEvents>(
-    type: K,
-    data: AgentEvents[K],
-    timestamp: number = Date.now(),
-  ): void {
-    this.mutateState(AgentEventState, (state) => state.emit({type, data, timestamp} as AgentEventEnvelope));
+  private emit(event: AgentEventEnvelope): void {
+    this.mutateState(AgentEventState, (state) => state.emit(event));
   }
 }
