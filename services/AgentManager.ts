@@ -29,19 +29,19 @@ export default class AgentManager implements TokenRingService {
     }
   }
 
-  async spawnAgent(agentType: string): Promise<Agent> {
-    return this.createAgent(this.agentConfigRegistry.requireItemByName(agentType));
+  async spawnAgent({agentType, headless} : { agentType: string, headless: boolean}): Promise<Agent> {
+    return this.createAgent({ config: this.agentConfigRegistry.requireItemByName(agentType), headless });
   }
 
 
-  async spawnSubAgent(agent: Agent, agentType: string): Promise<Agent> {
+  async spawnSubAgent(agent: Agent, {agentType, headless}: { agentType: string, headless: boolean}): Promise<Agent> {
     const initialStateForSubAgent = Object.fromEntries(
       Object.entries(agent.stateManager).filter(item => item[1].persistToSubAgents)
     );
 
     const agentConfig = this.agentConfigRegistry.requireItemByName(agentType);
     // Create a new agent of the specified type
-    const newAgent = await this.createAgent(agentConfig, initialStateForSubAgent);
+    const newAgent = await this.createAgent({ config: agentConfig, headless, initialState: initialStateForSubAgent});
 
     agent.systemMessage(
       `Created new agent: ${newAgent.config.name} (${formatAgentId(newAgent.id)})`,
@@ -49,8 +49,8 @@ export default class AgentManager implements TokenRingService {
     return newAgent;
   }
 
-  async createAgent(agentConfig: AgentConfig, initialState?: Record<string, AgentStateSlice>): Promise<Agent> {
-    const agent = new Agent(this.app, agentConfig);
+  async createAgent({config, initialState, headless}: {config: AgentConfig, headless: boolean, initialState?: Record<string, AgentStateSlice>}): Promise<Agent> {
+    const agent = new Agent(this.app, {config, headless});
 
     this.agents.set(agent.id, agent);
 

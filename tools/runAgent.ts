@@ -33,6 +33,7 @@ export async function execute(
   return await runSubAgent(
     {
       agentType,
+      headless: parentAgent.headless,
       message,
       context,
       forwardChatOutput,

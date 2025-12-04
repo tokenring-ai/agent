@@ -48,7 +48,7 @@ export default class Agent
   ) => R | undefined;
   readonly app: TokenRingApp;
   readonly config: ParsedAgentConfig;
-  headless: boolean = false;
+  headless: boolean;
 
   stateManager = new StateManager<AgentStateSlice>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
@@ -60,9 +60,10 @@ export default class Agent
 
   private abortController = new AbortController();
 
-  constructor(app: TokenRingApp, config: AgentConfig) {
+  constructor(app: TokenRingApp, {config, headless} : {config: AgentConfig, headless: boolean}) {
     this.app = app;
     this.config = AgentConfigSchema.parse(config);
+    this.headless = headless
     this.name = config.name;
     this.description = config.description;
     this.debugEnabled = config.debug ?? false;

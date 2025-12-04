@@ -7,6 +7,8 @@ import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 export interface RunSubAgentOptions {
   /** The type of agent to create */
   agentType: string;
+  /** Whether to run the agent in headless mode */
+  headless: boolean;
   /** The message to send to the agent */
   message: string;
   /** Additional context to include with the message */
@@ -78,6 +80,7 @@ export async function runSubAgent(
 ): Promise<RunSubAgentResult> {
   const {
     agentType,
+    headless,
     message,
     context,
     forwardChatOutput = true,
@@ -97,7 +100,7 @@ export async function runSubAgent(
   }
 
   const agentManager = parentAgent.requireServiceByType(AgentManager);
-  const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType);
+  const childAgent = await agentManager.spawnSubAgent(parentAgent, { agentType, headless });
 
   try {
     let response = "";
@@ -207,50 +210,4 @@ export async function runSubAgent(
       await agentManager.deleteAgent(childAgent);
     }
   }
-}
-
-/**
- * Runs a sub-agent silently without forwarding any output to the parent.
- * Useful for background tasks or when you only need the result.
- */
-export async function runSubAgentSilently(
-  agentType: string,
-  message: string,
-  context: string | undefined,
-  parentAgent: Agent
-): Promise<RunSubAgentResult> {
-  return runSubAgent(
-    {
-      agentType,
-      message,
-      context,
-      forwardChatOutput: false,
-      forwardSystemOutput: false,
-      forwardHumanRequests: false,
-    },
-    parentAgent
-  );
-}
-
-/**
- * Runs a sub-agent with full output forwarding (default behavior).
- * This is equivalent to calling runSubAgent with default options.
- */
-export async function runSubAgentWithForwarding(
-  agentType: string,
-  message: string,
-  context: string | undefined,
-  parentAgent: Agent
-): Promise<RunSubAgentResult> {
-  return runSubAgent(
-    {
-      agentType,
-      message,
-      context,
-      forwardChatOutput: true,
-      forwardSystemOutput: true,
-      forwardHumanRequests: true,
-    },
-    parentAgent
-  );
 }
