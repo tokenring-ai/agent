@@ -12,6 +12,7 @@ export default createJsonRPCEndpoint(AgentRpcSchemas, {
     return {
       id: agent.id,
       name: agent.name,
+      type: agent.config.type,
       description: agent.description,
       debugEnabled: agent.debugEnabled,
     };
@@ -34,6 +35,7 @@ export default createJsonRPCEndpoint(AgentRpcSchemas, {
     return app.requireService(AgentManager).getAgents().map((agent: any) => ({
       id: agent.id,
       name: agent.name,
+      type: agent.config.type,
       description: agent.description,
     }));
   },
@@ -57,6 +59,7 @@ export default createJsonRPCEndpoint(AgentRpcSchemas, {
     return {
       id: agent.id,
       name: agent.name,
+      type: agent.config.type,
       description: agent.description,
     };
   },

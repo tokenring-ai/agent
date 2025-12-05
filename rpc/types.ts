@@ -14,6 +14,7 @@ export const AgentRpcSchemas = {
       result: z.object({
         id: z.string(),
         name: z.string(),
+        type: z.string(),
         description: z.string(),
         debugEnabled: z.boolean(),
       })
@@ -38,6 +39,7 @@ export const AgentRpcSchemas = {
       result: z.array(z.object({
         id: z.string(),
         name: z.string(),
+        type: z.string(),
         description: z.string(),
       }))
     },
@@ -61,6 +63,7 @@ export const AgentRpcSchemas = {
       result: z.object({
         id: z.string(),
         name: z.string(),
+        type: z.string(),
         description: z.string(),
       })
     },
