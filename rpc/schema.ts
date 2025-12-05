@@ -3,7 +3,7 @@ import { z } from "zod";
 import {AgentEventEnvelopeSchema, HumanRequestSchema, HumanResponseSchema} from "../AgentEvents.ts";
 
 
-export const AgentRpcSchemas = {
+export default {
   path: "/rpc/agent",
   methods: {
     getAgent: {

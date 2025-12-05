@@ -63,6 +63,8 @@ export const AskForSingleTreeSelectionRequestSchema = z.object({
   tree: TreeLeafSchema,
   initialSelection: z.string().optional(),
   loop: z.boolean().optional(),
+  default: z.string().optional(),
+  timeout: z.number().optional(),
 });
 
 export const AskForSingleTreeSelectionResponseSchema = z.string().nullable();
@@ -73,6 +75,8 @@ export const AskForMultipleTreeSelectionRequestSchema = z.object({
   tree: TreeLeafSchema,
   initialSelection: z.array(z.string()).optional(),
   loop: z.boolean().optional(),
+  default: z.array(z.string()).optional(),
+  timeout: z.number().optional(),
 });
 
 export const AskForMultipleTreeSelectionResponseSchema = z.array(z.string()).nullable();

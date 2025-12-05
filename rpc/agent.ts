@@ -3,9 +3,9 @@ import {createJsonRPCEndpoint} from "@tokenring-ai/web-host/jsonrpc/createJsonRP
 import {ResetWhat} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
 import { AgentEventState } from "../state/agentEventState.js";
-import { AgentRpcSchemas } from "./types.ts";
+import AgentRpcSchema from "./schema.ts";
 
-export default createJsonRPCEndpoint(AgentRpcSchemas, {
+export default createJsonRPCEndpoint(AgentRpcSchema, {
   getAgent(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
