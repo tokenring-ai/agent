@@ -240,7 +240,7 @@ const state = agent.getState(MyState);
 
 // Checkpointing
 const checkpoint = agent.generateCheckpoint();
-agent.restoreCheckpoint(checkpoint);
+agent.restoreState(checkpoint.state);
 ```
 
 ## Built-in Commands

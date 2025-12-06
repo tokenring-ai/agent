@@ -28,6 +28,7 @@ import {
   ChatOutputStream, ParsedAgentConfig,
   ServiceRegistryInterface
 } from "./types.js";
+import {formatAgentId} from "./util/formatAgentId.ts";
 
 
 export default class Agent
@@ -69,6 +70,26 @@ export default class Agent
     this.debugEnabled = config.debug ?? false;
     this.requireServiceByType = this.app.requireService;
     this.getServiceByType = this.app.getService;
+
+    this.initializeState(AgentEventState, {});
+    this.initializeState(CommandHistoryState, {});
+    this.initializeState(HooksState, {});
+  }
+
+  static async createAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
+    const agent = new Agent(app, {config: checkpoint.config, headless});
+    
+    for (const service of app.getServices()) {
+      if (service.attach) await service.attach(agent);
+    }
+
+    agent.restoreState(checkpoint.state);
+
+    agent.systemMessage(`Recovered agent from checkpoint: ${formatAgentId(agent.id)}`);
+
+    agent.mutateState(AgentEventState, (state) => state.idle = true);
+    
+    return agent;
   }
 
   get state() {
@@ -77,30 +98,26 @@ export default class Agent
     };
   }
 
-  restoreCheckpoint({state}: AgentCheckpointData): void {
-    this.stateManager.deserialize(state.agentState, (key) => {
-      this.systemMessage(`State slice ${key} not found in agent state`);
-    });
-  }
 
   generateCheckpoint(): AgentCheckpointData {
     return {
       agentId: this.id,
       createdAt: Date.now(),
-      state: {
-        agentState: this.stateManager.serialize(),
-      },
+      config: this.config,
+      state: this.stateManager.serialize()
     };
+  }
+
+  restoreState(state: AgentCheckpointData["state"]) {
+    this.stateManager.deserialize(state, (key) => {
+      this.systemMessage(`State slice ${key} not found in agent state`);
+    });
   }
 
   /**
    * Initialize the agent with commands and services
    */
   async initialize(initialState: Record<string, AgentStateSlice> = {}): Promise<void> {
-    this.initializeState(AgentEventState, {});
-    this.initializeState(CommandHistoryState, {});
-    this.initializeState(HooksState, {});
-
     for (const service of this.app.getServices()) {
       if (service.attach) await service.attach(this);
     }

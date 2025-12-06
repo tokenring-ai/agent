@@ -91,9 +91,8 @@ export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;
 export interface AgentCheckpointData {
   agentId: string;
   createdAt: number;
-  state: {
-    agentState: Record<string, object>;
-  };
+  config: ParsedAgentConfig;
+  state: Record<string, object>;
 }
 
 export type ContextItemPosition =

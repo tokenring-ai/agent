@@ -2,7 +2,7 @@ import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
-import type {AgentConfig, AgentStateSlice} from "../types.js";
+import {AgentCheckpointData, AgentConfig, AgentStateSlice} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
 
 export default class AgentManager implements TokenRingService {
@@ -29,8 +29,21 @@ export default class AgentManager implements TokenRingService {
     }
   }
 
+
+  async spawnAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
+    const agent = await Agent.createAgentFromCheckpoint(app, checkpoint, { headless });
+
+    this.agents.set(agent.id, agent);
+
+    return agent;
+  }
+
   async spawnAgent({agentType, headless} : { agentType: string, headless: boolean}): Promise<Agent> {
-    return this.createAgent({ config: this.agentConfigRegistry.requireItemByName(agentType), headless });
+    return this.spawnAgentFromConfig(this.agentConfigRegistry.requireItemByName(agentType), {headless});
+  }
+
+  async spawnAgentFromConfig(config: AgentConfig, {headless} : {headless: boolean}) {
+    return this.createAgent({config, headless});
   }
 
 
@@ -49,7 +62,7 @@ export default class AgentManager implements TokenRingService {
     return newAgent;
   }
 
-  async createAgent({config, initialState, headless}: {config: AgentConfig, headless: boolean, initialState?: Record<string, AgentStateSlice>}): Promise<Agent> {
+  private async createAgent({config, initialState, headless}: {config: AgentConfig, headless: boolean, initialState?: Record<string, AgentStateSlice>}): Promise<Agent> {
     const agent = new Agent(this.app, {config, headless});
 
     this.agents.set(agent.id, agent);
