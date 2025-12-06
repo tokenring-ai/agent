@@ -33,6 +33,20 @@ export default {
         waitingOn: z.union([HumanRequestSchema, z.null()])
       })
     },
+    streamAgentEvents: {
+      type: "stream",
+      input: z.object({
+        agentId: z.string(),
+        fromPosition: z.number()
+      }),
+      result: z.object({
+        events: z.array(AgentEventEnvelopeSchema),
+        position: z.number(),
+        idle: z.boolean(),
+        busyWith: z.union([z.string(), z.null()]),
+        waitingOn: z.union([HumanRequestSchema, z.null()])
+      })
+    },
     listAgents: {
       type: "query",
       input: z.object({}),

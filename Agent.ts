@@ -56,6 +56,7 @@ export default class Agent
   subscribeState = this.stateManager.subscribe.bind(this.stateManager);
   waitForState = this.stateManager.waitForState.bind(this.stateManager);
   timedWaitForState = this.stateManager.timedWaitForState.bind(this.stateManager);
+  subscribeStateAsync = this.stateManager.subscribeAsync.bind(this.stateManager);
 
   private abortController = new AbortController();
 

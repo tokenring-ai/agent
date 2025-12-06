@@ -31,6 +31,24 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     };
   },
 
+  async * streamAgentEvents(args, app, signal) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+
+    let curPosition = args.fromPosition;
+
+    for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
+      yield {
+        events: state.events.slice(curPosition),
+        position: state.events.length,
+        idle: state.idle,
+        busyWith: state.busyWith,
+        waitingOn: state.waitingOn,
+      };
+      curPosition = state.events.length;
+    }
+  },
+
   listAgents(_args, app) {
     return app.requireService(AgentManager).getAgents().map((agent: any) => ({
       id: agent.id,
