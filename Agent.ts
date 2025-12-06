@@ -133,6 +133,11 @@ export default class Agent
     this.mutateState(AgentEventState, (state) => state.idle = true);
   }
 
+  // noinspection JSUnusedGlobalSymbols
+  runCommand(command: string) {
+    return this.requireServiceByType(AgentCommandService).executeAgentCommand(this, command);
+  }
+
 
   getAgentConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
     try {
