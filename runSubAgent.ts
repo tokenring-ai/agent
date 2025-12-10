@@ -9,10 +9,12 @@ export interface RunSubAgentOptions {
   agentType: string;
   /** Whether to run the agent in headless mode */
   headless: boolean;
+  /** The command to send to the agent */
+  command: string;
   /** The message to send to the agent */
-  message: string;
+  //message: string;
   /** Additional context to include with the message */
-  context?: string;
+  //context?: string;
   /** Whether to forward chat output to the parent agent (default: true) */
   forwardChatOutput?: boolean;
   /** Whether to forward system messages to the parent agent (default: true) */
@@ -78,11 +80,10 @@ export async function runSubAgent(
   parentAgent: Agent,
   autoCleanup: boolean = true
 ): Promise<RunSubAgentResult> {
-  const {
+  let {
     agentType,
     headless,
-    message,
-    context,
+    command,
     forwardChatOutput = true,
     forwardReasoning = true,
     forwardSystemOutput = true,
@@ -92,33 +93,21 @@ export async function runSubAgent(
     minContextLength = 300,
   } = options;
 
-  if (!agentType) {
-    throw new Error("Agent type is required");
-  }
-  if (!message) {
-    throw new Error("Message is required");
-  }
-
   const agentManager = parentAgent.requireServiceByType(AgentManager);
   const childAgent = await agentManager.spawnSubAgent(parentAgent, { agentType, headless });
 
   try {
     let response = "";
-    let fullMessage = message;
-
-    if (context) {
-      fullMessage = `${message}\n\nImportant Context:\n${context}`;
-    }
 
     const eventCursor = (
       await childAgent.waitForState(AgentEventState, (state) => state.idle)
     ).getEventCursorFromCurrentPosition();
 
     if (forwardChatOutput || forwardSystemOutput) {
-      childAgent.infoLine("Sending message to agent:", fullMessage);
+      childAgent.infoLine("Sending message to agent:", command);
     }
 
-    const requestId = childAgent.handleInput({ message: `/work ${fullMessage}` });
+    const requestId = childAgent.handleInput({ message: command });
 
     return await new Promise((resolve, reject) => {
       const unsubscribe = childAgent.subscribeState(AgentEventState, (state) => {

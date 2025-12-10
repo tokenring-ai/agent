@@ -34,8 +34,7 @@ export async function execute(
     {
       agentType,
       headless: parentAgent.headless,
-      message,
-      context,
+      command: `/work ${message}${context ? `\n\nImportant Context:\n${context}` : ''}`,
       forwardChatOutput,
       forwardSystemOutput,
       forwardHumanRequests: true, // Always forward human requests for the tool
