@@ -1,12 +1,6 @@
 import { z } from "zod";
 import {
-  HumanInterfaceDefinitionSchemas,
-  AskForConfirmationRequestSchema,
-  OpenWebPageRequestSchema,
-  AskForTextRequestSchema,
-  AskForPasswordRequestSchema,
-  AskForSingleTreeSelectionRequestSchema,
-  AskForMultipleTreeSelectionRequestSchema, HumanInterfaceRequestSchema,
+  HumanInterfaceRequestSchema,
 } from "./HumanInterfaceRequest.js";
 
 export const ResetWhatSchema = z.enum(["context", "chat", "history", "settings", "memory"]);

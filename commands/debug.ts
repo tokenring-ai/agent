@@ -1,52 +1,50 @@
-import convertBoolean from "@tokenring-ai/utility/string/convertBoolean";
-import Agent from "../Agent.ts";
 import {TokenRingAgentCommand} from "../types.ts";
+import createSubcommandRouter from "../util/subcommandRouter.ts";
+import logging from "./debug/logging.ts";
+import markdown from "./debug/markdown.ts";
+import services from "./debug/services.ts";
 
-const description = "/debug - Toggle debug logging." as const;
+const description = "/debug - Debug utilities and diagnostics" as const;
 
+const execute = createSubcommandRouter({
+  logging,
+  markdown,
+  services,
+});
 
-export function execute(remainder: string | undefined, agent: Agent): void {
-  const arg = remainder?.trim().toLowerCase();
-
-  if (!arg) {
-    agent.infoLine(`Debug logging is currently ${agent.debugEnabled ? "enabled" : "disabled"}`);
-    return;
-  }
-
-  agent.debugEnabled = convertBoolean(arg);
-}
-
-const help: string = `# /debug
+const help = `# /debug
 
 ## Description
-Toggle debug logging for the agent. When enabled, detailed debug information will be logged to help troubleshoot issues.
+Debug utilities and diagnostics for TokenRing agents.
 
-## Commands
-- **(no argument)** - Shows current debug logging status
-- **on** - Enables debug logging
-- **off** - Disables debug logging
+## Subcommands
 
-## Usage examples
-/debug          # Shows current status
-/debug on       # Enables debug logging
-/debug off      # Disables debug logging
+### /debug logging on|off
+Enable or disable debug logging output.
 
-## Debug information includes
-- Agent lifecycle events
-- Service initialization and shutdown
-- Command execution details
-- State changes and transitions
-- Network requests and responses
-- Error details and stack traces
+Examples:
+- /debug logging on
+- /debug logging off
+
+### /debug markdown
+Output a markdown sample to test console rendering.
+
+Example:
+- /debug markdown
+
+### /debug services [limit]
+Display service logs from TokenRingApp.
+
+Examples:
+- /debug services       # Shows last 50 logs
+- /debug services 100   # Shows last 100 logs
 
 ## Notes
-- Debug logging can impact performance due to increased I/O
-- Enable only when needed for troubleshooting
-- Debug output is typically written to console or log files
-- Some sensitive information may be logged in debug mode`;
+- Service logs include both info and error level messages
+- Logs are stored in memory and cleared on restart`;
 
 export default {
   description,
   execute,
   help,
-} as TokenRingAgentCommand
+} as TokenRingAgentCommand;

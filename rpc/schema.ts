@@ -1,6 +1,6 @@
 import {JsonRPCSchema} from "@tokenring-ai/web-host/jsonrpc/types";
 import { z } from "zod";
-import {AgentEventEnvelopeSchema, HumanRequestSchema, HumanResponseSchema} from "../AgentEvents.ts";
+import {AgentEventEnvelopeSchema, HumanRequestSchema} from "../AgentEvents.ts";
 
 
 export default {
