@@ -143,7 +143,7 @@ export default class Agent
         if (this.abortController?.signal?.aborted) {
           this.emit({ type: "input.handled", requestId, status: "cancelled", message: "Request cancelled", timestamp: Date.now()});
         } else {
-          this.emit({ type: "input.handled", requestId, status: "error", message: formatLogMessages(["Error: ", err as Error]), timestamp: Date.now()});
+          this.emit({ type: "input.handled", requestId, status: "error", message: formatLogMessages([err as Error]), timestamp: Date.now()});
         }
         throw err;
       }
@@ -223,7 +223,7 @@ export default class Agent
             state.idle = true;
             state.emit({
               type: "input.handled",
-              requestId, status: "error", message: formatLogMessages(["Error: ", err as Error]),
+              requestId, status: "error", message: formatLogMessages([err as Error]),
               timestamp: Date.now()
             });
           })
