@@ -59,6 +59,7 @@ export const AskForPasswordResponseSchema = z.string().nullable();
 
 export const AskForSingleTreeSelectionRequestSchema = z.object({
   type: z.literal("askForSingleTreeSelection"),
+  title: z.string(),
   message: z.string().optional(),
   tree: TreeLeafSchema,
   initialSelection: z.string().optional(),
@@ -71,6 +72,7 @@ export const AskForSingleTreeSelectionResponseSchema = z.string().nullable();
 
 export const AskForMultipleTreeSelectionRequestSchema = z.object({
   type: z.literal("askForMultipleTreeSelection"),
+  title: z.string(),
   message: z.string().optional(),
   tree: TreeLeafSchema,
   initialSelection: z.array(z.string()).optional(),
