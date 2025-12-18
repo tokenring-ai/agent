@@ -44,4 +44,4 @@ export default {
       webHostService.registerResource("Agent RPC endpoint", new JsonRpcResource(app, agentRPC));
     });
   },
-} as TokenRingPlugin;
+} satisfies TokenRingPlugin;
