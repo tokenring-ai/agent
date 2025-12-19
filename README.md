@@ -37,7 +37,7 @@ pkg/agent/
 ├── chatCommands.ts                   # Command exports
 ├── tools.ts                          # Tool exports
 ├── commands/                         # Built-in commands
-│   ├── debug.ts                      # Debug logging toggle
+│   ├── debug.ts                      # Debug utilities
 │   ├── help.ts                       # Help system
 │   ├── hook.ts                       # Hook management
 │   ├── reset.ts                      # State reset
@@ -90,9 +90,11 @@ const agent = new Agent(app, { config: agentConfig, headless: false });
 - `getState<T>(ClassType)`: Retrieve state slice
 - `mutateState<T>(ClassType, callback)`: Modify state slice
 - `subscribeState<T>(ClassType, callback)`: Subscribe to state changes
+- `waitForState<T>(ClassType, predicate)`: Wait for state condition
+- `timedWaitForState<T>(ClassType, predicate, timeout)`: Wait with timeout
+- `subscribeStateAsync<T>(ClassType, callback)`: Subscribe asynchronously
 - `generateCheckpoint()`: Create state checkpoint
 - `restoreState(state)`: Restore from checkpoint
-- `reset(what)`: Reset specific state components
 
 **Input Processing:**
 - `handleInput({message})`: Process user input with event emission
@@ -113,6 +115,10 @@ const agent = new Agent(app, { config: agentConfig, headless: false });
 - `requestAbort(reason)`: Abort current operations
 - `getAbortSignal()`: Get abort signal
 - `getIdleDuration()`: Get time since last activity
+- `reset(what)`: Reset specific state components
+
+**Checkpoint Creation:**
+- `static createAgentFromCheckpoint(app, checkpoint, {headless})`: Create agent from checkpoint
 
 ### AgentManager Service
 
@@ -143,8 +149,13 @@ const agent = await agentManager.spawnAgent({
 
 **Key Methods:**
 - `addAgentConfig(name, config)`: Register agent configuration
+- `addAgentConfigs(configs)`: Register multiple agent configurations
+- `getAgentTypes()`: Get all available agent types
+- `getAgentConfigs()`: Get all agent configurations
 - `spawnAgent({agentType, headless})`: Create new agent
 - `spawnSubAgent(agent, {agentType, headless})`: Create sub-agent
+- `spawnAgentFromConfig(config, {headless})`: Create agent from config
+- `spawnAgentFromCheckpoint(app, checkpoint, {headless})`: Create from checkpoint
 - `getAgent(id)`: Get agent by ID
 - `getAgents()`: Get all active agents
 - `deleteAgent(agent)`: Shutdown and remove agent
@@ -173,6 +184,13 @@ await agent.runCommand("Hello, agent!");
 - Command singular/plural name handling
 - Error handling for unknown commands
 
+**Key Methods:**
+- `addAgentCommands(commands)`: Register commands
+- `getCommandNames()`: Get all command names
+- `getCommands()`: Get all commands
+- `getCommand(name)`: Get specific command
+- `executeAgentCommand(agent, message)`: Execute command
+
 ### AgentLifecycleService Service
 
 Service for managing hooks and lifecycle events:
@@ -188,10 +206,14 @@ await lifecycleService.executeHooks(agent, "afterChatCompletion", args);
 ```
 
 **Hook Management:**
-- Register hooks with package namespacing
-- Enable/disable hooks per agent
-- Execute hooks on lifecycle events
-- Support for multiple hook types
+- `registerHook(name, config)`: Register individual hook
+- `addHooks(pkgName, hooks)`: Register hooks with package namespacing
+- `getRegisteredHooks()`: Get all registered hooks
+- `getEnabledHooks(agent)`: Get enabled hooks for agent
+- `setEnabledHooks(hookNames, agent)`: Set enabled hooks
+- `enableHooks(hookNames, agent)`: Enable specific hooks
+- `disableHooks(hookNames, agent)`: Disable specific hooks
+- `executeHooks(agent, hookType, ...args)`: Execute hooks
 
 ## Configuration
 
@@ -288,6 +310,10 @@ class MyCustomState implements AgentStateSlice {
     if (what.includes('chat')) this.data = [];
   }
   
+  show() {
+    return [`Data items: ${this.data.length}`];
+  }
+  
   serialize() { return { data: this.data }; }
   deserialize(obj: any) { this.data = obj.data || []; }
 }
@@ -373,16 +399,29 @@ const selection = await agent.askHuman({
 agent.sendHumanResponse(requestId, selection);
 ```
 
+### Cost Tracking
+
+```typescript
+// Add cost tracking
+agent.addCost("api_calls", 1);
+agent.addCost("tokens", 1500);
+
+// View cost information
+await agent.runCommand("/cost");
+```
+
 ## Built-in Commands
 
 ### Debug Commands
 - `/debug [on|off]` - Toggle debug logging
+- `/debug markdown` - Test markdown rendering
+- `/debug services [limit]` - View service logs
 
 ### Hook Management
 - `/hooks [list|enable|disable] [hookName]` - Manage hooks
 
 ### Reset Commands
-- `/reset [chat|memory|settings|all]` - Reset state components
+- `/reset [context|chat|history|settings|memory|all]` - Reset state components
 
 ### Settings
 - `/settings` - Display active services and tools
@@ -452,6 +491,57 @@ agent.subscribeState(AgentEventState, (state) => {
     case "human.request":
       // Handle human interface request
       break;
+  }
+});
+```
+
+## Human Interface Types
+
+The agent supports multiple human interface request types:
+
+```typescript
+// Confirmation request
+await agent.askHuman({
+  type: "askForConfirmation",
+  message: "Do you want to proceed?",
+  default: true
+});
+
+// Text input
+await agent.askHuman({
+  type: "askForText",
+  message: "Enter your name:"
+});
+
+// Password input
+await agent.askHuman({
+  type: "askForPassword",
+  message: "Enter password:"
+});
+
+// Single tree selection
+await agent.askHuman({
+  type: "askForSingleTreeSelection",
+  title: "Select an option",
+  tree: {
+    name: "root",
+    children: [
+      { name: "Option 1", value: "opt1" },
+      { name: "Option 2", value: "opt2" }
+    ]
+  }
+});
+
+// Multiple tree selection
+await agent.askHuman({
+  type: "askForMultipleTreeSelection",
+  title: "Select multiple options",
+  tree: {
+    name: "root",
+    children: [
+      { name: "Feature A", value: "a" },
+      { name: "Feature B", value: "b" }
+    ]
   }
 });
 ```
@@ -527,6 +617,7 @@ The agent system provides comprehensive error handling:
 - **Hook Errors**: Hook execution failures
 - **Timeout Errors**: Operation timeouts
 - **Abort Errors**: Operation cancellation
+- **Human Interface Errors**: Headless mode violations
 
 ## Performance Considerations
 
@@ -534,6 +625,7 @@ The agent system provides comprehensive error handling:
 - **Memory Management**: State serialization for memory efficiency
 - **Event Batching**: Efficient event emission and handling
 - **Hook Performance**: Minimal overhead for hook system
+- **Async Operations**: Proper async/await patterns throughout
 
 ## Dependencies
 
