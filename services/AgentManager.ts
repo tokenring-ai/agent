@@ -48,13 +48,13 @@ export default class AgentManager implements TokenRingService {
 
 
   async spawnSubAgent(agent: Agent, {agentType, headless}: { agentType: string, headless: boolean}): Promise<Agent> {
-    const initialStateForSubAgent = Object.fromEntries(
-      Object.entries(agent.stateManager).filter(item => item[1].persistToSubAgents)
-    );
-
     const agentConfig = this.agentConfigRegistry.requireItemByName(agentType);
     // Create a new agent of the specified type
-    const newAgent = await this.createAgent({ config: agentConfig, headless, initialState: initialStateForSubAgent});
+    const newAgent = await this.createAgent({ config: agentConfig, headless});
+
+    for (const [name, item] of newAgent.stateManager.entries()) {
+      item?.transferStateFromParent?.(agent);
+    }
 
     agent.systemMessage(
       `Created new agent: ${newAgent.config.name} (${formatAgentId(newAgent.id)})`,

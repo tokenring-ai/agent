@@ -62,7 +62,7 @@ export interface ServiceRegistryInterface {
 export type AgentStateSlice = SerializableStateSlice & {
   reset: (what: ResetWhat[]) => void;
   show: () => string[];
-  persistToSubAgents?: boolean;
+  transferStateFromParent?: (agent: Agent) => void;
 }
 
 export const AgentConfigSchema = z.looseObject({
