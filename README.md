@@ -15,6 +15,7 @@ The `@tokenring-ai/agent` package provides a complete agent framework with:
 - **Human Interface**: Request/response system for human interaction
 - **Sub-Agent Support**: Create and manage child agents
 - **Cost Tracking**: Monitor and track resource usage
+- **RPC Integration**: JSON-RPC endpoints for remote agent management
 - **Plugin Integration**: Automatic integration with TokenRing applications
 
 ## Installation
@@ -60,6 +61,7 @@ pkg/agent/
 ├── rpc/                             # RPC endpoints
 │   ├── agent.ts                      # Agent RPC implementation
 │   └── schema.ts                     # RPC schema definitions
+├── runSubAgent.ts                    # Sub-agent execution helper
 └── util/                            # Utilities
     ├── formatAgentId.ts              # Agent ID formatting
     └── subcommandRouter.ts           # Command routing utilities
@@ -84,6 +86,8 @@ const agent = new Agent(app, { config: agentConfig, headless: false });
 - `config`: Parsed agent configuration
 - `debugEnabled`: Debug logging toggle
 - `headless`: Headless operation mode
+- `app`: TokenRing application instance
+- `stateManager`: State management system
 
 **State Management Methods:**
 - `initializeState<T>(ClassType, props)`: Initialize state slice
@@ -161,7 +165,7 @@ const agent = await agentManager.spawnAgent({
 - `deleteAgent(agent)`: Shutdown and remove agent
 
 **Lifecycle Management:**
-- Automatic idle agent cleanup
+- Automatic idle agent cleanup (configurable intervals)
 - Configurable idle timeouts
 - Graceful shutdown handling
 
@@ -233,9 +237,9 @@ const agentConfig = {
   persistent?: boolean,     // Enable checkpointing
   storagePath?: string,     // Storage location
   type: "interactive" | "background", // Agent type
-  callable?: boolean,       // Enable tool calls
-  idleTimeout?: number,     // Idle timeout in seconds
-  maxRunTime?: number       // Max runtime in seconds
+  callable?: boolean,       // Enable tool calls (default: true)
+  idleTimeout?: number,     // Idle timeout in seconds (default: 86400)
+  maxRunTime?: number       // Max runtime in seconds (default: 1800)
 };
 ```
 
@@ -348,6 +352,25 @@ await subAgent.handleInput({ message: "Process this data" });
 
 // Sub-agent state is automatically copied from parent
 await agentManager.deleteAgent(subAgent);
+```
+
+### Advanced Sub-Agent Execution
+
+```typescript
+import { runSubAgent } from "@tokenring-ai/agent/runSubAgent";
+
+// Run sub-agent with custom options
+const result = await runSubAgent({
+  agentType: "code-assistant",
+  headless: true,
+  command: "/work Analyze this code: function test() { return true; }",
+  forwardChatOutput: true,
+  forwardSystemOutput: false,
+  timeout: 60,
+  maxResponseLength: 1000
+}, agent, true);
+
+console.log("Result:", result.status, result.response);
 ```
 
 ### Tool Execution
@@ -544,6 +567,46 @@ await agent.askHuman({
     ]
   }
 });
+
+// Open web page
+await agent.askHuman({
+  type: "openWebPage",
+  url: "https://example.com"
+});
+```
+
+## RPC Integration
+
+The agent package provides JSON-RPC endpoints for remote agent management:
+
+### RPC Methods
+
+**Agent Management:**
+- `getAgent({agentId})` - Get agent information
+- `listAgents()` - List all agents
+- `getAgentTypes()` - Get available agent types
+- `createAgent({agentType, headless})` - Create new agent
+- `deleteAgent({agentId})` - Delete agent
+
+**Agent Interaction:**
+- `sendInput({agentId, message})` - Send message to agent
+- `sendHumanResponse({agentId, requestId, response})` - Send human response
+- `abortAgent({agentId, reason})` - Abort agent operation
+- `resetAgent({agentId, what})` - Reset agent state
+
+**Event Streaming:**
+- `getAgentEvents({agentId, fromPosition})` - Get agent events
+- `streamAgentEvents({agentId, fromPosition})` - Stream agent events
+
+```typescript
+// Example RPC usage
+const response = await fetch('/rpc', {
+  method: 'POST',
+  body: JSON.stringify({
+    method: 'getAgent',
+    params: { agentId: 'agent-uuid' }
+  })
+});
 ```
 
 ## Integration Patterns
@@ -590,7 +653,18 @@ Agents support multiple state slices for different concerns:
 ```typescript
 class CustomState implements AgentStateSlice {
   name = "CustomState";
-  // Implement required methods
+  reset(what: ResetWhat[]) {
+    // Implementation
+  }
+  show(): string[] {
+    return ["Custom state data"];
+  }
+  serialize() {
+    return { data: this.data };
+  }
+  deserialize(obj: any) {
+    // Implementation
+  }
 }
 ```
 
@@ -618,6 +692,7 @@ The agent system provides comprehensive error handling:
 - **Timeout Errors**: Operation timeouts
 - **Abort Errors**: Operation cancellation
 - **Human Interface Errors**: Headless mode violations
+- **RPC Errors**: Remote procedure call errors
 
 ## Performance Considerations
 
@@ -626,6 +701,7 @@ The agent system provides comprehensive error handling:
 - **Event Batching**: Efficient event emission and handling
 - **Hook Performance**: Minimal overhead for hook system
 - **Async Operations**: Proper async/await patterns throughout
+- **RPC Streaming**: Efficient event streaming for real-time updates
 
 ## Dependencies
 
@@ -675,6 +751,8 @@ const myAgentPlugin: TokenRingPlugin = {
 - Event-driven architecture
 - Comprehensive command and tool system
 - Plugin integration and lifecycle management
+- RPC endpoints for remote management
+- Advanced sub-agent execution patterns
 
 ## License
 
