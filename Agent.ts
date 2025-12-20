@@ -60,7 +60,7 @@ export default class Agent
   timedWaitForState = this.stateManager.timedWaitForState.bind(this.stateManager);
   subscribeStateAsync = this.stateManager.subscribeAsync.bind(this.stateManager);
 
-  private abortController = new AbortController();
+  private agentShutdownSignal = new AbortController();
 
   constructor(app: TokenRingApp, {config, headless} : {config: AgentConfig, headless: boolean}) {
     this.app = app;
@@ -88,16 +88,12 @@ export default class Agent
     agent.restoreState(checkpoint.state);
 
     agent.systemMessage(`Recovered agent from checkpoint: ${formatAgentId(agent.id)}`);
-
-    agent.mutateState(AgentEventState, (state) => state.idle = true);
     
     return agent;
   }
 
-  get state() {
-    return {
-      entries: () => this.stateManager.entries(),
-    };
+  shutdown() {
+    this.agentShutdownSignal.abort();
   }
 
 
@@ -132,24 +128,15 @@ export default class Agent
       }
     }
 
-    const agentCommandService = this.requireServiceByType(AgentCommandService);
-    for (const message of this.config.initialCommands ?? []) {
-      const requestId = uuid();
-      this.emit({ type: "input.received", message, requestId, timestamp: Date.now()});
-      try {
-        await agentCommandService.executeAgentCommand(this, message);
-        this.emit({ type: "input.handled", requestId, status: "success", message: "Request completed successfully", timestamp: Date.now()});
-      } catch (err) {
-        if (this.abortController?.signal?.aborted) {
-          this.emit({ type: "input.handled", requestId, status: "cancelled", message: "Request cancelled", timestamp: Date.now()});
-        } else {
-          this.emit({ type: "input.handled", requestId, status: "error", message: formatLogMessages([err as Error]), timestamp: Date.now()});
-        }
-        throw err;
-      }
-    }
+    this.app.trackPromise(signal => this.run(signal));
 
-    this.mutateState(AgentEventState, (state) => state.idle = true);
+    if (this.config.initialCommands.length > 0) {
+      this.mutateState(AgentEventState, (state) => {
+        for (const message of this.config.initialCommands) {
+          state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
+        }
+      })
+    }
   }
 
   // noinspection JSUnusedGlobalSymbols
@@ -182,54 +169,15 @@ export default class Agent
    */
   handleInput({message}: { message: string }): string {
     const requestId = uuid();
+    message = message.trim();
+    
+    this.mutateState(AgentEventState, (state) => {
+      state.emit({type: "input.received", message, requestId, timestamp: Date.now()});
+    });
 
-    this.app.trackPromise((async () => {
-      try {
-        message = message.trim();
-        this.mutateState(AgentEventState, (state) => {
-          state.idle = false;
-          state.emit({type: "input.received", message, requestId, timestamp: Date.now()});
-        });
-
-        this.mutateState(CommandHistoryState, (state) => {
-          state.commands.push(message);
-        });
-
-        await this.requireServiceByType(AgentCommandService).executeAgentCommand(this, message);
-
-        this.mutateState(AgentEventState, (state) => {
-          state.idle = true;
-          state.emit({
-            type: "input.handled",
-            requestId, status: "success", message: "Request completed successfully",
-            timestamp: Date.now()
-          });
-
-        });
-
-        await this.getServiceByType(AgentLifecycleService)?.executeHooks(this, "afterAgentInputComplete", message);
-      } catch (err) {
-        if (this.abortController?.signal?.aborted) {
-          this.mutateState(AgentEventState, (state) => {
-            state.idle = true;
-            state.emit({
-              type: "input.handled",
-              requestId, status: "cancelled", message: "Request cancelled",
-              timestamp: Date.now()
-            });
-          });
-        } else {
-          this.mutateState(AgentEventState, (state) => {
-            state.idle = true;
-            state.emit({
-              type: "input.handled",
-              requestId, status: "error", message: formatLogMessages([err as Error]),
-              timestamp: Date.now()
-            });
-          })
-        }
-      }
-    })());
+    this.mutateState(CommandHistoryState, (state) => {
+      state.commands.push(message);
+    });
 
     return requestId;
   }
@@ -257,7 +205,9 @@ export default class Agent
   }
 
   requestAbort(reason: string) {
-    this.abortController.abort(reason);
+    this.mutateState(AgentEventState, (state) => {
+      state.emit({type: "abort", timestamp: Date.now(), reason});
+    });
   }
 
   reset(what: ResetWhat[]) {
@@ -299,7 +249,6 @@ export default class Agent
     }
   }
 
-  // Legacy method aliases for compatibility
   infoLine = (...messages: string[]) =>
     this.systemMessage(formatLogMessages(messages), "info");
 
@@ -323,8 +272,103 @@ export default class Agent
   };
 
   getAbortSignal() {
-    return this.abortController.signal;
+    const state = this.getState(AgentEventState);
+    return state.currentlyExecuting?.abortController.signal || this.agentShutdownSignal.signal;
   }
+
+  async run(signal: AbortSignal): Promise<void> {
+    signal.addEventListener('abort', () => this.agentShutdownSignal.abort());
+    const eventCursor = { position: 0 };
+
+    for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownSignal.signal)) {
+      for (const event of state.yieldEventsByCursor(eventCursor)) {
+        if (event.type === "input.received") {
+          this.mutateState(AgentEventState, (s) => {
+            s.inputQueue.push(event);
+          });
+        } else if (event.type === "abort") {
+          this.handleAbort(event.timestamp, event.reason);
+        }
+      }
+      
+      if (!state.currentlyExecuting && state.inputQueue.length > 0) {
+        this.startNextExecution();
+      }
+    }
+  }
+
+  private handleAbort(abortTimestamp: number, reason?: string): void {
+    this.mutateState(AgentEventState, (state: AgentEventState) => {
+      const requestId = state.currentlyExecuting?.requestId;
+
+      if (state.currentlyExecuting) {
+        state.currentlyExecuting.abortController.abort(reason || "Abort requested");
+      }
+
+      for (const item of state.inputQueue.filter(r => r.requestId !== requestId)) {
+        state.emit({
+          type: "input.handled",
+          requestId: item.requestId,
+          status: "cancelled",
+          message: "Aborted",
+          timestamp: Date.now(),
+        });
+      }
+    });
+  }
+
+  private startNextExecution(): void {
+    const agentCommandService = this.requireServiceByType(AgentCommandService);
+    const agentLifecycleService = this.getServiceByType(AgentLifecycleService);
+
+    const state = this.getState(AgentEventState);
+    const item = state.inputQueue[0];
+    if (!item) return;
+
+    const itemAbortController = new AbortController();
+    const handleAgentAbort = () => itemAbortController.abort();
+    this.agentShutdownSignal.signal.addEventListener('abort', handleAgentAbort);
+
+    this.mutateState(AgentEventState, (s) => {
+      s.currentlyExecuting = { requestId: item.requestId, abortController: itemAbortController };
+    });
+
+    this.app.trackPromise(async () => {
+      try {
+        await agentCommandService.executeAgentCommand(this, item.message);
+        await agentLifecycleService?.executeHooks(this, "afterAgentInputComplete", item.message);
+
+
+        this.mutateState(AgentEventState, (s) => {
+          s.emit({
+            type: "input.handled",
+            requestId: item.requestId,
+            status: "success",
+            message: "Request completed successfully",
+            timestamp: Date.now(),
+          });
+        });
+      } catch (err) {
+        const status = itemAbortController.signal.aborted ? "cancelled" : "error";
+        this.mutateState(AgentEventState, (s) => {
+          s.emit({
+            type: "input.handled",
+            requestId: item.requestId,
+            status,
+            message: formatLogMessages([err as Error]),
+            timestamp: Date.now(),
+          });
+        });
+      } finally {
+        this.agentShutdownSignal.signal.removeEventListener('abort', handleAgentAbort);
+        this.mutateState(AgentEventState, (s) => {
+          s.currentlyExecuting = null;
+          s.inputQueue = s.inputQueue.filter(i => i.requestId !== item.requestId);
+        });
+      }
+    });
+  }
+
 
   private emit(event: AgentEventEnvelope): void {
     this.mutateState(AgentEventState, (state) => state.emit(event));

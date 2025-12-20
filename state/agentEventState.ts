@@ -1,5 +1,5 @@
 import {z} from "zod";
-import {AgentEventEnvelope, HumanRequestSchema, ResetWhat} from "../AgentEvents.js";
+import {AgentEventEnvelope, HumanRequestSchema, InputReceivedSchema, ResetWhat} from "../AgentEvents.js";
 import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 
 export type AgentEventCursor = {
@@ -9,14 +9,19 @@ export type AgentEventCursor = {
 export class AgentEventState implements SerializableStateSlice {
   name = "AgentEventState";
   busyWith: string | null = null;
-  idle: boolean = false;
   waitingOn: z.infer<typeof HumanRequestSchema> | null = null;
   events: AgentEventEnvelope[] = [];
+  // These are not persisted, the agent calculates them on startup
+  inputQueue: Array<z.infer<typeof InputReceivedSchema>> = [];
+  currentlyExecuting: { requestId: string; abortController: AbortController } | null = null;
 
-  constructor({events, busyWith, idle}: { events?: AgentEventEnvelope[], busyWith?: string, idle?: boolean }) {
+  constructor({events, busyWith}: { events?: AgentEventEnvelope[], busyWith?: string }) {
     this.busyWith = busyWith ?? null;
-    this.idle = idle ?? false;
     this.events = events ? [...events] : [];
+  }
+
+  get idle(): boolean {
+    return this.inputQueue.length === 0;
   }
 
   emit(event: AgentEventEnvelope): void {
@@ -38,7 +43,6 @@ export class AgentEventState implements SerializableStateSlice {
   deserialize(data: any): void {
     this.events = data.events ? [...data.events] : [];
     this.busyWith = data.busyWith ?? null;
-    this.idle = data.idle ?? false;
   }
 
   show(): string[] {

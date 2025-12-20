@@ -60,6 +60,12 @@ export const ResetSchema = z.object({
   what: z.array(ResetWhatSchema),
 });
 
+export const AbortSchema = z.object({
+  type: z.literal("abort"),
+  timestamp: z.number(),
+  reason: z.string().optional(),
+});
+
 export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   OutputChatSchema,
   OutputReasoningSchema,
@@ -69,6 +75,7 @@ export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   HumanRequestSchema,
   HumanResponseSchema,
   ResetSchema,
+  AbortSchema,
 ]);
 
 export type AgentEventEnvelope = z.infer<typeof AgentEventEnvelopeSchema>;
