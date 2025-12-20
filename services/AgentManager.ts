@@ -74,6 +74,7 @@ export default class AgentManager implements TokenRingService {
   async deleteAgent(agent: Agent): Promise<void> {
     agent.requestAbort("AgentManager initiated shutdown");
 
+    agent.shutdown();
     this.agents.delete(agent.id);
   }
 
