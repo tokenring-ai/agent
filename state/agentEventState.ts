@@ -50,7 +50,6 @@ export class AgentEventState implements SerializableStateSlice {
       `Events: ${this.events.length}`,
       `Busy With: ${this.busyWith ?? "None"}`,
       `Idle: ${this.idle ? "Yes" : "No"}`,
-      ...this.events.slice(-5).map((event, i) => `  [${this.events.length - 5 + i + 1}] ${event.type}: ${JSON.stringify(event)}`)
     ];
   }
 

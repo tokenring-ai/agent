@@ -3,7 +3,7 @@ import {
   HumanInterfaceRequestSchema,
 } from "./HumanInterfaceRequest.js";
 
-export const ResetWhatSchema = z.enum(["context", "chat", "history", "settings", "memory"]);
+export const ResetWhatSchema = z.enum(["context", "chat", "history", "settings", "memory", "costs"]);
 export type ResetWhat = z.infer<typeof ResetWhatSchema>;
 
 export const OutputChatSchema = z.object({

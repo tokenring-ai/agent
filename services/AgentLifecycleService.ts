@@ -48,7 +48,7 @@ export default class AgentLifecycleService implements TokenRingService {
     agent.mutateState(HooksState, (state) => {
       state.enabledHooks = state.enabledHooks
         .filter((hook) =>
-          hookNames.includes(hook)
+          !hookNames.includes(hook)
         )
     });
   }

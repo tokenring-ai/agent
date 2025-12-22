@@ -10,7 +10,9 @@ export class CommandHistoryState implements SerializableStateSlice {
   }
 
   reset(what: ResetWhat[]): void {
-    // Doesn't reset
+    if (what.includes("history")) {
+      this.commands = [];
+    }
   }
 
   serialize(): object {

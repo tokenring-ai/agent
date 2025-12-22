@@ -11,7 +11,11 @@ export class CostTrackingState implements AgentStateSlice {
     this.costs = initialCosts;
   }
 
-  reset(what: ResetWhat[]): void {}
+  reset(what: ResetWhat[]): void {
+    if (what.includes("costs")) {
+      this.costs = {};
+    }
+  }
 
   serialize(): object {
     return this.costs;
