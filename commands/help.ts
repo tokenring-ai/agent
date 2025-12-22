@@ -4,7 +4,7 @@ import {TokenRingAgentCommand} from "../types.ts";
 
 const description = "/help - Show this help message" as const;
 
-async function execute(remainder: string | undefined, agent: Agent): Promise<void> {
+async function execute(remainder: string, agent: Agent): Promise<void> {
   const command = remainder?.trim();
   if (command) {
     return getHelpOnCommand(command, agent);

@@ -3,7 +3,7 @@ import {CostTrackingState} from "../state/costTrackingState.ts";
 import {TokenRingAgentCommand} from "../types.ts";
 
 const description = "/cost - Displays total costs incurred by the Agent." as const;
-export function execute(remainder: string | undefined, agent: Agent): void {
+export function execute(remainder: string, agent: Agent): void {
   const lines = agent.getState(CostTrackingState).show();
 
   agent.chatOutput(lines.join("\n"));

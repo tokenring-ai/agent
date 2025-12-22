@@ -251,7 +251,8 @@ export default class Agent
     });
   }
 
-  async busyWhile<T>(message: string, awaitable: Promise<T>): Promise<T> {
+  async busyWhile<T>(message: string, awaitable: Promise<T> | (() => Promise<T>)): Promise<T> {
+    if (typeof awaitable === "function") awaitable = awaitable();
     this.mutateState(AgentEventState, (state) => state.busyWith = message);
     try {
       return await awaitable;

@@ -5,7 +5,7 @@ import {TokenRingAgentCommand} from "../types.ts";
 const description =
   "/reset - Clear chat state and/or memory and/or settings." as const;
 
-export function execute(remainder: string | undefined, agent: Agent): void {
+export function execute(remainder: string, agent: Agent): void {
   // Parse arguments
   let args = remainder?.trim().split(/\s+/) || [];
 

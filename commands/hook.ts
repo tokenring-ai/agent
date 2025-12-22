@@ -34,7 +34,7 @@ Manage registered hooks and their execution state. Hooks are special functions t
 - Disabled hooks are not executed but remain registered`;
 
 async function execute(
-  remainder: string | undefined,
+  remainder: string,
   agent: Agent,
 ): Promise<void> {
   const agentLifecycleService = agent.requireServiceByType(AgentLifecycleService);
