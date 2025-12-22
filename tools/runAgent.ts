@@ -3,7 +3,7 @@ import {z} from "zod";
 import Agent from "../Agent.js";
 import {runSubAgent} from "../runSubAgent.ts";
 
-const name = "agent/run";
+const name = "agent_run";
 
 /**
  * Creates a new agent, sends it a message, and waits for the response
