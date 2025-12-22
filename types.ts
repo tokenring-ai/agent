@@ -32,9 +32,9 @@ export type MessageLevel = "info" | "warning" | "error";
 export interface ChatOutputStream {
   systemMessage(message: string, level?: MessageLevel): void;
 
-  chatOutput(content: string): void;
+  chatOutput(message: string): void;
 
-  reasoningOutput(content: string): void;
+  reasoningOutput(message: string): void;
 
   infoLine(...messages: string[]): void;
 

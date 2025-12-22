@@ -115,25 +115,29 @@ export async function runSubAgent(
           switch (event.type) {
             case "output.chat":
               if (forwardChatOutput) {
-                parentAgent.chatOutput(event.content);
+                parentAgent.chatOutput(event.message);
               }
-              response += event.content;
+              response += event.message;
               break;
 
             case "output.reasoning":
               if (forwardReasoning) {
-                parentAgent.reasoningOutput(event.content);
+                parentAgent.reasoningOutput(event.message);
               }
               break;
 
-            case "output.system":
+            case "output.info":
+            case "output.warning":
               if (forwardSystemOutput) {
-                parentAgent.systemMessage(event.message, event.level);
+                parentAgent.mutateState(AgentEventState, (state) => {
+                  state.events.push(event);
+                })
               }
-              // Always include system errors in the response for debugging
-              if (event.level === "error") {
-                response += `[System Error: ${event.message}]\n`;
-              }
+              break;
+            case "output.error":
+              parentAgent.mutateState(AgentEventState, (state) => {
+                state.events.push(event);
+              })
               break;
 
             case "input.handled":

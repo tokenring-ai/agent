@@ -9,20 +9,29 @@ export type ResetWhat = z.infer<typeof ResetWhatSchema>;
 export const OutputChatSchema = z.object({
   type: z.literal("output.chat"),
   timestamp: z.number(),
-  content: z.string(),
+  message: z.string(),
 });
 
 export const OutputReasoningSchema = z.object({
   type: z.literal("output.reasoning"),
   timestamp: z.number(),
-  content: z.string(),
+  message: z.string(),
 });
 
-export const OutputSystemSchema = z.object({
-  type: z.literal("output.system"),
+export const OutputInfoSchema = z.object({
+  type: z.literal("output.info"),
   timestamp: z.number(),
   message: z.string(),
-  level: z.enum(["info", "warning", "error"]),
+});
+export const OutputWarningSchema = z.object({
+  type: z.literal("output.warning"),
+  timestamp: z.number(),
+  message: z.string(),
+});
+export const OutputErrorSchema = z.object({
+  type: z.literal("output.error"),
+  timestamp: z.number(),
+  message: z.string(),
 });
 
 export const InputReceivedSchema = z.object({
@@ -69,7 +78,9 @@ export const AbortSchema = z.object({
 export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   OutputChatSchema,
   OutputReasoningSchema,
-  OutputSystemSchema,
+  OutputInfoSchema,
+  OutputWarningSchema,
+  OutputErrorSchema,
   InputReceivedSchema,
   InputHandledSchema,
   HumanRequestSchema,

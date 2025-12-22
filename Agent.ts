@@ -183,16 +183,27 @@ export default class Agent
   }
 
 
-  chatOutput(content: string) {
-    this.emit({ type: "output.chat", content, timestamp: Date.now() });
+  chatOutput(message: string) {
+    this.emit({ type: "output.chat", message, timestamp: Date.now() });
   }
 
-  reasoningOutput(content: string) {
-    this.emit({ type: "output.reasoning", content, timestamp: Date.now() });
+  reasoningOutput(message: string) {
+    this.emit({ type: "output.reasoning", message, timestamp: Date.now() });
   }
 
   systemMessage(message: string, level: "info" | "warning" | "error" = "info") {
-    this.emit({ type: "output.system", message, level, timestamp: Date.now() });
+    if (!message.endsWith("\n")) message = `${message}\n`;
+    switch (level) {
+      case "error":
+        this.emit({ type: "output.error", message, timestamp: Date.now() });
+        break;
+      case "warning":
+        this.emit({ type: "output.warning", message, timestamp: Date.now() });
+        break;
+      case "info":
+        this.emit({ type: "output.info", message, timestamp: Date.now() });
+        break;
+    }
   }
 
   getIdleDuration(): number {

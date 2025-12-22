@@ -19,10 +19,14 @@
   "types": "./index.ts",
   "license": "MIT",
   "scripts": {
-    "build": "tsc -p tsconfig.tson"
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "type": "module"
 }

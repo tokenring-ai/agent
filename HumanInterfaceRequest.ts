@@ -83,6 +83,98 @@ export const AskForMultipleTreeSelectionRequestSchema = z.object({
 
 export const AskForMultipleTreeSelectionResponseSchema = z.array(z.string()).nullable();
 
+export const FormTextField = z.object({
+  type: z.literal('text'),
+  label: z.string(),
+  key: z.string(),
+  required: z.boolean().default(false),
+  defaultValue: z.string().optional(),
+  expectedLines: z.number().default(1)
+});
+
+export const FormSelectOneField = z.object({
+  type: z.literal('selectOne'),
+  label: z.string(),
+  key: z.string(),
+  required: z.boolean().default(false),
+  defaultValue: z.string().optional(),
+  options: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+  })),
+});
+
+export const FormSelectManyField = z.object({
+  type: z.literal('selectMany'),
+  label: z.string(),
+  key: z.string(),
+  required: z.boolean().default(false),
+  defaultValue: z.array(z.string()).optional(),
+  options: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+  }))
+})
+
+export const FormDirectoryField = z.object({
+  type: z.literal('directory'),
+  label: z.string(),
+  key: z.string(),
+  required: z.boolean().default(false),
+  defaultValue: z.string().optional(),
+})
+
+export const FormFileField = z.object({
+  type: z.literal('file'),
+  label: z.string(),
+  key: z.string(),
+  required: z.boolean().default(false),
+  defaultValue: z.string().optional(),
+});
+
+export const FormMultipleFileField = z.object({
+  type: z.literal('multipleFile'),
+  label: z.string(),
+  key: z.string(),
+  required: z.boolean().default(false),
+  defaultValue: z.array(z.string()).optional(),
+})
+
+export const FormSingleTreeSelection = AskForSingleTreeSelectionRequestSchema.omit({
+  type: true,
+})
+
+export const FormMultipleTreeSelection = AskForMultipleTreeSelectionRequestSchema.omit({
+  type: true,
+})
+
+export const FormRequestFields = z.discriminatedUnion('type', [
+  FormTextField,
+  FormSelectOneField,
+  FormSelectManyField,
+  FormDirectoryField,
+  FormFileField,
+  FormMultipleFileField,
+  FormSingleTreeSelection,
+  FormMultipleTreeSelection,
+]);
+
+export const FormRequestSchema = z.object({
+  type: z.literal("askForForm"),
+  name: z.string(),
+  description: z.string(),
+  sections: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    fields: z.array(FormRequestFields)
+  })),
+});
+
+export const FormResponseSchema = z.object({
+  type: z.literal("askForForm"),
+  values: z.record(z.string(), z.union([z.string(), z.null(), z.array(z.string())])),
+});
+
 export const HumanInterfaceRequestSchema = z.discriminatedUnion("type", [
   AskForConfirmationRequestSchema,
   OpenWebPageRequestSchema,
@@ -90,10 +182,14 @@ export const HumanInterfaceRequestSchema = z.discriminatedUnion("type", [
   AskForPasswordRequestSchema,
   AskForSingleTreeSelectionRequestSchema,
   AskForMultipleTreeSelectionRequestSchema,
+  FormRequestSchema,
 ]);
 
-
-export type HumanInterfaceDefinitions = z.infer<typeof HumanInterfaceDefinitionSchemas> &{
+export type HumanInterfaceDefinitions = z.infer<typeof HumanInterfaceDefinitionSchemas> & {
+  askForForm: {
+    request: z.infer<typeof FormRequestSchema>;
+    response: z.infer<typeof FormResponseSchema>;
+  };
   askForConfirmation: {
     request: z.infer<typeof AskForConfirmationRequestSchema>;
     response: z.infer<typeof AskForConfirmationResponseSchema>;
@@ -144,6 +240,10 @@ export const HumanInterfaceDefinitionSchemas = {
   askForMultipleTreeSelection: {
     request: AskForMultipleTreeSelectionRequestSchema,
     response: AskForMultipleTreeSelectionResponseSchema,
+  },
+  askForForm: {
+    request: FormRequestSchema,
+    response: FormResponseSchema,
   },
 } as const;
 
