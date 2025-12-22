@@ -9,7 +9,7 @@ export default function createSubcommandRouter(subcommands: Record<string, (rema
     const subCmd = pickValue(subcommands,subCommand);
 
     if (subCmd) {
-      await subCmd(remainder.substring(pos).trim(), agent);
+      await subCmd(pos === -1 ? '' : remainder.substring(pos).trim(), agent);
     } else if (subcommands.default) {
       await subcommands.default(remainder, agent);
     } else {
