@@ -10,13 +10,6 @@ const mockEvent: AgentEventEnvelope = {
   timestamp: Date.now(),
 };
 
-const mockBusyEvent: AgentEventEnvelope = {
-  type: 'output.system',
-  message: 'Processing...',
-  level: 'info' as const,
-  timestamp: Date.now(),
-};
-
 describe('AgentEventState', () => {
   let state: AgentEventState;
 

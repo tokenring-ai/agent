@@ -1,22 +1,11 @@
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import AgentCommandService from '../../services/AgentCommandService.ts';
-import Agent from '../../Agent.ts';
 import type { TokenRingAgentCommand } from '../../types.js';
+import createTestingAgent from "../createTestingAgent";
 
-// Mock TokenRingService interface
-const mockTokenRingService = {
-  name: 'mock',
-  description: 'mock service',
-};
-
-// Mock agent
-const mockAgent = {
-  errorLine: vi.fn(),
-  requireServiceByType: vi.fn(),
-  getServiceByType: vi.fn(),
-  systemMessage: vi.fn(),
-} as any;
-
+const mockApp = createTestingApp();
+const mockAgent = createTestingAgent(mockApp)
 // Mock commands
 const mockCommand: TokenRingAgentCommand = {
   description: 'Mock command',
@@ -36,6 +25,7 @@ describe('AgentCommandService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     service = new AgentCommandService();
+
     service.addAgentCommands({
       'mock': mockCommand,
       'chat': mockChatCommand,
@@ -107,6 +97,7 @@ describe('AgentCommandService', () => {
     });
 
     it('should handle unknown commands', async () => {
+      vi.spyOn(mockAgent, 'errorLine');
       await service.executeAgentCommand(mockAgent, '/unknown command');
       
       expect(mockAgent.errorLine).toHaveBeenCalledWith(

@@ -299,7 +299,7 @@ export default class Agent
             s.inputQueue.push(event);
           });
         } else if (event.type === "abort") {
-          this.handleAbort(event.timestamp, event.reason);
+          this.handleAbort();
         }
       }
       
@@ -309,7 +309,7 @@ export default class Agent
     }
   }
 
-  private handleAbort(abortTimestamp: number, reason?: string): void {
+  private handleAbort(reason?: string): void {
     this.mutateState(AgentEventState, (state: AgentEventState) => {
       const requestId = state.currentlyExecuting?.requestId;
 

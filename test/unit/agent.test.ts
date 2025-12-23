@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Agent from '../../Agent.ts';
-import TokenRingApp from '@tokenring-ai/app';
-import {AgentConfig, AgentCheckpointData, AgentConfigSchema} from '../../types.js';
+import {AgentConfig, AgentConfigSchema} from '../../types.js';
 import { AgentEventState } from '../../state/agentEventState.ts';
 import { CommandHistoryState } from '../../state/commandHistoryState.js';
 import { CostTrackingState } from '../../state/costTrackingState.ts';

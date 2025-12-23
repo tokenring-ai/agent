@@ -3,7 +3,6 @@ import Agent from '../../Agent.ts';
 import AgentCommandService from '../../services/AgentCommandService.ts';
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
 import AgentManager from '../../services/AgentManager.ts';
-import TokenRingApp from '@tokenring-ai/app';
 import {AgentEventState} from "../../state/agentEventState";
 import {CommandHistoryState} from "../../state/commandHistoryState";
 import {CostTrackingState} from "../../state/costTrackingState";
@@ -184,7 +183,7 @@ describe('Agent Integration Tests', () => {
       });
 
       // Handle input
-      const requestId = agent.handleInput({ message: 'test input' });
+      agent.handleInput({ message: 'test input' });
 
       // Process the request
       await agent.runCommand('/workflow test input');
