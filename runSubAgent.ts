@@ -7,6 +7,8 @@ import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 export interface RunSubAgentOptions {
   /** The type of agent to create */
   agentType: string;
+  /** Whether to run the agent in the background and return immediately (default: false) */
+  background?: boolean;
   /** Whether to run the agent in headless mode */
   headless: boolean;
   /** The command to send to the agent */
@@ -15,6 +17,8 @@ export interface RunSubAgentOptions {
   //message: string;
   /** Additional context to include with the message */
   //context?: string;
+  /** Whether to forward input commands to the parent agent (default: true) */
+  forwardInputCommands?: boolean;
   /** Whether to forward chat output to the parent agent (default: true) */
   forwardChatOutput?: boolean;
   /** Whether to forward system messages to the parent agent (default: true) */
@@ -88,6 +92,7 @@ export async function runSubAgent(
     forwardReasoning = true,
     forwardSystemOutput = true,
     forwardHumanRequests = true,
+    forwardInputCommands = true,
     timeout,
     maxResponseLength = 500,
     minContextLength = 300,
@@ -108,6 +113,14 @@ export async function runSubAgent(
     }
 
     const requestId = childAgent.handleInput({ message: command });
+
+    if (options.background) {
+      return {
+        status: "success",
+        response: "Agent started in background.",
+        childAgent: childAgent,
+      };
+    }
 
     return await new Promise((resolve, reject) => {
       const unsubscribe = childAgent.subscribeState(AgentEventState, (state) => {
@@ -139,8 +152,19 @@ export async function runSubAgent(
                 state.events.push(event);
               })
               break;
+            case 'input.received':
+              if (forwardInputCommands) {
+                parentAgent.chatOutput(`Running command: ${event.message}`);
+              }
+              break;
 
             case "input.handled":
+              if (event.status === "success") {
+                parentAgent.infoLine(`Success: ${event.message}`);
+              } else {
+                parentAgent.errorLine(`Error: ${event.message}`);
+              }
+
               if (event.requestId === requestId) {
                 unsubscribe();
                 const truncatedResponse = trimMiddle(

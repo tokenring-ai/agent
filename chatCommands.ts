@@ -5,5 +5,6 @@ import work from "./commands/work.ts";
 import debug from "./commands/debug.ts";
 import help from "./commands/help.ts";
 import cost from "./commands/cost.ts";
+import agent from "./commands/agent.ts";
 
-export default { reset, hooks, settings, work, debug, help, cost}
+export default { reset, hooks, settings, work, debug, help, cost, agent}
