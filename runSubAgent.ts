@@ -108,13 +108,10 @@ export async function runSubAgent(
       await childAgent.waitForState(AgentEventState, (state) => state.idle)
     ).getEventCursorFromCurrentPosition();
 
-    if (forwardChatOutput || forwardSystemOutput) {
-      childAgent.infoLine("Sending message to agent:", command);
-    }
-
     const requestId = childAgent.handleInput({ message: command });
 
     if (options.background) {
+      childAgent.infoLine(`${agentType} (background) > `, command.trim());
       return {
         status: "success",
         response: "Agent started in background.",
@@ -154,7 +151,7 @@ export async function runSubAgent(
               break;
             case 'input.received':
               if (forwardInputCommands) {
-                parentAgent.chatOutput(`Running command: ${event.message}`);
+                parentAgent.infoLine(`${agentType} > ${event.message}`);
               }
               break;
 

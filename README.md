@@ -76,7 +76,17 @@ The central agent implementation providing comprehensive AI agent functionality:
 ```typescript
 import Agent from "@tokenring-ai/agent";
 
-const agent = new Agent(app, { config: agentConfig, headless: false });
+const agent = new Agent(app, {
+  config: {
+    name: "My Agent",
+    description: "Custom development agent",
+    category: "development", 
+    visual: { color: "blue" },
+    type: "interactive",
+    initialCommands: ["/help"]
+  },
+  headless: false
+});
 ```
 
 **Key Properties:**
@@ -257,7 +267,7 @@ const config = {
     myAgent: {
       name: "My Agent",
       description: "Custom agent",
-      category: "development",
+      category: "development", 
       visual: { color: "blue" },
       type: "interactive"
     }
@@ -335,7 +345,11 @@ const checkpoint = agent.generateCheckpoint();
 console.log("Checkpoint:", checkpoint);
 
 // Restore from checkpoint
-agent.restoreState(checkpoint.state);
+const restoredAgent = await Agent.createAgentFromCheckpoint(
+  app, 
+  checkpoint, 
+  { headless: false }
+);
 ```
 
 ### Sub-Agent Creation
@@ -365,7 +379,7 @@ const result = await runSubAgent({
   headless: true,
   command: "/work Analyze this code: function test() { return true; }",
   forwardChatOutput: true,
-  forwardSystemOutput: false,
+  forwardSystemOutput: true,
   timeout: 60,
   maxResponseLength: 1000
 }, agent, true);
