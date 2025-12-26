@@ -504,12 +504,15 @@ const tool = {
 **Output Events:**
 - `output.chat` - Chat output
 - `output.reasoning` - Reasoning output
-- `output.system` - System messages
+- `output.info` - Informational messages
+- `output.warning` - Warning messages
+- `output.error` - Error messages
 
 **State Events:**
 - `reset` - State reset
 - `human.request` - Human input requested
 - `human.response` - Human response provided
+- `abort` - Operation aborted
 
 ### Event Handling
 
@@ -586,6 +589,22 @@ await agent.askHuman({
 await agent.askHuman({
   type: "openWebPage",
   url: "https://example.com"
+});
+
+// Form input
+await agent.askHuman({
+  type: "askForForm",
+  name: "User Configuration",
+  description: "Configure user settings",
+  sections: [{
+    name: "Personal Info",
+    fields: [{
+      type: "text",
+      label: "Name",
+      key: "name",
+      required: true
+    }]
+  }]
 });
 ```
 
