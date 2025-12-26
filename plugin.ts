@@ -1,24 +1,28 @@
-import { ChatService } from "@tokenring-ai/chat";
-import { TokenRingPlugin } from "@tokenring-ai/app";
+import {TokenRingPlugin} from "@tokenring-ai/app";
+import {ChatService} from "@tokenring-ai/chat";
 import {WebHostService} from "@tokenring-ai/web-host";
 import JsonRpcResource from "@tokenring-ai/web-host/JsonRpcResource";
-import TokenRingApp from "@tokenring-ai/app";
+import {z} from "zod";
 import chatCommands from "./chatCommands.ts";
 import contextHandlers from "./contextHandlers.ts";
 import {AgentPackageConfigSchema} from "./index.ts";
 import packageJSON from "./package.json" with {type: "json"};
-import AgentCommandService from "./services/AgentCommandService.js";
-import AgentManager from "./services/AgentManager.js";
-import AgentLifecycleService from "./services/AgentLifecycleService.js";
-import tools from "./tools.ts";
 import agentRPC from "./rpc/agent.ts";
+import AgentCommandService from "./services/AgentCommandService.js";
+import AgentLifecycleService from "./services/AgentLifecycleService.js";
+import AgentManager from "./services/AgentManager.js";
+import tools from "./tools.ts";
+
+const packageConfigSchema = z.object({
+  agents: AgentPackageConfigSchema
+})
 
 
 export default {
   name: packageJSON.name,
   version: packageJSON.version,
   description: packageJSON.description,
-  install(app: TokenRingApp) {
+  install(app, config) {
     app.waitForService(ChatService, chatService => {
       chatService.addTools(packageJSON.name, tools);
       chatService.registerContextHandlers(contextHandlers);
@@ -29,12 +33,8 @@ export default {
     app.addServices(agentCommandService);
 
     const agentManager = new AgentManager(app);
-    const agentsConfig = app.getConfigSlice(
-      "agents",
-      AgentPackageConfigSchema,
-    );
-    if (agentsConfig) {
-      agentManager.addAgentConfigs(agentsConfig);
+    if (config.agents) {
+      agentManager.addAgentConfigs(config.agents);
     }
     app.addServices(agentManager);
 
@@ -44,4 +44,5 @@ export default {
       webHostService.registerResource("Agent RPC endpoint", new JsonRpcResource(app, agentRPC));
     });
   },
-} satisfies TokenRingPlugin;
+  config: packageConfigSchema
+} satisfies TokenRingPlugin<typeof packageConfigSchema>;
