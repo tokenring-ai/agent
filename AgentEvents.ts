@@ -6,6 +6,16 @@ import {
 export const ResetWhatSchema = z.enum(["context", "chat", "history", "settings", "memory", "costs"]);
 export type ResetWhat = z.infer<typeof ResetWhatSchema>;
 
+export const AgentCreatedSchema = z.object({
+  type: z.literal("agent.created"),
+  timestamp: z.number()
+});
+
+export const AgentStoppedSchema = z.object({
+  type: z.literal("agent.stopped"),
+  timestamp: z.number()
+});
+
 export const OutputChatSchema = z.object({
   type: z.literal("output.chat"),
   timestamp: z.number(),
@@ -76,6 +86,8 @@ export const AbortSchema = z.object({
 });
 
 export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
+  AgentCreatedSchema,
+  AgentStoppedSchema,
   OutputChatSchema,
   OutputReasoningSchema,
   OutputInfoSchema,

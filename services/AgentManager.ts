@@ -89,12 +89,22 @@ export default class AgentManager implements TokenRingService {
   private async checkAndDeleteIdleAgents() {
     for (const agent of this.agents.values()) {
       const idleTimeout = agent.config.idleTimeout;
+      const maxRunTime = agent.config.maxRunTime;
       if (idleTimeout && agent.getIdleDuration() > idleTimeout * 1000) {
         try {
+          agent.infoLine(`Agent has been idle for ${agent.getIdleDuration() / 1000} seconds. Deleting agent.`);
           await this.deleteAgent(agent);
           this.app.serviceOutput(`Agent ${agent.id} has been deleted due to inactivity.`);
         } catch (err) {
           this.app.serviceError(`Failed to delete idle agent ${agent.id}:`, err);
+        }
+      } else if (maxRunTime && agent.getRunDuration() > maxRunTime * 1000) {
+        try {
+          agent.infoLine(`Agent has been running for ${agent.getRunDuration() / 1000} seconds. Deleting agent.`);
+          await this.deleteAgent(agent);
+          this.app.serviceOutput(`Agent ${agent.id} has been deleted due to max runtime.`);
+        } catch (err) {
+          this.app.serviceError(`Failed to delete agent ${agent.id} due to max runtime:`, err);
         }
       }
     }

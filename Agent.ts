@@ -47,7 +47,6 @@ export default class Agent
   getServiceByType: <R extends TokenRingService>(
     type: abstract new (...args: any[]) => R,
   ) => R | undefined;
-  readonly app: TokenRingApp;
   readonly config: ParsedAgentConfig;
   headless: boolean;
 
@@ -62,8 +61,7 @@ export default class Agent
 
   private agentShutdownSignal = new AbortController();
 
-  constructor(app: TokenRingApp, {config, headless} : {config: AgentConfig, headless: boolean}) {
-    this.app = app;
+  constructor(readonly app: TokenRingApp, {config, headless} : {config: AgentConfig, headless: boolean}) {
     this.config = AgentConfigSchema.parse(config);
     this.headless = headless
     this.name = config.name;
@@ -72,7 +70,11 @@ export default class Agent
     this.requireServiceByType = this.app.requireService;
     this.getServiceByType = this.app.getService;
 
-    this.initializeState(AgentEventState, {});
+    this.initializeState(AgentEventState, {
+      events: [
+        { type: "agent.created", timestamp: Date.now()}
+      ]
+    });
     this.initializeState(CommandHistoryState, {});
     this.initializeState(HooksState, {});
     this.initializeState(CostTrackingState, {});
@@ -209,10 +211,16 @@ export default class Agent
   getIdleDuration(): number {
     const events = this.getState(AgentEventState).events;
 
-
     const lastActivityTime = events[events.length - 1]?.timestamp;
 
-    return Date.now() - lastActivityTime;
+    return lastActivityTime ? Date.now() - lastActivityTime : Infinity;
+  }
+
+  getRunDuration(): number {
+    const events = this.getState(AgentEventState).events;
+
+    const firstActivityTime = events[0]?.timestamp;
+    return firstActivityTime ? Date.now() - firstActivityTime : 0
   }
 
   requestAbort(reason: string) {
@@ -307,6 +315,11 @@ export default class Agent
         this.startNextExecution();
       }
     }
+
+    this.emit({
+      type: "agent.stopped",
+      timestamp: Date.now()
+    })
   }
 
   private handleAbort(reason?: string): void {
