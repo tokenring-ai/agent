@@ -35,14 +35,25 @@ export class AgentEventState implements SerializableStateSlice {
   serialize(): object {
     return {
       events: this.events,
-      busyWith: this.busyWith,
-      idle: this.idle
     };
   }
 
   deserialize(data: any): void {
-    this.events = data.events ? [...data.events] : [];
-    this.busyWith = data.busyWith ?? null;
+     // When restoring the event state, we need to clean up the events to put the agent back into a usable state.
+    const handledEvents = new Set<string>();
+    for (const event of data.events as AgentEventEnvelope[]) {
+      if (event.type === "input.handled") handledEvents.add(event.requestId);
+    }
+
+    this.events = (data.events as AgentEventEnvelope[]).filter(event => {
+      if (event.type === "agent.stopped") return false;
+      if (event.type === "input.received" && ! handledEvents.has(event.requestId)) return false;
+      return true;
+    });
+
+    this.busyWith = null;
+    this.waitingOn = null;
+    this.currentlyExecuting = null;
   }
 
   show(): string[] {

@@ -126,7 +126,7 @@ describe('AgentManager', () => {
     });
 
     it('should spawn agent from checkpoint', async () => {
-      const agent = await manager.spawnAgentFromCheckpoint(app, mockCheckpoint, { headless: true });
+      const agent = await manager.spawnAgentFromCheckpoint(mockCheckpoint, { headless: true });
       
       expect(agent).toBeInstanceOf(Agent);
       expect(agent.config).toEqual(mockCheckpoint.config);

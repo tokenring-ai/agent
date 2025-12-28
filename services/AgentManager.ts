@@ -30,8 +30,8 @@ export default class AgentManager implements TokenRingService {
   }
 
 
-  async spawnAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
-    const agent = await Agent.createAgentFromCheckpoint(app, checkpoint, { headless });
+  async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
+    const agent = await Agent.createAgentFromCheckpoint(this.app, checkpoint, { headless });
 
     this.agents.set(agent.id, agent);
 
@@ -45,7 +45,6 @@ export default class AgentManager implements TokenRingService {
   async spawnAgentFromConfig(config: AgentConfig, {headless} : {headless: boolean}) {
     return this.createAgent({config, headless});
   }
-
 
   async spawnSubAgent(agent: Agent, {agentType, headless}: { agentType: string, headless: boolean}): Promise<Agent> {
     const agentConfig = this.agentConfigRegistry.requireItemByName(agentType);
