@@ -221,6 +221,7 @@ export async function runSubAgent(
   } finally {
     // Clean up the agent if auto-cleanup is enabled
     if (autoCleanup) {
+      childAgent.shutdown("Agent was shut down by parent agent");
       await agentManager.deleteAgent(childAgent);
     }
   }

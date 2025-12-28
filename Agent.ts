@@ -94,8 +94,12 @@ export default class Agent
     return agent;
   }
 
-  shutdown() {
+  shutdown(reason: string) {
+    this.requestAbort(reason);
+
     this.agentShutdownSignal.abort();
+
+    this.infoLine(`Agent was shutdown: ${reason}`);
   }
 
 
@@ -125,7 +129,6 @@ export default class Agent
     for (const itemName in initialState) {
       const newItem = this.stateManager.state.get(itemName);
       if (newItem) {
-        this.infoLine(`Copying persistent state item ${itemName} to agent`);
         newItem.deserialize(initialState[itemName].serialize());
       }
     }
@@ -225,7 +228,10 @@ export default class Agent
 
   requestAbort(reason: string) {
     this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "abort", timestamp: Date.now(), reason});
+      if (! state.idle) {
+        state.emit({type: "abort", timestamp: Date.now(), reason});
+        state.emit({type: "output.info", message: `Aborting current operation, ${reason}`, timestamp: Date.now()});
+      }
     });
   }
 
@@ -267,6 +273,12 @@ export default class Agent
     } finally {
       this.mutateState(AgentEventState, (state) => state.busyWith = null);
     }
+  }
+
+  setBusyWith(message: string | null) {
+    this.mutateState(AgentEventState, (state) => {
+      state.busyWith = message;
+    })
   }
 
   infoLine = (...messages: string[]) =>

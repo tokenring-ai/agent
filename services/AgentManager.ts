@@ -72,9 +72,6 @@ export default class AgentManager implements TokenRingService {
   }
 
   async deleteAgent(agent: Agent): Promise<void> {
-    agent.requestAbort("AgentManager initiated shutdown");
-
-    agent.shutdown();
     this.agents.delete(agent.id);
   }
 
@@ -92,7 +89,7 @@ export default class AgentManager implements TokenRingService {
       const maxRunTime = agent.config.maxRunTime;
       if (idleTimeout && agent.getIdleDuration() > idleTimeout * 1000) {
         try {
-          agent.infoLine(`Agent has been idle for ${agent.getIdleDuration() / 1000} seconds. Deleting agent.`);
+          agent.shutdown(`Agent has been idle for ${agent.getIdleDuration() / 1000} seconds`);
           await this.deleteAgent(agent);
           this.app.serviceOutput(`Agent ${agent.id} has been deleted due to inactivity.`);
         } catch (err) {
@@ -100,7 +97,7 @@ export default class AgentManager implements TokenRingService {
         }
       } else if (maxRunTime && agent.getRunDuration() > maxRunTime * 1000) {
         try {
-          agent.infoLine(`Agent has been running for ${agent.getRunDuration() / 1000} seconds. Deleting agent.`);
+          agent.shutdown(`Agent has been running for ${agent.getRunDuration() / 1000} seconds`);
           await this.deleteAgent(agent);
           this.app.serviceOutput(`Agent ${agent.id} has been deleted due to max runtime.`);
         } catch (err) {

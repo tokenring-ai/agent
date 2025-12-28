@@ -65,11 +65,25 @@ async function run(remainder: string, agent: Agent): Promise<void> {
     agent.chatOutput(`Agent started in background.`);
   }
 }
+async function shutdown(remainder: string, agent: Agent): Promise<void> {
+  const id = remainder.trim() || agent.id;
+
+  const agentManager = agent.requireServiceByType(AgentManager);
+
+  const agentToShutdown = agentManager.getAgent(id);
+  if (! agentToShutdown) {
+    agent.errorLine(`Agent ${id} not found`);
+    return;
+  }
+
+  agent.shutdown("Agent was shut down with /agent shutdown command");
+}
 
 const execute = createSubcommandRouter({
   types,
   list,
   run,
+  shutdown
 });
 
 const help = `# /agent
@@ -84,6 +98,12 @@ Lists all available agent types with their descriptions.
 
 ### /agent list
 Lists all currently running agents.
+
+### /agent shutdown
+Shuts down the current agent
+
+### /agent shutdown <id>
+Shuts down the agent with id <id>
 
 ### /agent run [--bg] <agentType> <message>
 Runs an agent of the specified type with the given message.
