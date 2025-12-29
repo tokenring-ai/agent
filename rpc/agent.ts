@@ -28,6 +28,7 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
       idle: state.idle,
       busyWith: state.busyWith,
       waitingOn: state.waitingOn,
+      statusLine: state.statusLine,
     };
   },
 
@@ -44,6 +45,7 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
         idle: state.idle,
         busyWith: state.busyWith,
         waitingOn: state.waitingOn,
+        statusLine: state.statusLine,
       };
       curPosition = state.events.length;
     }

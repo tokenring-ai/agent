@@ -30,7 +30,8 @@ export default {
         position: z.number(),
         idle: z.boolean(),
         busyWith: z.union([z.string(), z.null()]),
-        waitingOn: z.union([HumanRequestSchema, z.null()])
+        waitingOn: z.union([HumanRequestSchema, z.null()]),
+        statusLine: z.union([z.string(), z.null()])
       })
     },
     streamAgentEvents: {
@@ -44,7 +45,8 @@ export default {
         position: z.number(),
         idle: z.boolean(),
         busyWith: z.union([z.string(), z.null()]),
-        waitingOn: z.union([HumanRequestSchema, z.null()])
+        waitingOn: z.union([HumanRequestSchema, z.null()]),
+        statusLine: z.union([z.string(), z.null()])
       })
     },
     listAgents: {

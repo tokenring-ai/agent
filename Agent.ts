@@ -281,6 +281,12 @@ export default class Agent
     })
   }
 
+  setStatusLine(status: string | null) {
+    this.mutateState(AgentEventState, (state) => {
+      state.statusLine = status;
+    })
+  }
+
   infoLine = (...messages: string[]) =>
     this.systemMessage(formatLogMessages(messages), "info");
 

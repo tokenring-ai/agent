@@ -14,9 +14,11 @@ export class AgentEventState implements SerializableStateSlice {
   // These are not persisted, the agent calculates them on startup
   inputQueue: Array<z.infer<typeof InputReceivedSchema>> = [];
   currentlyExecuting: { requestId: string; abortController: AbortController } | null = null;
+  statusLine: string | null;
 
-  constructor({events, busyWith}: { events?: AgentEventEnvelope[], busyWith?: string }) {
+  constructor({events, busyWith, statusLine}: { events?: AgentEventEnvelope[], busyWith?: string, statusLine?: string }) {
     this.busyWith = busyWith ?? null;
+    this.statusLine = statusLine ?? null;
     this.events = events ? [...events] : [];
   }
 
@@ -35,17 +37,21 @@ export class AgentEventState implements SerializableStateSlice {
   serialize(): object {
     return {
       events: this.events,
+      busyWith: this.busyWith,
+      idle: this.idle,
+      statusLine: this.statusLine,
     };
   }
 
   deserialize(data: any): void {
      // When restoring the event state, we need to clean up the events to put the agent back into a usable state.
+    const events = data.events || [];
     const handledEvents = new Set<string>();
-    for (const event of data.events as AgentEventEnvelope[]) {
+    for (const event of events as AgentEventEnvelope[]) {
       if (event.type === "input.handled") handledEvents.add(event.requestId);
     }
 
-    this.events = (data.events as AgentEventEnvelope[]).filter(event => {
+    this.events = (events as AgentEventEnvelope[]).filter(event => {
       if (event.type === "agent.stopped") return false;
       if (event.type === "input.received" && ! handledEvents.has(event.requestId)) return false;
       return true;
@@ -54,12 +60,14 @@ export class AgentEventState implements SerializableStateSlice {
     this.busyWith = null;
     this.waitingOn = null;
     this.currentlyExecuting = null;
+    this.statusLine = data.statusLine ?? null;
   }
 
   show(): string[] {
     return [
       `Events: ${this.events.length}`,
       `Busy With: ${this.busyWith ?? "None"}`,
+      `Status Line: ${this.statusLine ?? "None"}`,
       `Idle: ${this.idle ? "Yes" : "No"}`,
     ];
   }
