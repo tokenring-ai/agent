@@ -1,4 +1,4 @@
-import {TokenRingToolDefinition} from "@tokenring-ai/chat/types";
+import {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
 import Agent from "../Agent.js";
 import {runSubAgent} from "../runSubAgent.ts";
