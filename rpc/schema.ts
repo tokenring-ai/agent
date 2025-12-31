@@ -29,9 +29,9 @@ export default {
         events: z.array(AgentEventEnvelopeSchema),
         position: z.number(),
         idle: z.boolean(),
-        busyWith: z.union([z.string(), z.null()]),
+        busyWith: z.string().nullable(),
         waitingOn: z.union([HumanRequestSchema, z.null()]),
-        statusLine: z.union([z.string(), z.null()])
+        statusLine: z.string().nullable()
       })
     },
     streamAgentEvents: {
@@ -44,9 +44,9 @@ export default {
         events: z.array(AgentEventEnvelopeSchema),
         position: z.number(),
         idle: z.boolean(),
-        busyWith: z.union([z.string(), z.null()]),
+        busyWith: z.string().nullable(),
         waitingOn: z.union([HumanRequestSchema, z.null()]),
-        statusLine: z.union([z.string(), z.null()])
+        statusLine: z.string().nullable()
       })
     },
     listAgents: {
@@ -57,6 +57,8 @@ export default {
         name: z.string(),
         type: z.string(),
         description: z.string(),
+        idle: z.boolean(),
+        statusMessage: z.string()
       }))
     },
     getAgentTypes: {

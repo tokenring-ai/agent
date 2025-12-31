@@ -1,5 +1,6 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {createJsonRPCEndpoint} from "@tokenring-ai/web-host/jsonrpc/createJsonRPCEndpoint";
+import Agent from "../Agent.ts";
 import {ResetWhat} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
 import { AgentEventState } from "../state/agentEventState.js";
@@ -52,12 +53,22 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
   },
 
   listAgents(_args, app) {
-    return app.requireService(AgentManager).getAgents().map((agent: any) => ({
-      id: agent.id,
-      name: agent.name,
-      type: agent.config.type,
-      description: agent.description,
-    }));
+    return app.requireService(AgentManager).getAgents().map((agent: Agent) => {
+      const agentState = agent.getState(AgentEventState);
+
+      return {
+        id: agent.id,
+        name: agent.name,
+        type: agent.config.type,
+        description: agent.description,
+        idle: agentState.idle,
+        statusMessage: agentState.waitingOn
+          ? "Waiting on user input..."
+          : agentState.idle
+            ? "Agent is idle"
+            : agentState.busyWith ?? "Agent is working...."
+      }
+    });
   },
 
   getAgentTypes(_args, app) {
