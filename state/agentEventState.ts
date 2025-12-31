@@ -1,12 +1,12 @@
 import {z} from "zod";
 import {AgentEventEnvelope, HumanRequestSchema, InputReceivedSchema, ResetWhat} from "../AgentEvents.js";
-import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
+import {AgentStateSlice} from "../types.ts";
 
 export type AgentEventCursor = {
   position: number,
 }
 
-export class AgentEventState implements SerializableStateSlice {
+export class AgentEventState implements AgentStateSlice {
   name = "AgentEventState";
   busyWith: string | null = null;
   waitingOn: z.infer<typeof HumanRequestSchema> | null = null;

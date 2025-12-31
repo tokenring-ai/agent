@@ -1,7 +1,7 @@
 import type {ResetWhat} from "../AgentEvents.js";
-import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
+import {AgentStateSlice} from "../types.ts";
 
-export class HooksState implements SerializableStateSlice {
+export class HooksState implements AgentStateSlice {
   name = "HooksState";
   enabledHooks: string[] = [];
 

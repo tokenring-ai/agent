@@ -21,6 +21,7 @@ import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {CostTrackingState} from "./state/costTrackingState.ts";
 import {HooksState} from "./state/hooksState.js";
 import StateManager from "@tokenring-ai/app/StateManager";
+import {TodoState} from "./state/todoState.ts";
 import {
   AgentCheckpointData,
   AgentConfig, AgentConfigSchema,
@@ -78,6 +79,7 @@ export default class Agent
     this.initializeState(CommandHistoryState, {});
     this.initializeState(HooksState, {});
     this.initializeState(CostTrackingState, {});
+    this.initializeState(TodoState, {});
   }
 
   static async createAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
