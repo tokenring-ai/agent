@@ -120,7 +120,45 @@ export async function runSubAgent(
     }
 
     return await new Promise((resolve, reject) => {
+      let resolved = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        if (!resolved) {
+          resolved = true;
+          const parentAbortSignal = parentAgent.getAbortSignal();
+          parentAbortSignal.removeEventListener('abort', handleParentAbort);
+          if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+        }
+      };
+
+      const handleParentAbort = () => {
+        cleanup();
+        unsubscribe();
+        childAgent.shutdown("Parent agent was aborted");
+        resolve({
+          status: "cancelled",
+          response: "Parent agent was aborted",
+          childAgent: autoCleanup ? undefined : childAgent,
+        });
+      };
+
+      // Check if parent is already aborted
+      const parentAbortSignal = parentAgent.getAbortSignal();
+      if (parentAbortSignal.aborted) {
+        handleParentAbort();
+        return;
+      }
+
+      // Listen for parent abort events
+      parentAbortSignal.addEventListener('abort', handleParentAbort);
+
       const unsubscribe = childAgent.subscribeState(AgentEventState, (state) => {
+        if (resolved) return;
+
         for (const event of state.yieldEventsByCursor(eventCursor)) {
           switch (event.type) {
             case "output.chat":
@@ -163,6 +201,7 @@ export async function runSubAgent(
               }
 
               if (event.requestId === requestId) {
+                cleanup();
                 unsubscribe();
                 const truncatedResponse = trimMiddle(
                   event.message,
@@ -185,7 +224,9 @@ export async function runSubAgent(
                   .then((humanResponse) =>
                     childAgent?.sendHumanResponse(humanRequestId, humanResponse)
                   )
-                  .catch((err) => reject(err));
+                  .catch((err) => {
+                    if (!resolved) reject(err);
+                  });
               } else {
                 // If not forwarding, reject the human request
                 const humanRequestId = event.id;
@@ -202,13 +243,16 @@ export async function runSubAgent(
       // Use custom timeout if provided, otherwise use agent config
       const timeoutSeconds = timeout ?? parentAgent.config.maxRunTime;
       if (timeoutSeconds > 0) {
-        setTimeout(() => {
-          unsubscribe();
-          resolve({
-            status: "cancelled",
-            response: `Agent timed out after ${timeoutSeconds} seconds.`,
-            childAgent: autoCleanup ? undefined : childAgent,
-          });
+        timeoutId = setTimeout(() => {
+          if (!resolved) {
+            cleanup();
+            unsubscribe();
+            resolve({
+              status: "cancelled",
+              response: `Agent timed out after ${timeoutSeconds} seconds.`,
+              childAgent: autoCleanup ? undefined : childAgent,
+            });
+          }
         }, timeoutSeconds * 1000);
       }
     });

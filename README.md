@@ -1,11 +1,9 @@
 # @tokenring-ai/agent
 
-The core agent orchestration system for TokenRing AI, enabling creation and management of AI agents with comprehensive state management, event handling, command execution, tool integration, and lifecycle management.
-
 ## Overview
+The core agent orchestration system for TokenRing AI, enabling creation and management of AI agents with comprehensive state management, event handling, command execution, tool integration, and lifecycle management. This package provides a complete agent framework that integrates seamlessly with the TokenRing ecosystem.
 
-The `@tokenring-ai/agent` package provides a complete agent framework with:
-
+## Features
 - **Agent Management**: Create, spawn, and manage individual AI agents
 - **State Management**: Persistent state with serialization and checkpointing
 - **Event System**: Comprehensive event handling and emission
@@ -21,53 +19,10 @@ The `@tokenring-ai/agent` package provides a complete agent framework with:
 ## Installation
 
 ```bash
-npm install @tokenring-ai/agent
+bun install @tokenring-ai/agent
 ```
 
-## Package Structure
-
-```
-pkg/agent/
-├── Agent.ts                          # Core Agent class implementation
-├── AgentEvents.ts                    # Event type definitions
-├── HumanInterfaceRequest.ts          # Human interaction types
-├── types.ts                          # Core type definitions
-├── index.ts                          # Package exports
-├── plugin.ts                         # TokenRing plugin integration
-├── package.json                      # Package configuration
-├── chatCommands.ts                   # Command exports
-├── tools.ts                          # Tool exports
-├── commands/                         # Built-in commands
-│   ├── debug.ts                      # Debug utilities
-│   ├── help.ts                       # Help system
-│   ├── hook.ts                       # Hook management
-│   ├── reset.ts                      # State reset
-│   ├── settings.ts                   # Settings display
-│   ├── work.ts                       # Work handler invocation
-│   └── cost.ts                       # Cost tracking
-├── services/                         # Core services
-│   ├── AgentCommandService.ts        # Command execution service
-│   ├── AgentLifecycleService.ts      # Lifecycle and hooks service
-│   └── AgentManager.ts               # Agent management service
-├── state/                            # State management
-│   ├── agentEventState.ts            # Event state management
-│   ├── commandHistoryState.ts        # Command history tracking
-│   ├── costTrackingState.ts          # Cost tracking state
-│   └── hooksState.ts                 # Hook configuration state
-├── tools/                            # Built-in tools
-│   └── runAgent.ts                   # Sub-agent execution tool
-├── contextHandlers/                  # Context providers
-│   └── availableAgents.ts           # Available agents context
-├── rpc/                             # RPC endpoints
-│   ├── agent.ts                      # Agent RPC implementation
-│   └── schema.ts                     # RPC schema definitions
-├── runSubAgent.ts                    # Sub-agent execution helper
-└── util/                            # Utilities
-    ├── formatAgentId.ts              # Agent ID formatting
-    └── subcommandRouter.ts           # Command routing utilities
-```
-
-## Core Components
+## Core Components/API
 
 ### Agent Class
 
@@ -149,8 +104,7 @@ agentManager.addAgentConfigs({
     category: "development",
     visual: { color: "blue" },
     type: "interactive",
-    initialCommands: ["/help"],
-    debug: false
+    initialCommands: ["/help"]
   }
 });
 
@@ -173,11 +127,6 @@ const agent = await agentManager.spawnAgent({
 - `getAgent(id)`: Get agent by ID
 - `getAgents()`: Get all active agents
 - `deleteAgent(agent)`: Shutdown and remove agent
-
-**Lifecycle Management:**
-- Automatic idle agent cleanup (configurable intervals)
-- Configurable idle timeouts
-- Graceful shutdown handling
 
 ### AgentCommandService Service
 
@@ -226,54 +175,8 @@ await lifecycleService.executeHooks(agent, "afterChatCompletion", args);
 - `getEnabledHooks(agent)`: Get enabled hooks for agent
 - `setEnabledHooks(hookNames, agent)`: Set enabled hooks
 - `enableHooks(hookNames, agent)`: Enable specific hooks
-- `disableHooks(hookNames, agent)`: Disable specific hooks
+- `disableHooks(hookNames, agent)`: Disable hooks
 - `executeHooks(agent, hookType, ...args)`: Execute hooks
-
-## Configuration
-
-### AgentConfig Schema
-
-```typescript
-const agentConfig = {
-  name: string,              // Agent identifier
-  description: string,       // Agent purpose
-  category: string,          // Agent category
-  debug?: boolean,          // Enable debug logging
-  visual: {
-    color: string           // UI color theme
-  },
-  workHandler?: Function,   // Custom work handler
-  initialCommands: string[], // Startup commands
-  persistent?: boolean,     // Enable checkpointing
-  storagePath?: string,     // Storage location
-  type: "interactive" | "background", // Agent type
-  callable?: boolean,       // Enable tool calls (default: true)
-  idleTimeout?: number,     // Idle timeout in seconds (default: 86400)
-  maxRunTime?: number       // Max runtime in seconds (default: 1800)
-};
-```
-
-### Plugin Configuration
-
-The agent package automatically integrates with TokenRing applications:
-
-```typescript
-// Automatic registration via plugin
-const app = new TokenRingApp();
-
-// Agents configured in app config
-const config = {
-  agents: {
-    myAgent: {
-      name: "My Agent",
-      description: "Custom agent",
-      category: "development", 
-      visual: { color: "blue" },
-      type: "interactive"
-    }
-  }
-};
-```
 
 ## Usage Examples
 
@@ -447,49 +350,27 @@ agent.addCost("tokens", 1500);
 await agent.runCommand("/cost");
 ```
 
-## Built-in Commands
+## Configuration
 
-### Debug Commands
-- `/debug [on|off]` - Toggle debug logging
-- `/debug markdown` - Test markdown rendering
-- `/debug services [limit]` - View service logs
-
-### Hook Management
-- `/hooks [list|enable|disable] [hookName]` - Manage hooks
-
-### Reset Commands
-- `/reset [context|chat|history|settings|memory|all]` - Reset state components
-
-### Settings
-- `/settings` - Display active services and tools
-
-### Work Handler
-- `/work [message]` - Invoke custom work handler
-
-### Cost Tracking
-- `/cost` - Display cost tracking information
-
-### Help System
-- `/help [command]` - Show help information
-
-## Built-in Tools
-
-### agent/run Tool
-
-Creates a temporary sub-agent, sends a message, and cleans up:
+### AgentConfig Schema
 
 ```typescript
-const tool = {
-  name: "agent/run",
-  description: "Create sub-agent for specific tasks",
-  inputSchema: {
-    agentType: z.string(),
-    message: z.string(),
-    context: z.string().optional(),
-    forwardChatOutput: z.boolean().default(true),
-    forwardSystemOutput: z.boolean().default(true),
-    timeout: z.number().optional()
-  }
+const agentConfig = {
+  name: string,              // Agent identifier
+  description: string,       // Agent purpose
+  category: string,          // Agent category
+  debug?: boolean,          // Enable debug logging
+  visual: {
+    color: string           // UI color theme
+  },
+  workHandler?: Function,   // Custom work handler
+  initialCommands: string[], // Startup commands
+  persistent?: boolean,     // Enable checkpointing
+  storagePath?: string,     // Storage location
+  type: "interactive" | "background", // Agent type
+  callable?: boolean,       // Enable tool calls (default: true)
+  idleTimeout?: number,     // Idle timeout in seconds (default: 86400)
+  maxRunTime?: number       // Max runtime in seconds (default: 1800)
 };
 ```
 
@@ -514,135 +395,30 @@ const tool = {
 - `human.response` - Human response provided
 - `abort` - Operation aborted
 
-### Event Handling
+
+### Plugin Configuration
+
+The agent package automatically integrates with TokenRing applications:
 
 ```typescript
-// Subscribe to agent events
-agent.subscribeState(AgentEventState, (state) => {
-  const latestEvent = state.events[state.events.length - 1];
-  
-  switch (latestEvent.type) {
-    case "output.chat":
-      console.log("Chat:", latestEvent.content);
-      break;
-    case "output.system":
-      console.log(`[${latestEvent.level}]`, latestEvent.message);
-      break;
-    case "human.request":
-      // Handle human interface request
-      break;
+// Automatic registration via plugin
+const app = new TokenRingApp();
+
+// Agents configured in app config
+const config = {
+  agents: {
+    myAgent: {
+      name: "My Agent",
+      description: "Custom agent",
+      category: "development", 
+      visual: { color: "blue" },
+      type: "interactive"
+    }
   }
-});
+};
 ```
 
-## Human Interface Types
-
-The agent supports multiple human interface request types:
-
-```typescript
-// Confirmation request
-await agent.askHuman({
-  type: "askForConfirmation",
-  message: "Do you want to proceed?",
-  default: true
-});
-
-// Text input
-await agent.askHuman({
-  type: "askForText",
-  message: "Enter your name:"
-});
-
-// Password input
-await agent.askHuman({
-  type: "askForPassword",
-  message: "Enter password:"
-});
-
-// Single tree selection
-await agent.askHuman({
-  type: "askForSingleTreeSelection",
-  title: "Select an option",
-  tree: {
-    name: "root",
-    children: [
-      { name: "Option 1", value: "opt1" },
-      { name: "Option 2", value: "opt2" }
-    ]
-  }
-});
-
-// Multiple tree selection
-await agent.askHuman({
-  type: "askForMultipleTreeSelection",
-  title: "Select multiple options",
-  tree: {
-    name: "root",
-    children: [
-      { name: "Feature A", value: "a" },
-      { name: "Feature B", value: "b" }
-    ]
-  }
-});
-
-// Open web page
-await agent.askHuman({
-  type: "openWebPage",
-  url: "https://example.com"
-});
-
-// Form input
-await agent.askHuman({
-  type: "askForForm",
-  name: "User Configuration",
-  description: "Configure user settings",
-  sections: [{
-    name: "Personal Info",
-    fields: [{
-      type: "text",
-      label: "Name",
-      key: "name",
-      required: true
-    }]
-  }]
-});
-```
-
-## RPC Integration
-
-The agent package provides JSON-RPC endpoints for remote agent management:
-
-### RPC Methods
-
-**Agent Management:**
-- `getAgent({agentId})` - Get agent information
-- `listAgents()` - List all agents
-- `getAgentTypes()` - Get available agent types
-- `createAgent({agentType, headless})` - Create new agent
-- `deleteAgent({agentId})` - Delete agent
-
-**Agent Interaction:**
-- `sendInput({agentId, message})` - Send message to agent
-- `sendHumanResponse({agentId, requestId, response})` - Send human response
-- `abortAgent({agentId, reason})` - Abort agent operation
-- `resetAgent({agentId, what})` - Reset agent state
-
-**Event Streaming:**
-- `getAgentEvents({agentId, fromPosition})` - Get agent events
-- `streamAgentEvents({agentId, fromPosition})` - Stream agent events
-
-```typescript
-// Example RPC usage
-const response = await fetch('/rpc', {
-  method: 'POST',
-  body: JSON.stringify({
-    method: 'getAgent',
-    params: { agentId: 'agent-uuid' }
-  })
-});
-```
-
-## Integration Patterns
+## Integration
 
 ### TokenRing Plugin Integration
 
@@ -669,6 +445,7 @@ The agent package automatically integrates with TokenRing applications:
 ### Context Handlers
 
 - **available-agents**: Provides list of available agent types
+- **todo**: Provides todo list context
 
 ## State Management
 
@@ -681,6 +458,7 @@ Agents support multiple state slices for different concerns:
 - **CommandHistoryState**: Command execution history
 - **CostTrackingState**: Resource usage tracking
 - **HooksState**: Hook configuration and enabled hooks
+- **TodoState**: Task list management
 
 **Custom State Slices:**
 ```typescript
@@ -715,48 +493,13 @@ const restoredAgent = await Agent.createAgentFromCheckpoint(
 );
 ```
 
-## Error Handling
-
-The agent system provides comprehensive error handling:
-
-- **Command Errors**: Unknown commands, execution errors
-- **State Errors**: Invalid state operations, deserialization failures
-- **Hook Errors**: Hook execution failures
-- **Timeout Errors**: Operation timeouts
-- **Abort Errors**: Operation cancellation
-- **Human Interface Errors**: Headless mode violations
-- **RPC Errors**: Remote procedure call errors
-
-## Performance Considerations
-
-- **Idle Cleanup**: Automatic cleanup of idle agents
-- **Memory Management**: State serialization for memory efficiency
-- **Event Batching**: Efficient event emission and handling
-- **Hook Performance**: Minimal overhead for hook system
-- **Async Operations**: Proper async/await patterns throughout
-- **RPC Streaming**: Efficient event streaming for real-time updates
-
-## Dependencies
-
-- **@tokenring-ai/chat**: Chat service integration
-- **@tokenring-ai/utility**: Utilities and registries
-- **@tokenring-ai/app**: Application framework
-- **@tokenring-ai/web-host**: Web host integration
-- **zod**: Schema validation
-- **eventemitter3**: Event handling
-- **uuid**: Unique identifier generation
-- **glob-gitignore**: File pattern matching
-
 ## Development
 
-### Building
-```bash
-npm run build
-```
-
 ### Testing
+
 ```bash
-npm test
+bun run test
+bun run test:coverage
 ```
 
 ### Plugin Development
@@ -777,23 +520,57 @@ const myAgentPlugin: TokenRingPlugin = {
 };
 ```
 
-## Version History
+### Package Structure
 
-- **0.2.0**: Current version with comprehensive agent framework
-- Complete state management and checkpointing
-- Event-driven architecture
-- Comprehensive command and tool system
-- Plugin integration and lifecycle management
-- RPC endpoints for remote management
-- Advanced sub-agent execution patterns
+```
+pkg/agent/
+├── Agent.ts                          # Core Agent class implementation
+├── AgentEvents.ts                    # Event type definitions
+├── HumanInterfaceRequest.ts          # Human interaction types
+├── types.ts                          # Core type definitions
+├── index.ts                          # Package exports
+├── plugin.ts                         # TokenRing plugin integration
+├── package.json                      # Package configuration
+├── chatCommands.ts                   # Command exports
+├── tools.ts                          # Tool exports
+├── commands/                         # Built-in commands
+│   ├── agent.ts                      # Agent management commands
+│   ├── cost.ts                       # Cost tracking commands
+│   ├── work.ts                       # Work handler invocation
+│   ├── settings.ts                   # Settings display
+│   ├── reset.ts                      # State reset
+│   ├── hook.ts                       # Hook management
+│   ├── help.ts                       # Help system
+│   └── debug/
+│       ├── logging.ts                # Debug logging controls
+│       ├── markdown.ts               # Markdown rendering test
+│       ├── services.ts               # Service logs display
+│       └── index.ts                  # Main debug command
+├── services/                         # Core services
+│   ├── AgentManager.ts               # Agent management service
+│   ├── AgentLifecycleService.ts      # Lifecycle and hooks service
+│   └── AgentCommandService.ts        # Command execution service
+├── state/                            # State management
+│   ├── agentEventState.ts            # Event state management
+│   ├── commandHistoryState.ts        # Command history tracking
+│   ├── costTrackingState.ts          # Cost tracking state
+│   ├── hooksState.ts                 # Hook configuration state
+│   └── todoState.ts                  # Todo state management
+├── tools/                            # Built-in tools
+│   ├── runAgent.ts                   # Sub-agent execution tool
+│   └── todo.ts                       # Todo list management tool
+├── contextHandlers/                  # Context providers
+│   ├── availableAgents.ts            # Available agents context
+│   └── todo.ts                       # Todo context provider
+├── rpc/                              # RPC endpoints
+│   ├── agent.ts                      # Agent RPC implementation
+│   └── schema.ts                     # RPC schema definitions
+├── runSubAgent.ts                    # Sub-agent execution helper
+└── util/                             # Utilities
+    ├── formatAgentId.ts              # Agent ID formatting
+    └── subcommandRouter.ts           # Command routing utilities
+```
 
 ## License
 
-MIT
-
-## Related Packages
-
-- **@tokenring-ai/chat**: Chat service and tool integration
-- **@tokenring-ai/app**: Application framework
-- **@tokenring-ai/web-host**: Web host and RPC integration
-- **@tokenring-ai/utility**: Utilities and registries
+MIT License - see LICENSE file for details.
