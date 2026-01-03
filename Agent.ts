@@ -42,12 +42,8 @@ export default class Agent
 
   readonly id: string = uuid();
   debugEnabled = false;
-  requireServiceByType: <R extends TokenRingService>(
-    type: abstract new (...args: any[]) => R,
-  ) => R;
-  getServiceByType: <R extends TokenRingService>(
-    type: abstract new (...args: any[]) => R,
-  ) => R | undefined;
+  requireServiceByType;
+  getServiceByType;
   readonly config: ParsedAgentConfig;
   headless: boolean;
 
@@ -62,7 +58,7 @@ export default class Agent
 
   private agentShutdownSignal = new AbortController();
 
-  constructor(readonly app: TokenRingApp, {config, headless} : {config: AgentConfig, headless: boolean}) {
+  constructor(readonly app: TokenRingApp, {config, headless, initialState = {}} : {config: AgentConfig, headless: boolean, initialState?: Record<string, AgentStateSlice>}) {
     this.config = AgentConfigSchema.parse(config);
     this.headless = headless
     this.name = config.name;
@@ -71,15 +67,32 @@ export default class Agent
     this.requireServiceByType = this.app.requireService;
     this.getServiceByType = this.app.getService;
 
-    this.initializeState(AgentEventState, {
-      events: [
-        { type: "agent.created", timestamp: Date.now()}
-      ]
-    });
+    this.initializeState(AgentEventState, {});
     this.initializeState(CommandHistoryState, {});
     this.initializeState(HooksState, {});
     this.initializeState(CostTrackingState, {});
     this.initializeState(TodoState, {});
+
+    for (const service of app.getServices()) {
+      if (service.attach) service.attach(this);
+    }
+
+    for (const itemName in initialState) {
+      const newItem = this.stateManager.state.get(itemName);
+      if (newItem) {
+        newItem.deserialize(initialState[itemName].serialize());
+      }
+    }
+
+    this.emit({ type: "agent.created", timestamp: Date.now()});
+
+    if (this.config.initialCommands.length > 0) {
+      this.mutateState(AgentEventState, (state) => {
+        for (const message of this.config.initialCommands) {
+          state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
+        }
+      })
+    }
   }
 
   static async createAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
@@ -120,33 +133,6 @@ export default class Agent
     });
   }
 
-  /**
-   * Initialize the agent with commands and services
-   */
-  async initialize(initialState: Record<string, AgentStateSlice> = {}): Promise<void> {
-    for (const service of this.app.getServices()) {
-      if (service.attach) await service.attach(this);
-    }
-
-    for (const itemName in initialState) {
-      const newItem = this.stateManager.state.get(itemName);
-      if (newItem) {
-        newItem.deserialize(initialState[itemName].serialize());
-      }
-    }
-
-    this.app.trackPromise(signal => this.run(signal));
-
-    if (this.config.initialCommands.length > 0) {
-      this.mutateState(AgentEventState, (state) => {
-        for (const message of this.config.initialCommands) {
-          state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
-        }
-      })
-    }
-  }
-
-  // noinspection JSUnusedGlobalSymbols
   runCommand(command: string) {
     return this.requireServiceByType(AgentCommandService).executeAgentCommand(this, command);
   }

@@ -3,13 +3,20 @@ import { AgentEventState } from '../../state/agentEventState.ts';
 import { AgentEventEnvelope } from '../../AgentEvents.js';
 
 // Mock data
-const mockEvent: AgentEventEnvelope = {
+const mockInputReceivedEvent: AgentEventEnvelope = {
   type: 'input.received',
   message: 'test message',
   requestId: 'test-id',
   timestamp: Date.now(),
 };
 
+const mockInputHandledEvent: AgentEventEnvelope = {
+  type: 'input.handled',
+  message: 'test message',
+  requestId: 'test-id',
+  timestamp: Date.now(),
+  status: 'success',
+};
 describe('AgentEventState', () => {
   let state: AgentEventState;
 
@@ -31,7 +38,7 @@ describe('AgentEventState', () => {
 
     it('should initialize with provided values', () => {
       const stateWithValues = new AgentEventState({
-        events: [mockEvent],
+        events: [mockInputReceivedEvent],
         busyWith: 'Processing',
       });
 
@@ -78,10 +85,10 @@ describe('AgentEventState', () => {
 
   describe('Event Emission', () => {
     it('should emit events correctly', () => {
-      state.emit(mockEvent);
+      state.emit(mockInputReceivedEvent);
 
       expect(state.events).toHaveLength(1);
-      expect(state.events[0]).toBe(mockEvent);
+      expect(state.events[0]).toBe(mockInputReceivedEvent);
     });
 
     it('should emit multiple events', () => {
@@ -91,18 +98,18 @@ describe('AgentEventState', () => {
         timestamp: Date.now(),
       };
 
-      state.emit(mockEvent);
+      state.emit(mockInputReceivedEvent);
       state.emit(event2);
 
       expect(state.events).toHaveLength(2);
-      expect(state.events[0]).toBe(mockEvent);
+      expect(state.events[0]).toBe(mockInputReceivedEvent);
       expect(state.events[1]).toBe(event2);
     });
   });
 
   describe('Reset Functionality', () => {
     it('should handle reset calls', () => {
-      state.emit(mockEvent);
+      state.emit(mockInputReceivedEvent);
       state.busyWith = 'Processing';
 
       // Reset method exists but doesn't actually reset anything
@@ -115,13 +122,13 @@ describe('AgentEventState', () => {
 
   describe('Serialization', () => {
     it('should serialize with events and busyWith', () => {
-      state.emit(mockEvent);
+      state.emit(mockInputReceivedEvent);
       state.busyWith = 'Processing';
 
       const serialized = state.serialize();
 
       expect(serialized).toMatchObject({
-        events: [mockEvent],
+        events: [mockInputReceivedEvent],
         busyWith: 'Processing',
         idle: true,
       });
@@ -150,17 +157,16 @@ describe('AgentEventState', () => {
   });
 
   describe('Deserialization', () => {
-    it('should deserialize events and busyWith', () => {
+    it('should deserialize events and reset busyWith', () => {
       const data = {
-        events: [mockEvent],
+        events: [mockInputReceivedEvent, mockInputHandledEvent],
         busyWith: 'Restored',
       };
 
       state.deserialize(data);
 
-      expect(state.events).toHaveLength(1);
-      expect(state.events[0]).toEqual(mockEvent);
-      expect(state.busyWith).toBe('Restored');
+      expect(state.events[state.events.length - 1]).toEqual(mockInputHandledEvent);
+      expect(state.busyWith).toBe(null);
     });
 
     it('should handle missing fields', () => {
@@ -188,7 +194,7 @@ describe('AgentEventState', () => {
 
     it('should copy events array', () => {
       const data = {
-        events: [mockEvent],
+        events: [mockInputReceivedEvent, mockInputHandledEvent],
         busyWith: null,
       };
 
@@ -202,13 +208,13 @@ describe('AgentEventState', () => {
       });
 
       // State should not be affected
-      expect(state.events).toHaveLength(1);
+      expect(state.events[state.events.length - 1].type).toEqual('input.handled');
     });
   });
 
   describe('Display', () => {
     it('should show event information', () => {
-      state.emit(mockEvent);
+      state.emit(mockInputReceivedEvent);
       state.busyWith = 'Processing';
 
       const display = state.show();
@@ -232,7 +238,7 @@ describe('AgentEventState', () => {
     });
 
     it('should yield events from cursor position', () => {
-      state.emit(mockEvent);
+      state.emit(mockInputReceivedEvent);
       state.emit({
         type: 'output.chat',
         content: 'message',
@@ -242,11 +248,11 @@ describe('AgentEventState', () => {
       const events = Array.from(state.yieldEventsByCursor(cursor));
 
       expect(events).toHaveLength(2);
-      expect(events[0]).toBe(mockEvent);
+      expect(events[0]).toBe(mockInputReceivedEvent);
     });
 
     it('should advance cursor position', () => {
-      state.emit(mockEvent);
+      state.emit(mockInputReceivedEvent);
 
       const events1 = Array.from(state.yieldEventsByCursor(cursor));
       expect(events1).toHaveLength(1);

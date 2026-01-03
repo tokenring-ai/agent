@@ -66,11 +66,13 @@ export default class AgentManager implements TokenRingService {
 
     this.agents.set(agent.id, agent);
 
-    await agent.initialize(initialState); // Initialize the agent in the background
+    this.app.trackPromise(signal => agent.run(signal));
+
     return agent;
   }
 
   async deleteAgent(agent: Agent): Promise<void> {
+    agent.shutdown('AgentManager initiated shutdown');
     this.agents.delete(agent.id);
   }
 

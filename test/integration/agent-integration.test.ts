@@ -113,8 +113,7 @@ describe('Agent Integration Tests', () => {
 
       // Verify the message was added to events
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(1);
-      expect(eventState.events[0]).toMatchObject({
+      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
         type: 'input.received',
         message: 'hello world',
       });

@@ -45,7 +45,7 @@ describe('Agent', () => {
 
   afterEach(() => {
     if (agent) {
-      agent.shutdown();
+      agent.shutdown("Normal shutdown");
     }
   });
 
@@ -82,8 +82,7 @@ describe('Agent', () => {
       expect(typeof requestId).toBe('string');
 
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(1);
-      expect(eventState.events[0]).toMatchObject({
+      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
         type: 'input.received',
         message,
         requestId,
@@ -95,7 +94,7 @@ describe('Agent', () => {
       agent.handleInput({ message: message });
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[0].message).toBe('Test message with spaces');
+      expect(eventState.events[eventState.events.length - 1].message).toBe('Test message with spaces');
     });
 
     it('should add message to command history', () => {
@@ -112,8 +111,7 @@ describe('Agent', () => {
       agent.chatOutput('Chat message');
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(1);
-      expect(eventState.events[0]).toMatchObject({
+      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
         type: 'output.chat',
         message: 'Chat message',
       });
@@ -123,8 +121,7 @@ describe('Agent', () => {
       agent.reasoningOutput('Reasoning message');
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(1);
-      expect(eventState.events[0]).toMatchObject({
+      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
         type: 'output.reasoning',
         message: 'Reasoning message',
       });
@@ -134,8 +131,7 @@ describe('Agent', () => {
       agent.systemMessage('System message');
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(1);
-      expect(eventState.events[0]).toMatchObject({
+      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
         type: 'output.info',
         message: 'System message\n',
       });
@@ -146,8 +142,8 @@ describe('Agent', () => {
       agent.systemMessage('Error message', 'error');
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[0].type).toBe('output.warning');
-      expect(eventState.events[1].type).toBe('output.error');
+      expect(eventState.events[eventState.events.length - 2].type).toBe('output.warning');
+      expect(eventState.events[eventState.events.length - 1].type).toBe('output.error');
     });
   });
 
@@ -183,7 +179,7 @@ describe('Agent', () => {
       const historyState = agent.getState(CommandHistoryState);
       const costState = agent.getState(CostTrackingState);
       
-      expect(eventState.events.length).toEqual(2);
+      expect(eventState.events.length).toEqual(3);
       expect(historyState.commands).toEqual([]);
       expect(costState.costs).toEqual({});
     });
@@ -202,15 +198,39 @@ describe('Agent', () => {
       expect(idleDuration).toBeGreaterThanOrEqual(1000);
     });
 
-    it('should handle abort requests', () => {
+    it('should not abort when agent is idle', () => {
       const reason = 'Test abort reason';
       agent.requestAbort(reason);
       
       const eventState = agent.getState(AgentEventState);
       expect(eventState.events).toHaveLength(1);
-      expect(eventState.events[0]).toMatchObject({
+      expect(eventState.events[0]).not.toMatchObject({
         type: 'abort',
         reason,
+      });
+    });
+
+    it('should handle abort requests', () => {
+      agent.mutateState(AgentEventState, state => {
+        state.inputQueue.push("doesn't matter" as any);
+      });
+
+      expect(agent.getState(AgentEventState).idle).toBe(false);
+
+      const reason = 'Test abort reason';
+      agent.requestAbort(reason);
+
+      const eventState = agent.getState(AgentEventState);
+      expect(eventState.events).toHaveLength(3);
+      expect(eventState.events[1]).toMatchObject({
+        type: 'abort',
+        timestamp: expect.any(Number),
+        reason,
+      });
+      expect(eventState.events[2]).toMatchObject({
+        type: 'output.info',
+        timestamp: expect.any(Number),
+        message: "Aborting current operation, Test abort reason",
       });
     });
   });
@@ -259,6 +279,10 @@ describe('Agent', () => {
 
     it('should restore state from checkpoint', () => {
       // Add some state
+      agent.mutateState(AgentEventState, state => {
+        state.emit({ type: 'input.received', message: 'test', requestId: "abc123", timestamp: expect.any(Number)});
+        state.emit({ type: 'input.handled', message: 'test', requestId: "abc123", status: 'success', timestamp: expect.any(Number)});
+      })
       agent.handleInput({ message: 'test' });
       agent.addCost('test', 100);
       
@@ -273,11 +297,14 @@ describe('Agent', () => {
       const eventState = agent.getState(AgentEventState);
       const costState = agent.getState(CostTrackingState);
 
-      expect(eventState.events[0].type).toEqual('input.received');
-      expect(eventState.events[0].message).toEqual('test');
+      expect(eventState.events[1].type).toEqual('input.received');
+      expect(eventState.events[1].message).toEqual('test');
 
-      expect(eventState.events[1].type).toEqual('reset');
-      expect(eventState.events[1].what).toEqual(['history']);
+      expect(eventState.events[2].type).toEqual('input.handled');
+      expect(eventState.events[2].message).toEqual('test');
+
+      expect(eventState.events[3].type).toEqual('reset');
+      expect(eventState.events[3].what).toEqual(['history']);
 
       expect(costState.costs.test).toBe(100);
     });
@@ -293,14 +320,15 @@ describe('Agent', () => {
       debugAgent.debugLine('Debug message');
       
       const eventState = debugAgent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(1);
+      expect(eventState.events[eventState.events.length - 1].type).toEqual('output.info');
+      expect(eventState.events[eventState.events.length - 1].message).toEqual('Debug message\n');
     });
 
     it('should not output debug messages when disabled', () => {
       agent.debugLine('Debug message');
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(0);
+      expect(eventState.events[eventState.events.length - 1].message).not.toEqual('Debug message\n');
     });
   });
 });

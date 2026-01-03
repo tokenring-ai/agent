@@ -207,11 +207,11 @@ describe('AgentManager', () => {
   describe('Agent Deletion', () => {
     it('should delete agent correctly', async () => {
       const agent = await manager.spawnAgent({ agentType: 'test', headless: true });
-      vi.spyOn(agent, 'requestAbort');
+      vi.spyOn(agent, 'shutdown');
       
       await manager.deleteAgent(agent);
       
-      expect(agent.requestAbort).toHaveBeenCalledWith('AgentManager initiated shutdown');
+      expect(agent.shutdown).toHaveBeenCalledWith('AgentManager initiated shutdown');
       expect(manager.getAgent(agent.id)).toBeNull();
     });
 
