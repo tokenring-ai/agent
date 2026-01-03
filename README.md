@@ -15,6 +15,8 @@ The core agent orchestration system for TokenRing AI, enabling creation and mana
 - **Cost Tracking**: Monitor and track resource usage
 - **RPC Integration**: JSON-RPC endpoints for remote agent management
 - **Plugin Integration**: Automatic integration with TokenRing applications
+- **Form Support**: Complex form-based human input requests
+- **Idle/Max Runtime Management**: Automatic cleanup of idle or long-running agents
 
 ## Installation
 
@@ -69,11 +71,17 @@ const agent = new Agent(app, {
 - `handleInput({message})`: Process user input with event emission
 - `runCommand(command)`: Execute agent commands
 - `busyWhile<T>(message, awaitable)`: Execute with busy state
+- `setBusyWith(message)`: Set busy status indicator
+- `setStatusLine(status)`: Set status line indicator
 
 **Event Emission:**
 - `chatOutput(content)`: Emit chat output
 - `reasoningOutput(content)`: Emit reasoning content
 - `systemMessage(message, level)`: Emit system messages
+- `infoLine(...messages)`: Emit info messages
+- `warningLine(...messages)`: Emit warning messages
+- `errorLine(...messages)`: Emit error messages
+- `debugLine(...messages)`: Emit debug messages (if debugEnabled)
 - `emit(event)`: Emit custom events
 
 **Human Interface:**
@@ -84,7 +92,12 @@ const agent = new Agent(app, {
 - `requestAbort(reason)`: Abort current operations
 - `getAbortSignal()`: Get abort signal
 - `getIdleDuration()`: Get time since last activity
+- `getRunDuration()`: Get total run duration
 - `reset(what)`: Reset specific state components
+- `shutdown(reason)`: Shutdown agent completely
+
+**Configuration Access:**
+- `getAgentConfigSlice<T>(key, schema)`: Get config value with validation
 
 **Checkpoint Creation:**
 - `static createAgentFromCheckpoint(app, checkpoint, {headless})`: Create agent from checkpoint
@@ -127,6 +140,11 @@ const agent = await agentManager.spawnAgent({
 - `getAgent(id)`: Get agent by ID
 - `getAgents()`: Get all active agents
 - `deleteAgent(agent)`: Shutdown and remove agent
+
+**Automatic Lifecycle Management:**
+- Idle agent cleanup every 60 seconds
+- Configurable `idleTimeout` per agent (default: 86400 seconds)
+- Configurable `maxRunTime` per agent (default: 0 = no limit)
 
 ### AgentCommandService Service
 
@@ -177,6 +195,11 @@ await lifecycleService.executeHooks(agent, "afterChatCompletion", args);
 - `enableHooks(hookNames, agent)`: Enable specific hooks
 - `disableHooks(hookNames, agent)`: Disable hooks
 - `executeHooks(agent, hookType, ...args)`: Execute hooks
+
+**Hook Types:**
+- `beforeChatCompletion`: Called before chat completion
+- `afterChatCompletion`: Called after chat completion
+- `afterAgentInputComplete`: Called after agent input is fully processed
 
 ## Usage Examples
 
@@ -283,8 +306,13 @@ const result = await runSubAgent({
   command: "/work Analyze this code: function test() { return true; }",
   forwardChatOutput: true,
   forwardSystemOutput: true,
+  forwardReasoning: true,
+  forwardHumanRequests: true,
+  forwardInputCommands: true,
   timeout: 60,
-  maxResponseLength: 1000
+  maxResponseLength: 1000,
+  minContextLength: 300,
+  background: false
 }, agent, true);
 
 console.log("Result:", result.status, result.response);
@@ -328,11 +356,62 @@ lifecycleService.enableHooks(["myPlugin/afterChatCompletion"], agent);
 ### Human Interface Requests
 
 ```typescript
-// Agent requests human input
+// Simple confirmation
+const confirmed = await agent.askHuman({
+  type: "askForConfirmation",
+  message: "Are you sure you want to proceed?"
+});
+
+// Text input
+const text = await agent.askHuman({
+  type: "askForText",
+  message: "Enter your name:"
+});
+
+// Single tree selection
 const selection = await agent.askHuman({
-  type: "askForSelection",
-  prompt: "Choose an option",
-  options: ["Option 1", "Option 2", "Option 3"]
+  type: "askForSingleTreeSelection",
+  title: "Choose an option",
+  tree: {
+    name: "root",
+    hasChildren: true,
+    children: [
+      { name: "Option 1", value: "opt1" },
+      { name: "Option 2", value: "opt2" }
+    ]
+  }
+});
+
+// Complex form
+const formData = await agent.askHuman({
+  type: "askForForm",
+  name: "contactForm",
+  description: "Please fill out the contact form",
+  sections: [
+    {
+      name: "personal",
+      description: "Personal Information",
+      fields: [
+        { type: "text", label: "Full Name", key: "name", required: true },
+        { type: "text", label: "Email", key: "email", required: true }
+      ]
+    },
+    {
+      name: "preferences",
+      description: "Preferences",
+      fields: [
+        { 
+          type: "selectOne", 
+          label: "Category", 
+          key: "category", 
+          options: [
+            { label: "Support", value: "support" },
+            { label: "Sales", value: "sales" }
+          ]
+        }
+      ]
+    }
+  ]
 });
 
 // Handle human response
@@ -350,27 +429,41 @@ agent.addCost("tokens", 1500);
 await agent.runCommand("/cost");
 ```
 
+### Status Line Management
+
+```typescript
+// Set busy status
+agent.setBusyWith("Processing request...");
+
+// Set status line
+agent.setStatusLine("Ready for input");
+
+// Clear status indicators
+agent.setBusyWith(null);
+agent.setStatusLine(null);
+```
+
 ## Configuration
 
 ### AgentConfig Schema
 
 ```typescript
 const agentConfig = {
-  name: string,              // Agent identifier
-  description: string,       // Agent purpose
-  category: string,          // Agent category
-  debug?: boolean,          // Enable debug logging
+  name: string,                    // Agent identifier
+  description: string,             // Agent purpose
+  category: string,                // Agent category
+  debug?: boolean,                 // Enable debug logging (default: false)
   visual: {
-    color: string           // UI color theme
+    color: string                  // UI color theme
   },
-  workHandler?: Function,   // Custom work handler
-  initialCommands: string[], // Startup commands
-  persistent?: boolean,     // Enable checkpointing
-  storagePath?: string,     // Storage location
+  workHandler?: Function,          // Custom work handler
+  initialCommands: string[],       // Startup commands
+  persistent?: boolean,            // Enable checkpointing
+  storagePath?: string,            // Storage location
   type: "interactive" | "background", // Agent type
-  callable?: boolean,       // Enable tool calls (default: true)
-  idleTimeout?: number,     // Idle timeout in seconds (default: 86400)
-  maxRunTime?: number       // Max runtime in seconds (default: 1800)
+  callable?: boolean,              // Enable tool calls (default: true)
+  idleTimeout?: number,            // Idle timeout in seconds (default: 86400)
+  maxRunTime?: number              // Max runtime in seconds (default: 0 = unlimited)
 };
 ```
 
@@ -380,7 +473,7 @@ const agentConfig = {
 
 **Input Events:**
 - `input.received` - Input received from user
-- `input.handled` - Input processing completed
+- `input.handled` - Input processing completed (status: success, error, or cancelled)
 
 **Output Events:**
 - `output.chat` - Chat output
@@ -394,9 +487,21 @@ const agentConfig = {
 - `human.request` - Human input requested
 - `human.response` - Human response provided
 - `abort` - Operation aborted
+- `agent.created` - Agent was created
+- `agent.stopped` - Agent was stopped
 
+### Event Schema
 
-### Plugin Configuration
+All events follow this structure:
+```typescript
+{
+  type: EventType,
+  timestamp: number,
+  // Event-specific fields
+}
+```
+
+## Plugin Configuration
 
 The agent package automatically integrates with TokenRing applications:
 
@@ -426,26 +531,27 @@ The agent package automatically integrates with TokenRing applications:
 
 ```typescript
 // Plugin automatically registers:
-- Chat service integration
-- Agent command service
-- Agent manager service  
-- Agent lifecycle service
-- Web host RPC endpoints
-- Context handlers
-- Tools and commands
+// - Chat service integration
+// - Agent command service
+// - Agent manager service
+// - Agent lifecycle service
+// - Web host RPC endpoints
+// - Context handlers
+// - Tools and commands
 ```
-
-### Service Dependencies
-
-- **ChatService**: For command and tool integration
-- **WebHostService**: For RPC endpoint registration
-- **FileSystemService**: For file operations
-- **CheckpointService**: For state persistence
 
 ### Context Handlers
 
 - **available-agents**: Provides list of available agent types
-- **todo**: Provides todo list context
+- **todo-list**: Provides todo list context
+
+### RPC Endpoints
+
+| Endpoint | Request Params | Response |
+|----------|---------------|----------|
+| `listAgents` | None | Array of agent information |
+| `spawnAgent` | `{agentType, headless}` | Created agent details |
+| `sendMessage` | `{agentId, message}` | Response from agent |
 
 ## State Management
 
@@ -493,6 +599,57 @@ const restoredAgent = await Agent.createAgentFromCheckpoint(
 );
 ```
 
+## Human Interface Types
+
+### Form Fields
+
+```typescript
+// Text field
+{ type: 'text', label: 'Name', key: 'name', required: true }
+
+// Select one field
+{ 
+  type: 'selectOne', 
+  label: 'Category', 
+  key: 'category', 
+  options: [{ label: 'A', value: 'a' }, { label: 'B', value: 'b' }] 
+}
+
+// Select many field
+{ 
+  type: 'selectMany', 
+  label: 'Tags', 
+  key: 'tags', 
+  options: [{ label: 'Tag 1', value: 't1' }] 
+}
+
+// Directory picker
+{ type: 'directory', label: 'Folder', key: 'folder' }
+
+// File picker
+{ type: 'file', label: 'File', key: 'file' }
+
+// Multiple file picker
+{ type: 'multipleFile', label: 'Files', key: 'files' }
+
+// Tree selection (single)
+{ type: 'askForSingleTreeSelection', title: 'Select', tree: treeLeaf }
+
+// Tree selection (multiple)
+{ type: 'askForMultipleTreeSelection', title: 'Select', tree: treeLeaf }
+```
+
+### Tree Leaf Structure
+
+```typescript
+{
+  name: string,
+  value?: string,
+  hasChildren?: boolean,
+  children?: TreeLeaf[] | (() => TreeLeaf[] | Promise<TreeLeaf[]>)
+}
+```
+
 ## Development
 
 ### Testing
@@ -533,6 +690,7 @@ pkg/agent/
 ├── package.json                      # Package configuration
 ├── chatCommands.ts                   # Command exports
 ├── tools.ts                          # Tool exports
+├── runSubAgent.ts                    # Sub-agent execution helper
 ├── commands/                         # Built-in commands
 │   ├── agent.ts                      # Agent management commands
 │   ├── cost.ts                       # Cost tracking commands
@@ -565,7 +723,6 @@ pkg/agent/
 ├── rpc/                              # RPC endpoints
 │   ├── agent.ts                      # Agent RPC implementation
 │   └── schema.ts                     # RPC schema definitions
-├── runSubAgent.ts                    # Sub-agent execution helper
 └── util/                             # Utilities
     ├── formatAgentId.ts              # Agent ID formatting
     └── subcommandRouter.ts           # Command routing utilities
@@ -573,4 +730,4 @@ pkg/agent/
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License - see [LICENSE](./LICENSE) file for details.
