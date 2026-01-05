@@ -16,19 +16,27 @@ export function formatTodoList(todos: TodoItem[]): string {
   ].join("\n");
 }
 
+export function generateTodoListArtifact(todos: TodoItem[], agent: Agent): void {
+  agent.artifactOutput("todo-list.md", "text/markdown", `
+    # Todo List
+    
+    ${todos.map(todo => todo.status === 'completed'
+      ? `- [X] ${todo.content}` 
+      : `- [ ] ${todo.content}${ todo.status === 'in_progress' ? ' (in_progress)' : ''}`
+    ).join("\n")}
+  `);
+}
+
 /**
  * Creates and manages a structured task list for the current coding session.
  * This helps track progress, organize complex tasks, and demonstrate thoroughness to the user.
  */
 export async function execute(
   {todos}: z.infer<typeof inputSchema>,
-  parentAgent: Agent,
-): Promise<{
-  status: "success";
-  response: string;
-}> {
+  agent: Agent,
+): Promise<string> {
   // Get the current todo list from the agent's state
-  const updatedTodos = parentAgent.mutateState(TodoState, state => {
+  const updatedTodos = agent.mutateState(TodoState, state => {
     // Update todos based on the input
     for (const todo of todos) {
       const existingIndex = state.todos.findIndex((t) => t.id === todo.id);
@@ -43,12 +51,11 @@ export async function execute(
     return state.todos;
   });
 
+  generateTodoListArtifact(updatedTodos, agent);
+
   const todoList = formatTodoList(updatedTodos);
 
-  return {
-    status: "success",
-    response: `Todo list updated! Current Todo list: ${todoList}`,
-  };
+  return `Todo list updated! Current Todo list:\n ${todoList}`;
 }
 
 const description =

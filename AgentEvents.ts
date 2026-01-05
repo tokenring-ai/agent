@@ -16,6 +16,14 @@ export const AgentStoppedSchema = z.object({
   timestamp: z.number()
 });
 
+export const OutputArtifactSchema = z.object({
+  type: z.literal("output.artifact"),
+  name: z.string(),
+  mimeType: z.string(),
+  body: z.string(),
+  timestamp: z.number()
+})
+
 export const OutputChatSchema = z.object({
   type: z.literal("output.chat"),
   timestamp: z.number(),
@@ -88,6 +96,7 @@ export const AbortSchema = z.object({
 export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   AgentCreatedSchema,
   AgentStoppedSchema,
+  OutputArtifactSchema,
   OutputChatSchema,
   OutputReasoningSchema,
   OutputInfoSchema,

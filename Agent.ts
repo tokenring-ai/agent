@@ -290,6 +290,13 @@ export default class Agent
     }
   };
 
+
+  artifactOutput(name: string, mimeType: string, body: string) {
+    this.mutateState(AgentEventState, (state) => {
+      state.events.push({ type: 'output.artifact', name, mimeType, body, timestamp: Date.now() });
+    });
+  }
+
   sendHumanResponse = (requestId: string, response: HumanInterfaceResponse) => {
     this.mutateState(AgentEventState, (state) => {
       state.waitingOn = null;
