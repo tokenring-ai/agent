@@ -4,6 +4,7 @@ import Agent from "../Agent.ts";
 import {ResetWhat} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
 import { AgentEventState } from "../state/agentEventState.js";
+import {AgentExecutionState} from "../state/agentExecutionState.ts";
 import AgentRpcSchema from "./schema.ts";
 
 export default createJsonRPCEndpoint(AgentRpcSchema, {
@@ -25,11 +26,7 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     const state = agent.getState(AgentEventState);
     return {
       events: state.events.slice(args.fromPosition),
-      position: state.events.length,
-      idle: state.idle,
-      busyWith: state.busyWith,
-      waitingOn: state.waitingOn,
-      statusLine: state.statusLine,
+      position: state.events.length
     };
   },
 
@@ -42,19 +39,40 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
       yield {
         events: state.events.slice(curPosition),
-        position: state.events.length,
-        idle: state.idle,
-        busyWith: state.busyWith,
-        waitingOn: state.waitingOn,
-        statusLine: state.statusLine,
+        position: state.events.length
       };
       curPosition = state.events.length;
     }
   },
 
+  getAgentExecutionState(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    const state = agent.getState(AgentExecutionState);
+    return {
+      idle: state.idle,
+      busyWith: state.busyWith,
+      waitingOn: state.waitingOn,
+      statusLine: state.statusLine,
+    };
+  },
+
+  async * streamAgentExecutionState(args, app, signal) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+
+    for await (const state of agent.subscribeStateAsync(AgentExecutionState, signal)) {
+      yield {
+        idle: state.idle,
+        busyWith: state.busyWith,
+        waitingOn: state.waitingOn,
+        statusLine: state.statusLine,
+      };
+    }
+  },
   listAgents(_args, app) {
     return app.requireService(AgentManager).getAgents().map((agent: Agent) => {
-      const agentState = agent.getState(AgentEventState);
+      const agentState = agent.getState(AgentExecutionState);
 
       return {
         id: agent.id,
@@ -62,7 +80,7 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
         type: agent.config.type,
         description: agent.description,
         idle: agentState.idle,
-        statusMessage: agentState.waitingOn
+        statusMessage: agentState.waitingOn.length > 0
           ? "Waiting on user input..."
           : agentState.idle
             ? "Agent is idle"

@@ -27,11 +27,7 @@ export default {
       }),
       result: z.object({
         events: z.array(AgentEventEnvelopeSchema),
-        position: z.number(),
-        idle: z.boolean(),
-        busyWith: z.string().nullable(),
-        waitingOn: z.union([HumanRequestSchema, z.null()]),
-        statusLine: z.string().nullable()
+        position: z.number()
       })
     },
     streamAgentEvents: {
@@ -42,10 +38,30 @@ export default {
       }),
       result: z.object({
         events: z.array(AgentEventEnvelopeSchema),
-        position: z.number(),
+        position: z.number()
+      })
+    },
+    getAgentExecutionState: {
+      type: "query",
+      input: z.object({
+        agentId: z.string()
+      }),
+      result: z.object({
         idle: z.boolean(),
         busyWith: z.string().nullable(),
-        waitingOn: z.union([HumanRequestSchema, z.null()]),
+        waitingOn: z.array(HumanRequestSchema),
+        statusLine: z.string().nullable()
+      })
+    },
+    streamAgentExecutionState: {
+      type: "stream",
+      input: z.object({
+        agentId: z.string(),
+      }),
+      result: z.object({
+        idle: z.boolean(),
+        busyWith: z.string().nullable(),
+        waitingOn: z.array(HumanRequestSchema),
         statusLine: z.string().nullable()
       })
     },

@@ -3,6 +3,7 @@ import AgentManager from "@tokenring-ai/agent/services/AgentManager";
 import {AgentEventState} from "@tokenring-ai/agent/state/agentEventState";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
+import {AgentExecutionState} from "./state/agentExecutionState.ts";
 
 export interface RunSubAgentOptions {
   /** The type of agent to create */
@@ -104,9 +105,8 @@ export async function runSubAgent(
   try {
     let response = "";
 
-    const eventCursor = (
-      await childAgent.waitForState(AgentEventState, (state) => state.idle)
-    ).getEventCursorFromCurrentPosition();
+    await childAgent.waitForState(AgentExecutionState, (state) => state.idle);
+    const eventCursor = childAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
     const requestId = childAgent.handleInput({ message: command });
 

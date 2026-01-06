@@ -8,22 +8,10 @@ export type AgentEventCursor = {
 
 export class AgentEventState implements AgentStateSlice {
   name = "AgentEventState";
-  busyWith: string | null = null;
-  waitingOn: z.infer<typeof HumanRequestSchema> | null = null;
   events: AgentEventEnvelope[] = [];
-  // These are not persisted, the agent calculates them on startup
-  inputQueue: Array<z.infer<typeof InputReceivedSchema>> = [];
-  currentlyExecuting: { requestId: string; abortController: AbortController } | null = null;
-  statusLine: string | null;
 
-  constructor({events, busyWith, statusLine}: { events?: AgentEventEnvelope[], busyWith?: string, statusLine?: string }) {
-    this.busyWith = busyWith ?? null;
-    this.statusLine = statusLine ?? null;
+  constructor({events}: { events?: AgentEventEnvelope[] }) {
     this.events = events ? [...events] : [];
-  }
-
-  get idle(): boolean {
-    return this.inputQueue.length === 0;
   }
 
   emit(event: AgentEventEnvelope): void {
@@ -36,10 +24,7 @@ export class AgentEventState implements AgentStateSlice {
 
   serialize(): object {
     return {
-      events: this.events,
-      busyWith: this.busyWith,
-      idle: this.idle,
-      statusLine: this.statusLine,
+      events: this.events
     };
   }
 
@@ -56,19 +41,11 @@ export class AgentEventState implements AgentStateSlice {
       if (event.type === "input.received" && ! handledEvents.has(event.requestId)) return false;
       return true;
     });
-
-    this.busyWith = null;
-    this.waitingOn = null;
-    this.currentlyExecuting = null;
-    this.statusLine = data.statusLine ?? null;
   }
 
   show(): string[] {
     return [
       `Events: ${this.events.length}`,
-      `Busy With: ${this.busyWith ?? "None"}`,
-      `Status Line: ${this.statusLine ?? "None"}`,
-      `Idle: ${this.idle ? "Yes" : "No"}`,
     ];
   }
 

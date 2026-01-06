@@ -1,4 +1,3 @@
-import {TokenRingService} from "@tokenring-ai/app/types";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
@@ -17,6 +16,7 @@ import type {
 import AgentCommandService from "./services/AgentCommandService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {AgentEventState} from "./state/agentEventState.ts";
+import {AgentExecutionState} from "./state/agentExecutionState.ts";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {CostTrackingState} from "./state/costTrackingState.ts";
 import {HooksState} from "./state/hooksState.js";
@@ -68,6 +68,7 @@ export default class Agent
     this.getServiceByType = this.app.getService;
 
     this.initializeState(AgentEventState, {});
+    this.initializeState(AgentExecutionState, {});
     this.initializeState(CommandHistoryState, {});
     this.initializeState(HooksState, {});
     this.initializeState(CostTrackingState, {});
@@ -216,10 +217,8 @@ export default class Agent
 
   requestAbort(reason: string) {
     this.mutateState(AgentEventState, (state) => {
-      if (! state.idle) {
-        state.emit({type: "abort", timestamp: Date.now(), reason});
-        state.emit({type: "output.info", message: `Aborting current operation, ${reason}`, timestamp: Date.now()});
-      }
+      state.emit({type: "abort", timestamp: Date.now(), reason});
+      state.emit({type: "output.info", message: `Aborting current operation, ${reason}`, timestamp: Date.now()});
     });
   }
 
@@ -239,7 +238,6 @@ export default class Agent
     this.mutateState(AgentEventState, (state) => {
       const event: z.infer<typeof HumanRequestSchema> = {type: "human.request", request: request, id: requestId, timestamp: Date.now()};
       state.emit(event);
-      state.waitingOn = event;
     })
 
     return new Promise((resolve) => {
@@ -255,22 +253,22 @@ export default class Agent
 
   async busyWhile<T>(message: string, awaitable: Promise<T> | (() => Promise<T>)): Promise<T> {
     if (typeof awaitable === "function") awaitable = awaitable();
-    this.mutateState(AgentEventState, (state) => state.busyWith = message);
+    this.mutateState(AgentExecutionState, (state) => state.busyWith = message);
     try {
       return await awaitable;
     } finally {
-      this.mutateState(AgentEventState, (state) => state.busyWith = null);
+      this.mutateState(AgentExecutionState, (state) => state.busyWith = null);
     }
   }
 
   setBusyWith(message: string | null) {
-    this.mutateState(AgentEventState, (state) => {
+    this.mutateState(AgentExecutionState, (state) => {
       state.busyWith = message;
     })
   }
 
   setStatusLine(status: string | null) {
-    this.mutateState(AgentEventState, (state) => {
+    this.mutateState(AgentExecutionState, (state) => {
       state.statusLine = status;
     })
   }
@@ -299,13 +297,12 @@ export default class Agent
 
   sendHumanResponse = (requestId: string, response: HumanInterfaceResponse) => {
     this.mutateState(AgentEventState, (state) => {
-      state.waitingOn = null;
       state.events.push({type: "human.response", requestId, response, timestamp: Date.now()});
     });
   };
 
   getAbortSignal() {
-    const state = this.getState(AgentEventState);
+    const state = this.getState(AgentExecutionState);
     return state.currentlyExecuting?.abortController.signal || this.agentShutdownSignal.signal;
   }
 
@@ -316,17 +313,23 @@ export default class Agent
     for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownSignal.signal)) {
       for (const event of state.yieldEventsByCursor(eventCursor)) {
         if (event.type === "input.received") {
-          this.mutateState(AgentEventState, (s) => {
+          this.mutateState(AgentExecutionState, (s) => {
             s.inputQueue.push(event);
           });
         } else if (event.type === "abort") {
           this.handleAbort();
+        } else if (event.type === 'human.request') {
+          this.mutateState(AgentExecutionState, (s) => {
+            s.waitingOn.push(event);
+          })
+        } else if (event.type === "human.response") {
+          this.mutateState(AgentExecutionState, (s) => {
+            s.waitingOn = s.waitingOn.filter(item => item.id !== event.requestId);
+          })
         }
       }
       
-      if (!state.currentlyExecuting && state.inputQueue.length > 0) {
-        this.startNextExecution();
-      }
+      this.startNextExecution();
     }
 
     this.emit({
@@ -336,38 +339,42 @@ export default class Agent
   }
 
   private handleAbort(reason?: string): void {
-    this.mutateState(AgentEventState, (state: AgentEventState) => {
+    this.mutateState(AgentExecutionState, (state) => {
       const requestId = state.currentlyExecuting?.requestId;
 
       if (state.currentlyExecuting) {
         state.currentlyExecuting.abortController.abort(reason || "Abort requested");
       }
 
-      for (const item of state.inputQueue.filter(r => r.requestId !== requestId)) {
-        state.emit({
-          type: "input.handled",
-          requestId: item.requestId,
-          status: "cancelled",
-          message: "Aborted",
-          timestamp: Date.now(),
-        });
-      }
+      this.mutateState(AgentEventState, (eventState) => {
+        for (const item of state.inputQueue.filter(r => r.requestId !== requestId)) {
+          eventState.emit({
+            type: "input.handled",
+            requestId: item.requestId,
+            status: "cancelled",
+            message: "Aborted",
+            timestamp: Date.now(),
+          });
+        }
+      });
     });
   }
 
   private startNextExecution(): void {
+    const state = this.getState(AgentExecutionState);
+    if (state.currentlyExecuting || state.inputQueue.length === 0) return;
+
+    const item = state.inputQueue[0];
+
     const agentCommandService = this.requireServiceByType(AgentCommandService);
     const agentLifecycleService = this.getServiceByType(AgentLifecycleService);
 
-    const state = this.getState(AgentEventState);
-    const item = state.inputQueue[0];
-    if (!item) return;
 
     const itemAbortController = new AbortController();
     const handleAgentAbort = () => itemAbortController.abort();
     this.agentShutdownSignal.signal.addEventListener('abort', handleAgentAbort);
 
-    this.mutateState(AgentEventState, (s) => {
+    this.mutateState(AgentExecutionState, (s) => {
       s.currentlyExecuting = { requestId: item.requestId, abortController: itemAbortController };
     });
 
@@ -399,7 +406,7 @@ export default class Agent
         });
       } finally {
         this.agentShutdownSignal.signal.removeEventListener('abort', handleAgentAbort);
-        this.mutateState(AgentEventState, (s) => {
+        this.mutateState(AgentExecutionState, (s) => {
           s.currentlyExecuting = null;
           s.inputQueue = s.inputQueue.filter(i => i.requestId !== item.requestId);
         });
