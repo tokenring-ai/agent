@@ -1,7 +1,7 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
-import Agent from "../Agent.js";
+import Agent, {AgentOptions} from "../Agent.js";
 import {AgentCheckpointData, AgentConfig, AgentStateSlice} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
 
@@ -43,13 +43,17 @@ export default class AgentManager implements TokenRingService {
   }
 
   async spawnAgentFromConfig(config: AgentConfig, {headless} : {headless: boolean}) {
-    return this.createAgent({config, headless});
+    return this.createAgent({config, headless, createMessage: `Agent created from config: ${config.name}`});
   }
 
   async spawnSubAgent(agent: Agent, {agentType, headless}: { agentType: string, headless: boolean}): Promise<Agent> {
     const agentConfig = this.agentConfigRegistry.requireItemByName(agentType);
     // Create a new agent of the specified type
-    const newAgent = await this.createAgent({ config: agentConfig, headless});
+    const newAgent = await this.createAgent({
+      config: agentConfig,
+      headless,
+      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.name}`
+    });
 
     for (const [name, item] of newAgent.stateManager.entries()) {
       item?.transferStateFromParent?.(agent);
@@ -61,8 +65,8 @@ export default class AgentManager implements TokenRingService {
     return newAgent;
   }
 
-  private async createAgent({config, initialState, headless}: {config: AgentConfig, headless: boolean, initialState?: Record<string, AgentStateSlice>}): Promise<Agent> {
-    const agent = new Agent(this.app, {config, headless});
+  private async createAgent(options: AgentOptions) {
+    const agent = new Agent(this.app, options);
 
     this.agents.set(agent.id, agent);
 

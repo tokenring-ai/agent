@@ -17,14 +17,19 @@ export function formatTodoList(todos: TodoItem[]): string {
 }
 
 export function generateTodoListArtifact(todos: TodoItem[], agent: Agent): void {
-  agent.artifactOutput("todo-list.md", "text/markdown", `
-    # Todo List
-    
-    ${todos.map(todo => todo.status === 'completed'
-      ? `- [X] ${todo.content}` 
-      : `- [ ] ${todo.content}${ todo.status === 'in_progress' ? ' (in_progress)' : ''}`
-    ).join("\n")}
-  `);
+  agent.artifactOutput({
+    name: "todo-list.md",
+    encoding: "text",
+    mimeType: "text/markdown",
+    body: `
+# Todo List
+
+${todos.map(todo => todo.status === 'completed'
+  ? `- [X] ${todo.content}` 
+  : `- [ ] ${todo.content}${ todo.status === 'in_progress' ? ' (in_progress)' : ''}`
+).join("\n")}
+  `.trim()
+  });
 }
 
 /**

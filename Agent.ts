@@ -4,7 +4,7 @@ import {z} from "zod";
 import {
   AgentEventEnvelope,
   HumanRequestSchema,
-  HumanResponseSchema,
+  HumanResponseSchema, OutputArtifactSchema,
   ResetWhat,
 } from "./AgentEvents.js";
 import TokenRingApp from "@tokenring-ai/app";
@@ -32,6 +32,12 @@ import {
 } from "./types.js";
 import {formatAgentId} from "./util/formatAgentId.ts";
 
+export type AgentOptions =  {
+  config: AgentConfig,
+  headless: boolean,
+  initialState?: Record<string, AgentStateSlice>,
+  createMessage: string
+};
 
 export default class Agent
   implements AskHumanInterface,
@@ -58,7 +64,7 @@ export default class Agent
 
   private agentShutdownSignal = new AbortController();
 
-  constructor(readonly app: TokenRingApp, {config, headless, initialState = {}} : {config: AgentConfig, headless: boolean, initialState?: Record<string, AgentStateSlice>}) {
+  constructor(readonly app: TokenRingApp, {config, headless, initialState = {}, createMessage = "Agent Created"} : AgentOptions ) {
     this.config = AgentConfigSchema.parse(config);
     this.headless = headless
     this.name = config.name;
@@ -74,6 +80,9 @@ export default class Agent
     this.initializeState(CostTrackingState, {});
     this.initializeState(TodoState, {});
 
+    this.emit({ type: "agent.created", timestamp: Date.now(), message: createMessage});
+
+
     for (const service of app.getServices()) {
       if (service.attach) service.attach(this);
     }
@@ -85,8 +94,6 @@ export default class Agent
       }
     }
 
-    this.emit({ type: "agent.created", timestamp: Date.now()});
-
     if (this.config.initialCommands.length > 0) {
       this.mutateState(AgentEventState, (state) => {
         for (const message of this.config.initialCommands) {
@@ -97,7 +104,7 @@ export default class Agent
   }
 
   static async createAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
-    const agent = new Agent(app, {config: checkpoint.config, headless});
+    const agent = new Agent(app, {config: checkpoint.config, headless, createMessage: `Recovered agent of type: ${checkpoint.config.type} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`});
     
     for (const service of app.getServices()) {
       if (service.attach) await service.attach(agent);
@@ -105,8 +112,6 @@ export default class Agent
 
     agent.restoreState(checkpoint.state);
 
-    agent.systemMessage(`Recovered agent from checkpoint: ${formatAgentId(agent.id)}`);
-    
     return agent;
   }
 
@@ -287,11 +292,9 @@ export default class Agent
       this.systemMessage(formatLogMessages(messages), "info");
     }
   };
-
-
-  artifactOutput(name: string, mimeType: string, body: string) {
+  artifactOutput({name, encoding, mimeType, body}: Omit<z.input<typeof OutputArtifactSchema>, "type" | "timestamp">) {
     this.mutateState(AgentEventState, (state) => {
-      state.events.push({ type: 'output.artifact', name, mimeType, body, timestamp: Date.now() });
+      state.events.push({ type: 'output.artifact', name, encoding, mimeType, body, timestamp: Date.now() });
     });
   }
 
@@ -334,6 +337,7 @@ export default class Agent
 
     this.emit({
       type: "agent.stopped",
+      message: signal.aborted ? "Agent was aborted" : "Agent stopped normally",
       timestamp: Date.now()
     })
   }
