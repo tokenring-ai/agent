@@ -13,6 +13,7 @@ import type {
   HumanInterfaceResponse,
   HumanInterfaceResponseFor, HumanInterfaceType,
 } from "./HumanInterfaceRequest.js";
+import {AgentConfigSchema} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {AgentEventState} from "./state/agentEventState.ts";
@@ -24,8 +25,7 @@ import StateManager from "@tokenring-ai/app/StateManager";
 import {TodoState} from "./state/todoState.ts";
 import {
   AgentCheckpointData,
-  AgentConfig, AgentConfigSchema,
-  AgentStateSlice,
+  AgentConfig, AgentStateSlice,
   AskHumanInterface,
   ChatOutputStream, ParsedAgentConfig,
   ServiceRegistryInterface
