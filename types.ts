@@ -4,6 +4,7 @@ import {z} from "zod";
 import Agent from "./Agent.js";
 import {ResetWhat} from "./AgentEvents.ts";
 import type {HumanInterfaceRequestFor, HumanInterfaceResponseFor, HumanInterfaceType} from "./HumanInterfaceRequest.js";
+import {AgentConfigSchema} from "./schema.ts";
 
 export type TokenRingAgentCommand = {
   name?: string;
@@ -65,26 +66,6 @@ export type AgentStateSlice = SerializableStateSlice & {
   transferStateFromParent?: (agent: Agent) => void;
 }
 
-export const AgentConfigSchema = z.looseObject({
-  name: z.string(),
-  description: z.string(),
-  category: z.string(),
-  debug: z.boolean().optional(),
-  visual: z.object({
-    color: z.string(),
-  }),
-  workHandler: z.function({
-    input: z.tuple([z.string(), z.any()]),
-    output: z.any()
-  }).optional(),
-  initialCommands: z.array(z.string()).default([]),
-  persistent: z.boolean().optional(),
-  storagePath: z.string().optional(),
-  type: z.enum(["interactive", "background"]),
-  callable: z.boolean().default(true),
-  idleTimeout: z.number().optional().default(86400), // In seconds
-  maxRunTime: z.number().default(0) // In seconds
-});
 export type AgentConfig = z.input<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;
 
