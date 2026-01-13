@@ -27,7 +27,7 @@ async function list(remainder: string, agent: Agent): Promise<void> {
   }
   
   agent.chatOutput("**Running agents:**\n" + 
-    agents.map(a => `- **${a.name}** (${a.id.slice(0, 8)}): ${a.description}`)
+    agents.map(a => `- **${a.name}** (${a.id.slice(0, 8)}): ${a.config.description}`)
       .join("\n")
   );
 }

@@ -15,8 +15,8 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
       id: agent.id,
       name: agent.name,
       type: agent.config.type,
-      description: agent.description,
-      debugEnabled: agent.debugEnabled,
+      description: agent.config.description,
+      debugEnabled: agent.config.debug,
     };
   },
 
@@ -78,7 +78,7 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
         id: agent.id,
         name: agent.name,
         type: agent.config.type,
-        description: agent.description,
+        description: agent.config.description,
         idle: agentState.idle,
         statusMessage: agentState.waitingOn.length > 0
           ? "Waiting on user input..."
@@ -107,9 +107,9 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     });
     return {
       id: agent.id,
-      name: agent.name,
+      name: agent.config.name,
       type: agent.config.type,
-      description: agent.description,
+      description: agent.config.description,
     };
   },
 

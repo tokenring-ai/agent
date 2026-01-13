@@ -1,19 +1,22 @@
+import TokenRingApp from "@tokenring-ai/app";
+import StateManager from "@tokenring-ai/app/StateManager";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import {
   AgentEventEnvelope,
   HumanRequestSchema,
-  HumanResponseSchema, OutputArtifactSchema,
+  HumanResponseSchema,
+  OutputArtifactSchema,
   ResetWhat,
 } from "./AgentEvents.js";
-import TokenRingApp from "@tokenring-ai/app";
 import type {
   HumanInterfaceRequestFor,
   HumanInterfaceResponse,
-  HumanInterfaceResponseFor, HumanInterfaceType,
+  HumanInterfaceResponseFor,
+  HumanInterfaceType,
 } from "./HumanInterfaceRequest.js";
-import {AgentConfigSchema} from "./schema.ts";
+import {AgentConfig, AgentConfigSchema, ParsedAgentConfig} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {AgentEventState} from "./state/agentEventState.ts";
@@ -21,37 +24,25 @@ import {AgentExecutionState} from "./state/agentExecutionState.ts";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {CostTrackingState} from "./state/costTrackingState.ts";
 import {HooksState} from "./state/hooksState.js";
-import StateManager from "@tokenring-ai/app/StateManager";
 import {TodoState} from "./state/todoState.ts";
 import {
   AgentCheckpointData,
-  AgentConfig, AgentStateSlice,
+  AgentStateSlice,
   AskHumanInterface,
-  ChatOutputStream, ParsedAgentConfig,
+  ChatOutputStream,
   ServiceRegistryInterface
 } from "./types.js";
 import {formatAgentId} from "./util/formatAgentId.ts";
-
-export type AgentOptions =  {
-  config: AgentConfig,
-  headless: boolean,
-  initialState?: Record<string, AgentStateSlice>,
-  createMessage: string
-};
 
 export default class Agent
   implements AskHumanInterface,
     ChatOutputStream,
     ServiceRegistryInterface {
-  readonly name;
-  readonly description;
 
   readonly id: string = uuid();
   debugEnabled = false;
   requireServiceByType;
   getServiceByType;
-  readonly config: ParsedAgentConfig;
-  headless: boolean;
 
   stateManager = new StateManager<AgentStateSlice>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
@@ -64,12 +55,7 @@ export default class Agent
 
   private agentShutdownSignal = new AbortController();
 
-  constructor(readonly app: TokenRingApp, {config, headless, initialState = {}, createMessage = "Agent Created"} : AgentOptions ) {
-    this.config = AgentConfigSchema.parse(config);
-    this.headless = headless
-    this.name = config.name;
-    this.description = config.description;
-    this.debugEnabled = config.debug ?? false;
+  constructor(readonly app: TokenRingApp, readonly config: z.output<typeof AgentConfigSchema>) {
     this.requireServiceByType = this.app.requireService;
     this.getServiceByType = this.app.getService;
 
@@ -80,34 +66,39 @@ export default class Agent
     this.initializeState(CostTrackingState, {});
     this.initializeState(TodoState, {});
 
-    this.emit({ type: "agent.created", timestamp: Date.now(), message: createMessage});
+    this.emit({ type: "agent.created", timestamp: Date.now(), message: config.createMessage });
 
 
     for (const service of app.getServices()) {
       if (service.attach) service.attach(this);
     }
 
-    for (const itemName in initialState) {
-      const newItem = this.stateManager.state.get(itemName);
-      if (newItem) {
-        newItem.deserialize(initialState[itemName].serialize());
-      }
-    }
-
-    if (this.config.initialCommands.length > 0) {
+    if (config.initialCommands.length > 0) {
       this.mutateState(AgentEventState, (state) => {
-        for (const message of this.config.initialCommands) {
+        for (const message of config.initialCommands) {
           state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
         }
       })
     }
   }
 
-  static async createAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
-    const agent = new Agent(app, {config: checkpoint.config, headless, createMessage: `Recovered agent of type: ${checkpoint.config.type} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`});
+  get headless() {
+    return this.config.headless;
+  }
+
+  get name() {
+    return this.config.name;
+  }
+
+  static async createAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig>) {
+    const agent = new Agent(app, {
+      ...checkpoint.config,
+      createMessage: `Recovered agent of type: ${checkpoint.config.type} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`,
+      ...config
+    });
     
     for (const service of app.getServices()) {
-      if (service.attach) await service.attach(agent);
+      if (service.attach) service.attach(agent);
     }
 
     agent.restoreState(checkpoint.state);
@@ -235,7 +226,7 @@ export default class Agent
   async askHuman<T extends HumanInterfaceType>(
     request: HumanInterfaceRequestFor<T>,
   ): Promise<HumanInterfaceResponseFor<T>> {
-    if (this.headless) {
+    if (this.config.headless) {
       throw new Error("Cannot ask human for feedback when agent is running in headless mode");
     }
 

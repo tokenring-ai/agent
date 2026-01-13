@@ -1,8 +1,9 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
-import Agent, {AgentOptions} from "../Agent.js";
-import {AgentCheckpointData, AgentConfig, AgentStateSlice} from "../types.js";
+import Agent from "../Agent.js";
+import {AgentConfig, ParsedAgentConfig} from "../schema.ts";
+import {AgentCheckpointData, AgentStateSlice} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
 
 export default class AgentManager implements TokenRingService {
@@ -17,21 +18,21 @@ export default class AgentManager implements TokenRingService {
   }
 
   private agents: Map<string, Agent> = new Map();
-  private agentConfigRegistry = new KeyedRegistry<AgentConfig>();
+  private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
 
   addAgentConfig = this.agentConfigRegistry.register;
   getAgentConfigs = this.agentConfigRegistry.getAllItems;
   getAgentTypes = this.agentConfigRegistry.getAllItemNames;
 
-  addAgentConfigs(agentConfigs: Record<string, AgentConfig>) {
+  addAgentConfigs(agentConfigs: Record<string, ParsedAgentConfig>) {
     for (const agentName in agentConfigs) {
       this.addAgentConfig(agentName, agentConfigs[agentName]);
     }
   }
 
 
-  async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, { headless } : { headless: boolean }) {
-    const agent = await Agent.createAgentFromCheckpoint(this.app, checkpoint, { headless });
+  async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig>) {
+    const agent = await Agent.createAgentFromCheckpoint(this.app, checkpoint, config);
 
     this.agents.set(agent.id, agent);
 
@@ -39,20 +40,20 @@ export default class AgentManager implements TokenRingService {
   }
 
   async spawnAgent({agentType, headless} : { agentType: string, headless: boolean}): Promise<Agent> {
-    return this.spawnAgentFromConfig(this.agentConfigRegistry.requireItemByName(agentType), {headless});
+    return this.spawnAgentFromConfig({ ...this.agentConfigRegistry.requireItemByName(agentType), headless});
   }
 
-  async spawnAgentFromConfig(config: AgentConfig, {headless} : {headless: boolean}) {
-    return this.createAgent({config, headless, createMessage: `Agent created from config: ${config.name}`});
+  async spawnAgentFromConfig(config: ParsedAgentConfig) {
+    return this.createAgent({ ...config, createMessage: `Agent created from config: ${config.name}`});
   }
 
-  async spawnSubAgent(agent: Agent, {agentType, headless}: { agentType: string, headless: boolean}): Promise<Agent> {
+  async spawnSubAgent(agent: Agent, agentType: string, config: Partial<ParsedAgentConfig>): Promise<Agent> {
     const agentConfig = this.agentConfigRegistry.requireItemByName(agentType);
     // Create a new agent of the specified type
     const newAgent = await this.createAgent({
-      config: agentConfig,
-      headless,
-      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.name}`
+      ...agentConfig,
+      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.name}`,
+      ...config,
     });
 
     for (const [name, item] of newAgent.stateManager.entries()) {
@@ -65,7 +66,7 @@ export default class AgentManager implements TokenRingService {
     return newAgent;
   }
 
-  private async createAgent(options: AgentOptions) {
+  private async createAgent(options: ParsedAgentConfig) {
     const agent = new Agent(this.app, options);
 
     this.agents.set(agent.id, agent);

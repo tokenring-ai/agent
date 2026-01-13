@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Agent from '../../Agent.ts';
+import {AgentConfig} from "../../schema";
 import AgentCommandService from '../../services/AgentCommandService.ts';
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
 import AgentManager from '../../services/AgentManager.ts';
 import {AgentEventState} from "../../state/agentEventState";
 import {CommandHistoryState} from "../../state/commandHistoryState";
 import {CostTrackingState} from "../../state/costTrackingState";
-import type { AgentConfig, HookConfig } from '../../types.js';
+import type { HookConfig } from '../../types.js';
 
 // Mock TokenRingApp with all required methods
 const createMockApp = () => ({

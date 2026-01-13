@@ -100,7 +100,7 @@ export async function runSubAgent(
   } = options;
 
   const agentManager = parentAgent.requireServiceByType(AgentManager);
-  const childAgent = await agentManager.spawnSubAgent(parentAgent, { agentType, headless });
+  const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType, { headless });
 
   try {
     let response = "";

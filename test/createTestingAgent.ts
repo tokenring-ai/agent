@@ -3,7 +3,7 @@ import TokenRingApp from "@tokenring-ai/app";
 // Create a mock agent
 import Agent from "../Agent";
 import {AgentManager} from "../index";
-import {AgentConfig} from "../types";
+import {AgentConfig} from "../schema";
 
 const config = {
   name: "Mock Agent",

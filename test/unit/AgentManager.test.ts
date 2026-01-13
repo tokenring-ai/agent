@@ -1,9 +1,10 @@
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {AgentConfig} from "../../schema";
 import AgentManager from '../../services/AgentManager.ts';
 import TokenRingApp from '@tokenring-ai/app';
 import Agent from '../../Agent.ts';
-import type { AgentConfig, AgentCheckpointData } from '../../types.js';
+import type { AgentCheckpointData } from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
 const app = createTestingApp();

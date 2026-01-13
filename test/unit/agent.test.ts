@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Agent from '../../Agent.ts';
-import {AgentConfigSchema} from "../../schema";
-import {AgentConfig} from '../../types.js';
+import {AgentConfig, AgentConfigSchema} from "../../schema";
 import { AgentEventState } from '../../state/agentEventState.ts';
 import { CommandHistoryState } from '../../state/commandHistoryState.js';
 import { CostTrackingState } from '../../state/costTrackingState.ts';

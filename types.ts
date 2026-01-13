@@ -1,10 +1,9 @@
 import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 import {TokenRingService} from "@tokenring-ai/app/types";
-import {z} from "zod";
 import Agent from "./Agent.js";
 import {ResetWhat} from "./AgentEvents.ts";
 import type {HumanInterfaceRequestFor, HumanInterfaceResponseFor, HumanInterfaceType} from "./HumanInterfaceRequest.js";
-import {AgentConfigSchema} from "./schema.ts";
+import {ParsedAgentConfig} from "./schema.ts";
 
 export type TokenRingAgentCommand = {
   name?: string;
@@ -65,9 +64,6 @@ export type AgentStateSlice = SerializableStateSlice & {
   show: () => string[];
   transferStateFromParent?: (agent: Agent) => void;
 }
-
-export type AgentConfig = z.input<typeof AgentConfigSchema>;
-export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;
 
 export interface AgentCheckpointData {
   agentId: string;
