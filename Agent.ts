@@ -55,7 +55,7 @@ export default class Agent
 
   private agentShutdownSignal = new AbortController();
 
-  constructor(readonly app: TokenRingApp, readonly config: z.output<typeof AgentConfigSchema>) {
+  constructor(readonly app: TokenRingApp, readonly config: ParsedAgentConfig) {
     this.requireServiceByType = this.app.requireService;
     this.getServiceByType = this.app.getService;
 
@@ -68,17 +68,8 @@ export default class Agent
 
     this.emit({ type: "agent.created", timestamp: Date.now(), message: config.createMessage });
 
-
     for (const service of app.getServices()) {
-      if (service.attach) service.attach(this);
-    }
-
-    if (config.initialCommands.length > 0) {
-      this.mutateState(AgentEventState, (state) => {
-        for (const message of config.initialCommands) {
-          state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
-        }
-      })
+      service.attach?.(this);
     }
   }
 
@@ -93,13 +84,9 @@ export default class Agent
   static async createAgentFromCheckpoint(app: TokenRingApp, checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig>) {
     const agent = new Agent(app, {
       ...checkpoint.config,
-      createMessage: `Recovered agent of type: ${checkpoint.config.type} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`,
+      createMessage: `Recovered agent of type: ${checkpoint.config.agentType} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`,
       ...config
     });
-    
-    for (const service of app.getServices()) {
-      if (service.attach) service.attach(agent);
-    }
 
     agent.restoreState(checkpoint.state);
 
@@ -133,7 +120,6 @@ export default class Agent
   runCommand(command: string) {
     return this.requireServiceByType(AgentCommandService).executeAgentCommand(this, command);
   }
-
 
   getAgentConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
     try {
@@ -219,7 +205,7 @@ export default class Agent
   }
 
   reset(what: ResetWhat[]) {
-    this.stateManager.forEach(item => item.reset(what))
+    this.stateManager.forEach(item => item.reset?.(what))
     this.emit({ type: "reset", what, timestamp: Date.now() });
   }
 
@@ -302,6 +288,15 @@ export default class Agent
 
   async run(signal: AbortSignal): Promise<void> {
     signal.addEventListener('abort', () => this.agentShutdownSignal.abort());
+
+    if (this.config.initialCommands.length > 0) {
+      this.mutateState(AgentEventState, (state) => {
+        for (const message of this.config.initialCommands) {
+          state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
+        }
+      })
+    }
+
     const eventCursor = { position: 0 };
 
     for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownSignal.signal)) {
@@ -330,7 +325,12 @@ export default class Agent
       type: "agent.stopped",
       message: signal.aborted ? "Agent was aborted" : "Agent stopped normally",
       timestamp: Date.now()
-    })
+    });
+
+
+    for (const service of this.app.getServices()) {
+      service.detach?.(this);
+    }
   }
 
   private handleAbort(reason?: string): void {

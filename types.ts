@@ -60,7 +60,7 @@ export interface ServiceRegistryInterface {
 }
 
 export type AgentStateSlice = SerializableStateSlice & {
-  reset: (what: ResetWhat[]) => void;
+  reset?: (what: ResetWhat[]) => void;
   show: () => string[];
   transferStateFromParent?: (agent: Agent) => void;
 }

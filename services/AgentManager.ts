@@ -10,7 +10,7 @@ export default class AgentManager implements TokenRingService {
   name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
   private readonly app: TokenRingApp;
-  private readonly cleanupCheckIntervalMs = 60000;
+  private readonly cleanupCheckIntervalMs = 15000;
 
   constructor(app: TokenRingApp) {
     this.app = app;
@@ -25,8 +25,9 @@ export default class AgentManager implements TokenRingService {
   getAgentTypes = this.agentConfigRegistry.getAllItemNames;
 
   addAgentConfigs(agentConfigs: Record<string, ParsedAgentConfig>) {
-    for (const agentName in agentConfigs) {
-      this.addAgentConfig(agentName, agentConfigs[agentName]);
+    for (const agentType in agentConfigs) {
+      agentConfigs[agentType].agentType ??= agentType;
+      this.addAgentConfig(agentType, agentConfigs[agentType]);
     }
   }
 
@@ -108,6 +109,20 @@ export default class AgentManager implements TokenRingService {
           this.app.serviceOutput(`Agent ${agent.id} has been deleted due to max runtime.`);
         } catch (err) {
           this.app.serviceError(`Failed to delete agent ${agent.id} due to max runtime:`, err);
+        }
+      }
+    }
+
+    for (const [agentType, agentSpec] of this.agentConfigRegistry.entries()) {
+      if (agentSpec.minimumRunning > 0) {
+        let agentCount = 0;
+        for (const agent of this.agents.values()) {
+          if (agent.config.agentType === agentType) agentCount++;
+        }
+
+        while (agentCount++ < agentSpec.minimumRunning) {
+          this.app.serviceOutput(`Agent type ${agentType} has less than the minimum number of running agents. Starting new agent...`);
+          await this.spawnAgent({agentType, headless: true});
         }
       }
     }

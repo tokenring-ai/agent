@@ -7,7 +7,6 @@ import {AgentConfig} from "../schema";
 
 const config = {
   name: "Mock Agent",
-  type: "interactive",
   description: "A mock agent for testing purposes",
   category: "test",
   visual: {

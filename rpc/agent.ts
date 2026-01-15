@@ -14,7 +14,6 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     return {
       id: agent.id,
       name: agent.name,
-      type: agent.config.type,
       description: agent.config.description,
       debugEnabled: agent.config.debug,
     };
@@ -77,7 +76,6 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
       return {
         id: agent.id,
         name: agent.name,
-        type: agent.config.type,
         description: agent.config.description,
         idle: agentState.idle,
         statusMessage: agentState.waitingOn.length > 0
@@ -108,7 +106,6 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     return {
       id: agent.id,
       name: agent.config.name,
-      type: agent.config.type,
       description: agent.config.description,
     };
   },

@@ -14,7 +14,6 @@ export default {
       result: z.object({
         id: z.string(),
         name: z.string(),
-        type: z.string(),
         description: z.string(),
         debugEnabled: z.boolean(),
       })
@@ -71,7 +70,6 @@ export default {
       result: z.array(z.object({
         id: z.string(),
         name: z.string(),
-        type: z.string(),
         description: z.string(),
         idle: z.boolean(),
         statusMessage: z.string()
@@ -97,7 +95,6 @@ export default {
       result: z.object({
         id: z.string(),
         name: z.string(),
-        type: z.string(),
         description: z.string(),
       })
     },
