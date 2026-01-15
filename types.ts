@@ -30,17 +30,15 @@ export type HookCallback = (
 export type MessageLevel = "info" | "warning" | "error";
 
 export interface ChatOutputStream {
-  systemMessage(message: string, level?: MessageLevel): void;
-
   chatOutput(message: string): void;
 
   reasoningOutput(message: string): void;
 
-  infoLine(...messages: string[]): void;
+  infoMessage(...messages: string[]): void;
 
-  warningLine(...messages: string[]): void;
+  warningMessage(...messages: string[]): void;
 
-  errorLine(...messages: (string | Error)[]): void;
+  errorMessage(...messages: (string | Error)[]): void;
 }
 
 export interface AskHumanInterface {

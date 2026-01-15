@@ -1,6 +1,7 @@
 import Agent from "../Agent.ts";
 import AgentLifecycleService from "../services/AgentLifecycleService.js";
 import {TokenRingAgentCommand} from "../types.ts";
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 
 const description =
   "/hooks - List registered hooks or enable/disable hook execution." as const;
@@ -49,44 +50,45 @@ async function execute(
     switch (operation) {
       case "list": {
         const hookEntries = Object.entries(registeredHooks);
+        const lines: string[] = [];
         if (hookEntries.length === 0) {
-          agent.infoLine("No hooks are currently registered.");
+          lines.push("No hooks are currently registered.");
         } else {
-          agent.infoLine("Registered hooks:");
-          for (const [name, hook] of hookEntries) {
-            agent.infoLine(`  ${name}`);
-          }
+          lines.push("Registered hooks:");
+          const names = hookEntries.map(([name]) => name);
+          lines.push(markdownList(names));
         }
+        agent.infoMessage(lines.join("\n"));
         break;
       }
       case "enable": {
         if (!hookName) {
-          agent.errorLine(`Usage: /hooks enable <hookName>`);
+          agent.errorMessage(`Usage: /hooks enable <hookName>`);
           return;
         }
         if (!registeredHooks[hookName]) {
-          agent.errorLine(`Unknown hook: ${hookName}`);
+          agent.errorMessage(`Unknown hook: ${hookName}`);
           return;
         }
         agentLifecycleService.enableHooks([hookName], agent);
-        agent.infoLine(`Hook '${hookName}' enabled`);
+        agent.infoMessage(`Hook '${hookName}' enabled`);
         break;
       }
       case "disable": {
         if (!hookName) {
-          agent.errorLine(`Usage: /hooks disable <hookName>`);
+          agent.errorMessage(`Usage: /hooks disable <hookName>`);
           return;
         }
         if (!registeredHooks[hookName]) {
-          agent.errorLine(`Unknown hook: ${hookName}`);
+          agent.errorMessage(`Unknown hook: ${hookName}`);
           return;
         }
         agentLifecycleService.disableHooks([hookName], agent);
-        agent.infoLine(`Hook '${hookName}' disabled`);
+        agent.infoMessage(`Hook '${hookName}' disabled`);
         break;
       }
       default: {
-        agent.errorLine(
+        agent.errorMessage(
           "Unknown operation. Usage: /hooks [list|enable|disable] [hookName]",
         );
         return;
@@ -97,14 +99,15 @@ async function execute(
 
   // Default: list all hooks
   const hookEntries = Object.entries(registeredHooks);
+  const lines: string[] = [];
   if (hookEntries.length === 0) {
-    agent.infoLine("No hooks are currently registered.");
+    lines.push("No hooks are currently registered.");
   } else {
-    agent.infoLine("Registered hooks:");
-    for (const [name, hook] of hookEntries) {
-      agent.infoLine(`  ${name}`);
-    }
+    lines.push("Registered hooks:");
+    const names = hookEntries.map(([name]) => name);
+    lines.push(markdownList(names));
   }
+  agent.infoMessage(lines.join("\n"));
 }
 
 export default {

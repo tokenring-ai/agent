@@ -5,14 +5,15 @@ export default async function execute(remainder: string, agent: Agent): Promise<
   const logs = agent.app.logs.slice(-limit);
   
   if (logs.length === 0) {
-    agent.infoLine("No service logs available.");
+    agent.infoMessage("No service logs available.");
     return;
   }
 
-  agent.infoLine(`Showing last ${logs.length} log entries:`);
+  const lines: string[] = [`Showing last ${logs.length} log entries:`];
   for (const log of logs) {
     const date = new Date(log.timestamp).toISOString();
     const level = log.level.toUpperCase();
-    agent.systemMessage(`[${date}] ${level}: ${log.message}`, log.level === "error" ? "error" : "info");
+    lines.push(`[${date}] ${level}: ${log.message}`);
   }
+  agent.infoMessage(lines.join("\n"));
 }

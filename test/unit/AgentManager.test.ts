@@ -14,8 +14,8 @@ const createMockAgent = () => {
   const agent = createTestingAgent(app);
   vi.spyOn(agent, 'requireServiceByType');
   vi.spyOn(agent, 'chatOutput');
-  vi.spyOn(agent, 'infoLine');
-  vi.spyOn(agent, 'errorLine');
+  vi.spyOn(agent, 'infoMessage');
+  vi.spyOn(agent, 'errorMessage');
 
   return agent;
 };

@@ -7,10 +7,10 @@ const createMockAgent = () => ({
   requireServiceByType: vi.fn(),
   getServiceByType: vi.fn(),
   chatOutput: vi.fn(),
-  infoLine: vi.fn(),
+  infoMessage: vi.fn(),
   systemMessage: vi.fn(),
-  errorLine: vi.fn(),
-  debugLine: vi.fn(),
+  errorMessage: vi.fn(),
+  debugMessage: vi.fn(),
 } as any);
 
 describe('Help Command', () => {

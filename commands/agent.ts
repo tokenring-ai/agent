@@ -37,7 +37,7 @@ async function run(remainder: string, agent: Agent): Promise<void> {
   const input = remainder.replace("--bg", "").trim();
   
   if (!input) {
-    agent.errorLine("Usage: /agent run [--bg] <agentType> <message>");
+    agent.errorMessage("Usage: /agent run [--bg] <agentType> <message>");
     return;
   }
   
@@ -46,7 +46,7 @@ async function run(remainder: string, agent: Agent): Promise<void> {
   const message = parts.slice(1).join(" ");
   
   if (!message) {
-    agent.errorLine("Please provide a message for the agent");
+    agent.errorMessage("Please provide a message for the agent");
     return;
   }
   
@@ -72,7 +72,7 @@ async function shutdown(remainder: string, agent: Agent): Promise<void> {
 
   const agentToShutdown = agentManager.getAgent(id);
   if (! agentToShutdown) {
-    agent.errorLine(`Agent ${id} not found`);
+    agent.errorMessage(`Agent ${id} not found`);
     return;
   }
 

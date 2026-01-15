@@ -13,8 +13,8 @@ export default function createSubcommandRouter(subcommands: Record<string, (rema
     } else if (subcommands.default) {
       await subcommands.default(remainder, agent);
     } else {
-      agent.errorLine(`Unknown subcommand: ${subCommand || "(none)"}`);
-      agent.infoLine(`Available subcommands: ${Object.keys(subcommands).filter(k => k !== "default").join(", ")}`);
+      agent.errorMessage(`Unknown subcommand: ${subCommand || "(none)"}`);
+      agent.infoMessage(`Available subcommands: ${Object.keys(subcommands).filter(k => k !== "default").join(", ")}`);
     }
   };
 }

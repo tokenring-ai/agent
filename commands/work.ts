@@ -7,7 +7,7 @@ const description =
 
 async function execute(remainder: string, agent: Agent): Promise<void> {
   if (!remainder?.trim()) {
-    agent.infoLine(
+    agent.infoMessage(
       "Please provide a message indicating the work to be completed",
     );
     return;

@@ -6,10 +6,10 @@ import AgentCommandService from '../../../services/AgentCommandService.ts';
 const createMockAgent = () => ({
   requireServiceByType: vi.fn(),
   getServiceByType: vi.fn(),
-  infoLine: vi.fn(),
+  infoMessage: vi.fn(),
   systemMessage: vi.fn(),
-  errorLine: vi.fn(),
-  debugLine: vi.fn(),
+  errorMessage: vi.fn(),
+  debugMessage: vi.fn(),
   config: {
     workHandler: null,
   },
@@ -152,7 +152,7 @@ describe('Work Command', () => {
     it('should show info message for missing input', async () => {
       await workCommand.execute('', mockAgent);
 
-      expect(mockAgent.infoLine).toHaveBeenCalledWith(
+      expect(mockAgent.infoMessage).toHaveBeenCalledWith(
         'Please provide a message indicating the work to be completed'
       );
     });

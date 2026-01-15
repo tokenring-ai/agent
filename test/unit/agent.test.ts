@@ -189,7 +189,7 @@ describe('Agent', () => {
     it('should calculate idle duration correctly', () => {
       const startTime = Date.now();
       vi.useFakeTimers({ now: startTime });
-      agent.infoLine("hello world!"); // Sets the last idle time
+      agent.infoMessage("hello world!"); // Sets the last idle time
       
       // Simulate some time passing
       vi.advanceTimersByTime(1000);
@@ -317,7 +317,7 @@ describe('Agent', () => {
         headless: true 
       });
       
-      debugAgent.debugLine('Debug message');
+      debugAgent.debugMessage('Debug message');
       
       const eventState = debugAgent.getState(AgentEventState);
       expect(eventState.events[eventState.events.length - 1].type).toEqual('output.info');
@@ -325,7 +325,7 @@ describe('Agent', () => {
     });
 
     it('should not output debug messages when disabled', () => {
-      agent.debugLine('Debug message');
+      agent.debugMessage('Debug message');
       
       const eventState = agent.getState(AgentEventState);
       expect(eventState.events[eventState.events.length - 1].message).not.toEqual('Debug message\n');

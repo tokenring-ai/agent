@@ -78,10 +78,10 @@ const agent = new Agent(app, {
 - `chatOutput(content)`: Emit chat output
 - `reasoningOutput(content)`: Emit reasoning content
 - `systemMessage(message, level)`: Emit system messages
-- `infoLine(...messages)`: Emit info messages
-- `warningLine(...messages)`: Emit warning messages
-- `errorLine(...messages)`: Emit error messages
-- `debugLine(...messages)`: Emit debug messages (if debugEnabled)
+- `infoMessage(...messages)`: Emit info messages
+- `warningMessage(...messages)`: Emit warning messages
+- `errorMessage(...messages)`: Emit error messages
+- `debugMessage(...messages)`: Emit debug messages (if debugEnabled)
 - `emit(event)`: Emit custom events
 
 **Human Interface:**

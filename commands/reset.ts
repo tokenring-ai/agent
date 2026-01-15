@@ -34,15 +34,15 @@ export function execute(remainder: string, agent: Agent): void {
 
   if (unknownArgs.length > 0) {
     for (const u of unknownArgs) {
-      agent.errorLine(`Unknown argument: ${u}`);
+      agent.errorMessage(`Unknown argument: ${u}`);
     }
-    agent.errorLine("Valid arguments are: chat, memory, settings, all");
+    agent.errorMessage("Valid arguments are: chat, memory, settings, all");
     return;
   }
 
   if (toClear.size > 0) {
     agent.reset(Array.from(toClear) as ResetWhat[]);
-    agent.infoLine(`Reset ${Array.from(toClear).join(", ")}`);
+    agent.infoMessage(`Reset ${Array.from(toClear).join(", ")}`);
   }
 }
 

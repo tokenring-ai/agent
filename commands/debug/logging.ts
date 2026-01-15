@@ -5,11 +5,11 @@ export default async function execute(remainder: string, agent: Agent): Promise<
   
   if (arg === "on") {
     agent.debugEnabled = true;
-    agent.infoLine("Debug logging enabled");
+    agent.infoMessage("Debug logging enabled");
   } else if (arg === "off") {
     agent.debugEnabled = false;
-    agent.infoLine("Debug logging disabled");
+    agent.infoMessage("Debug logging disabled");
   } else {
-    agent.errorLine(`Invalid argument: ${arg}. Use 'on' or 'off'`);
+    agent.errorMessage(`Invalid argument: ${arg}. Use 'on' or 'off'`);
   }
 }

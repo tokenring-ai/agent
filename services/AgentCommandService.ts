@@ -47,7 +47,7 @@ export default class AgentCommandService implements TokenRingService {
     if (command) {
       await command.execute(remainder, agent);
     } else {
-      agent.errorLine(`Unknown command: /${commandName}. Type /help for a list of commands.`);
+      agent.errorMessage(`Unknown command: /${commandName}. Type /help for a list of commands.`);
     }
   }
 }

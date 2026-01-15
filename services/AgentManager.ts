@@ -61,7 +61,7 @@ export default class AgentManager implements TokenRingService {
       item?.transferStateFromParent?.(agent);
     }
 
-    agent.systemMessage(
+    agent.infoMessage(
       `Created new agent: ${newAgent.config.name} (${formatAgentId(newAgent.id)})`,
     );
     return newAgent;

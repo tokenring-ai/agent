@@ -121,10 +121,10 @@ describe('Agent Integration Tests', () => {
     });
 
     it('should handle unknown commands gracefully', async () => {
-      vi.spyOn(agent, 'errorLine')
+      vi.spyOn(agent, 'errorMessage')
       await agent.runCommand('/unknown command');
       
-      expect(agent.errorLine).toHaveBeenCalledWith(
+      expect(agent.errorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Unknown command')
       );
     });

@@ -98,7 +98,7 @@ export default class Agent
 
     this.agentShutdownSignal.abort();
 
-    this.infoLine(`Agent was shutdown: ${reason}`);
+    this.infoMessage(`Agent was shutdown: ${reason}`);
   }
 
 
@@ -113,7 +113,7 @@ export default class Agent
 
   restoreState(state: AgentCheckpointData["state"]) {
     this.stateManager.deserialize(state, (key) => {
-      this.systemMessage(`State slice ${key} not found in agent state`);
+      this.warningMessage(`State slice ${key} not found in agent state`);
     });
   }
 
@@ -165,21 +165,6 @@ export default class Agent
 
   reasoningOutput(message: string) {
     this.emit({ type: "output.reasoning", message, timestamp: Date.now() });
-  }
-
-  systemMessage(message: string, level: "info" | "warning" | "error" = "info") {
-    if (!message.endsWith("\n")) message = `${message}\n`;
-    switch (level) {
-      case "error":
-        this.emit({ type: "output.error", message, timestamp: Date.now() });
-        break;
-      case "warning":
-        this.emit({ type: "output.warning", message, timestamp: Date.now() });
-        break;
-      case "info":
-        this.emit({ type: "output.info", message, timestamp: Date.now() });
-        break;
-    }
   }
 
   getIdleDuration(): number {
@@ -255,18 +240,18 @@ export default class Agent
     })
   }
 
-  infoLine = (...messages: string[]) =>
-    this.systemMessage(formatLogMessages(messages), "info");
+  infoMessage = (...messages: string[]) =>
+    this.emit({ type: "output.info", message: formatLogMessages(messages), timestamp: Date.now() });
 
-  warningLine = (...messages: string[]) =>
-    this.systemMessage(formatLogMessages(messages), "warning");
+  warningMessage = (...messages: string[]) =>
+    this.emit({ type: "output.warning", message: formatLogMessages(messages), timestamp: Date.now() });
 
-  errorLine = (...messages: (string | Error)[]) =>
-    this.systemMessage(formatLogMessages(messages), "error");
+  errorMessage = (...messages: (string | Error)[]) =>
+    this.emit({ type: "output.error", message: formatLogMessages(messages), timestamp: Date.now() });
 
-  debugLine = (...messages: string[]) => {
+  debugMessage = (...messages: string[]) => {
     if (this.debugEnabled) {
-      this.systemMessage(formatLogMessages(messages), "info");
+      this.emit({ type: "output.info", message: formatLogMessages(messages), timestamp: Date.now() });
     }
   };
   artifactOutput({name, encoding, mimeType, body}: Omit<z.input<typeof OutputArtifactSchema>, "type" | "timestamp">) {

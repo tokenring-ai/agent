@@ -97,10 +97,10 @@ describe('AgentCommandService', () => {
     });
 
     it('should handle unknown commands', async () => {
-      vi.spyOn(mockAgent, 'errorLine');
+      vi.spyOn(mockAgent, 'errorMessage');
       await service.executeAgentCommand(mockAgent, '/unknown command');
       
-      expect(mockAgent.errorLine).toHaveBeenCalledWith(
+      expect(mockAgent.errorMessage).toHaveBeenCalledWith(
         'Unknown command: /unknown. Type /help for a list of commands.'
       );
       expect(mockCommand.execute).not.toHaveBeenCalled();

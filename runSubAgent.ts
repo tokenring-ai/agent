@@ -111,7 +111,7 @@ export async function runSubAgent(
     const requestId = childAgent.handleInput({ message: command });
 
     if (options.background) {
-      childAgent.infoLine(`${agentType} (background) > `, command.trim());
+      childAgent.infoMessage(`${agentType} (background) > `, command.trim());
       return {
         status: "success",
         response: "Agent started in background.",
@@ -189,15 +189,15 @@ export async function runSubAgent(
               break;
             case 'input.received':
               if (forwardInputCommands) {
-                parentAgent.infoLine(`${agentType} > ${event.message}`);
+                parentAgent.infoMessage(`${agentType} > ${event.message}`);
               }
               break;
 
             case "input.handled":
               if (event.status === "success") {
-                parentAgent.infoLine(`Success: ${event.message}`);
+                parentAgent.infoMessage(`Success: ${event.message}`);
               } else {
-                parentAgent.errorLine(`Error: ${event.message}`);
+                parentAgent.errorMessage(`Error: ${event.message}`);
               }
 
               if (event.requestId === requestId) {

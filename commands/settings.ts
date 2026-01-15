@@ -1,4 +1,5 @@
 import joinDefault from "@tokenring-ai/utility/string/joinDefault";
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.ts";
 import {TokenRingAgentCommand} from "../types.ts";
 
@@ -7,22 +8,19 @@ const description = "/settings - Show current chat settings." as const;
 export function execute(_remainder: string, agent: Agent): void {
   const activeServices = agent.app.getServices();
 
-  agent.infoLine("Current settings:");
-  agent.infoLine(
-    `Active services: ${joinDefault(
-      ", ",
-      activeServices.map((s) => s.name),
-      "No services active.",
-    )}`,
-  );
-
-  agent.infoLine("\nState:");
+  const lines: string[] = [
+    "Current settings:",
+    `Active services: ${joinDefault(", ", activeServices.map((s) => s.name), "No services active.")}`,
+    "",
+    "State:",
+  ];
   agent.stateManager.forEach((slice) => {
-    agent.infoLine(`\n${slice.name}:`);
-    for (const line of slice.show()) {
-      agent.infoLine(`  ${line}`);
-    }
+    lines.push(`\n***${slice.name}***:`);
+    const sliceLines = slice.show();
+    lines.push(markdownList(sliceLines));
   });
+
+  agent.infoMessage(lines.join("\n"));
 }
 
 const help: string = `# /settings
