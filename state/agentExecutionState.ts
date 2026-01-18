@@ -1,12 +1,11 @@
-import {z} from "zod";
-import {AgentEventEnvelope, HumanRequestSchema, InputReceivedSchema, ResetWhat} from "../AgentEvents.js";
+import {type InputReceived, type ParsedQuestionRequest, ResetWhat} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
 
 export class AgentExecutionState implements AgentStateSlice {
   name = "AgentExecutionState";
   busyWith: string | null = null;
-  waitingOn: Array<z.infer<typeof HumanRequestSchema>> = []
-  inputQueue: Array<z.infer<typeof InputReceivedSchema>> = [];
+  waitingOn: Array<ParsedQuestionRequest> = []
+  inputQueue: Array<InputReceived> = [];
   currentlyExecuting: { requestId: string; abortController: AbortController } | null = null;
   statusLine: string | null;
 

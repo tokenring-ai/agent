@@ -2,8 +2,8 @@ import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
-import {AgentConfig, ParsedAgentConfig} from "../schema.ts";
-import {AgentCheckpointData, AgentStateSlice} from "../types.js";
+import {ParsedAgentConfig} from "../schema.ts";
+import {AgentCheckpointData} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
 
 export default class AgentManager implements TokenRingService {

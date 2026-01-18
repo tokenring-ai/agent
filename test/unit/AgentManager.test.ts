@@ -1,10 +1,10 @@
-import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {AgentConfig} from "../../schema";
-import AgentManager from '../../services/AgentManager.ts';
 import TokenRingApp from '@tokenring-ai/app';
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
-import type { AgentCheckpointData } from '../../types.js';
+import {AgentConfig, type ParsedAgentConfig} from "../../schema";
+import AgentManager from '../../services/AgentManager.ts';
+import type {AgentCheckpointData} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
 const app = createTestingApp();
@@ -21,17 +21,19 @@ const createMockAgent = () => {
 };
 
 
-const mockConfig: AgentConfig = {
+const mockConfig: ParsedAgentConfig = {
   name: 'Test Agent',
   description: 'A test agent',
   category: 'test',
   debug: false,
-  visual: { color: '#blue' },
   initialCommands: [],
-  type: 'interactive',
+  createMessage: "foo",
+  headless: true,
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
+  minimumRunning: 0,
+  agentType: 'someAgentType'
 };
 
 const mockCheckpoint: AgentCheckpointData = {
@@ -58,7 +60,6 @@ describe('AgentManager', () => {
     manager.addAgentConfig('background', {
       ...mockConfig,
       name: 'Background Agent',
-      type: 'background',
     });
   });
 
@@ -75,7 +76,7 @@ describe('AgentManager', () => {
 
   describe('Configuration Management', () => {
     it('should add single agent config', () => {
-      const testConfig: AgentConfig = {
+      const testConfig: ParsedAgentConfig = {
         ...mockConfig,
         name: 'New Agent',
       };
@@ -113,7 +114,7 @@ describe('AgentManager', () => {
 
   describe('Agent Creation', () => {
     it('should spawn agent from config', async () => {
-      const agent = await manager.spawnAgentFromConfig(mockConfig, { headless: true });
+      const agent = await manager.spawnAgentFromConfig(mockConfig);
       
       expect(agent).toBeInstanceOf(Agent);
       expect(agent.config.name).toBe(mockConfig.name);
@@ -130,20 +131,23 @@ describe('AgentManager', () => {
       const agent = await manager.spawnAgentFromCheckpoint(mockCheckpoint, { headless: true });
       
       expect(agent).toBeInstanceOf(Agent);
-      expect(agent.config).toEqual(mockCheckpoint.config);
+      expect(agent.config).toEqual({
+        ...mockCheckpoint.config,
+        createMessage: "Recovered agent of type: someAgentType from checkpoint of agent test-age",
+
+      });
     });
   });
 
   describe('Sub-Agent Management', () => {
     it('should spawn sub-agent', async () => {
       const mockAgent = createMockAgent();
-      const subAgent = await manager.spawnSubAgent(mockAgent, { 
-        agentType: 'background', 
+      const subAgent = await manager.spawnSubAgent(mockAgent, 'background', {
         headless: true 
       });
       
       expect(subAgent).toBeInstanceOf(Agent);
-      expect(subAgent.config.type).toBe('background');
+      expect(subAgent.config.agentType).toBe('someAgentType');
     });
 
     it('should transfer state from parent to sub-agent', async () => {
@@ -161,8 +165,7 @@ describe('AgentManager', () => {
       });
 
 
-      await manager.spawnSubAgent(mockAgent, { 
-        agentType: 'test', 
+      await manager.spawnSubAgent(mockAgent, 'test', {
         headless: true 
       });
       
@@ -171,14 +174,13 @@ describe('AgentManager', () => {
 
     it('should send system message when creating sub-agent', async () => {
       const mockAgent = createMockAgent();
-      vi.spyOn(mockAgent, 'systemMessage');
+      vi.spyOn(mockAgent, 'infoMessage');
 
-      await manager.spawnSubAgent(mockAgent, { 
-        agentType: 'test', 
+      await manager.spawnSubAgent(mockAgent, 'test', {
         headless: true 
       });
       
-      expect(mockAgent.systemMessage).toHaveBeenCalled();
+      expect(mockAgent.infoMessage).toHaveBeenCalled();
     });
   });
 
@@ -266,7 +268,7 @@ describe('AgentManager', () => {
 
   describe('Periodic Cleanup Scheduling', () => {
     it('should schedule periodic cleanup', () => {
-      expect(app.scheduleEvery).toHaveBeenCalledWith(60000, expect.any(Function));
+      expect(app.scheduleEvery).toHaveBeenCalledWith(15000, expect.any(Function));
     });
   });
 

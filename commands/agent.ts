@@ -1,8 +1,8 @@
 import Agent from "../Agent.ts";
+import {runSubAgent} from "../runSubAgent.ts";
+import AgentManager from "../services/AgentManager.ts";
 import {TokenRingAgentCommand} from "../types.ts";
 import createSubcommandRouter from "../util/subcommandRouter.ts";
-import AgentManager from "../services/AgentManager.ts";
-import {runSubAgent} from "../runSubAgent.ts";
 
 const description = "/agent - Manage and interact with agents" as const;
 

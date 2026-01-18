@@ -3,20 +3,9 @@ import StateManager from "@tokenring-ai/app/StateManager";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
-import {
-  AgentEventEnvelope,
-  HumanRequestSchema,
-  HumanResponseSchema,
-  OutputArtifactSchema,
-  ResetWhat,
-} from "./AgentEvents.js";
-import type {
-  HumanInterfaceRequestFor,
-  HumanInterfaceResponse,
-  HumanInterfaceResponseFor,
-  HumanInterfaceType,
-} from "./HumanInterfaceRequest.js";
-import {AgentConfig, AgentConfigSchema, ParsedAgentConfig} from "./schema.ts";
+import {AgentEventEnvelope, OutputArtifactSchema, type QuestionRequest, QuestionRequestSchema, QuestionResponseSchema, ResetWhat} from "./AgentEvents.js";
+import {getDefaultQuestionValue, type ResultTypeForQuestion,} from "./question.js";
+import {AgentConfig, ParsedAgentConfig} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.js";
 import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import {AgentEventState} from "./state/agentEventState.ts";
@@ -25,20 +14,10 @@ import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {CostTrackingState} from "./state/costTrackingState.ts";
 import {HooksState} from "./state/hooksState.js";
 import {TodoState} from "./state/todoState.ts";
-import {
-  AgentCheckpointData,
-  AgentStateSlice,
-  AskHumanInterface,
-  ChatOutputStream,
-  ServiceRegistryInterface
-} from "./types.js";
+import {AgentCheckpointData, AgentStateSlice} from "./types.js";
 import {formatAgentId} from "./util/formatAgentId.ts";
 
-export default class Agent
-  implements AskHumanInterface,
-    ChatOutputStream,
-    ServiceRegistryInterface {
-
+export default class Agent {
   readonly id: string = uuid();
   debugEnabled = false;
   requireServiceByType;
@@ -53,11 +32,12 @@ export default class Agent
   timedWaitForState = this.stateManager.timedWaitForState.bind(this.stateManager);
   subscribeStateAsync = this.stateManager.subscribeAsync.bind(this.stateManager);
 
-  private agentShutdownSignal = new AbortController();
+  private agentShutdownController = new AbortController();
 
   constructor(readonly app: TokenRingApp, readonly config: ParsedAgentConfig) {
     this.requireServiceByType = this.app.requireService;
     this.getServiceByType = this.app.getService;
+    this.debugEnabled = config.debug;
 
     this.initializeState(AgentEventState, {});
     this.initializeState(AgentExecutionState, {});
@@ -96,7 +76,7 @@ export default class Agent
   shutdown(reason: string) {
     this.requestAbort(reason);
 
-    this.agentShutdownSignal.abort();
+    this.agentShutdownController.abort();
 
     this.infoMessage(`Agent was shutdown: ${reason}`);
   }
@@ -194,28 +174,62 @@ export default class Agent
     this.emit({ type: "reset", what, timestamp: Date.now() });
   }
 
-  async askHuman<T extends HumanInterfaceType>(
-    request: HumanInterfaceRequestFor<T>,
-  ): Promise<HumanInterfaceResponseFor<T>> {
+  async askForConfirmation({ message, label = "Confirm?", default: defaultValue, timeout: autoSubmitAfter }: { message: string, label?: string, default?: boolean, timeout?: number }) : Promise<boolean> {
+    const result = await this.askQuestion({
+      message,
+      question: {
+        type: 'treeSelect',
+        label: label,
+        minimumSelections: 1,
+        maximumSelections: 1,
+        defaultValue: defaultValue === undefined ? [] : [defaultValue ? '1' : '0'],
+        tree: [
+          {
+            name: "Yes", value: '1'
+          },
+          {
+            name: "No", value: '0'
+          }
+        ],
+      },
+      autoSubmitAfter
+    });
+
+    return result !== null && result.length > 0 && result[0] === '1';
+  }
+
+  async askForText({ message, label, masked} : { message: string, label: string, masked?: boolean }) : Promise<string> {
+    const result = await this.askQuestion({
+      message,
+      question: {
+        type: 'text',
+        label,
+        masked
+      }
+    });
+    return result || '';
+  }
+
+  async askQuestion<T extends Omit<QuestionRequest,"type" | "requestId" | "timestamp">>(question: T): Promise<ResultTypeForQuestion<T["question"]>>  {
     if (this.config.headless) {
       throw new Error("Cannot ask human for feedback when agent is running in headless mode");
     }
 
     let requestId = uuid();
-    this.mutateState(AgentEventState, (state) => {
-      const event: z.infer<typeof HumanRequestSchema> = {type: "human.request", request: request, id: requestId, timestamp: Date.now()};
-      state.emit(event);
-    })
 
-    return new Promise((resolve) => {
-      const unsubscribe = this.subscribeState(AgentEventState, (state) => {
-        const event = state.events.find(event => event.type === "human.response" && event.requestId === requestId) as z.infer<typeof HumanResponseSchema>;
-        if (event) {
-          unsubscribe()
-          resolve(event.response);
-        }
-      })
+    const eventCursor = this.mutateState(AgentEventState, (state) => {
+      state.emit(QuestionRequestSchema.parse({ type: 'question.request', requestId, timestamp: Date.now(), ...question }));
+      return state.getEventCursorFromCurrentPosition();
     });
+
+    for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownController.signal)) {
+      for (const event of state.yieldEventsByCursor(eventCursor)) {
+        if (event.type === "question.response" && event.requestId === requestId) {
+          return event.result;
+        }
+      }
+    }
+    throw new Error("Agent shutdown while waiting for question response");
   }
 
   async busyWhile<T>(message: string, awaitable: Promise<T> | (() => Promise<T>)): Promise<T> {
@@ -260,19 +274,19 @@ export default class Agent
     });
   }
 
-  sendHumanResponse = (requestId: string, response: HumanInterfaceResponse) => {
+  sendQuestionResponse = (requestId: string, response: Omit<z.infer<typeof QuestionResponseSchema>, "type" | "requestId" | "timestamp">) => {
     this.mutateState(AgentEventState, (state) => {
-      state.events.push({type: "human.response", requestId, response, timestamp: Date.now()});
+      state.events.push({type: "question.response", requestId, ...response, timestamp: Date.now()});
     });
   };
 
   getAbortSignal() {
     const state = this.getState(AgentExecutionState);
-    return state.currentlyExecuting?.abortController.signal || this.agentShutdownSignal.signal;
+    return state.currentlyExecuting?.abortController.signal || this.agentShutdownController.signal;
   }
 
   async run(signal: AbortSignal): Promise<void> {
-    signal.addEventListener('abort', () => this.agentShutdownSignal.abort());
+    signal.addEventListener('abort', () => this.agentShutdownController.abort());
 
     if (this.config.initialCommands.length > 0) {
       this.mutateState(AgentEventState, (state) => {
@@ -284,7 +298,7 @@ export default class Agent
 
     const eventCursor = { position: 0 };
 
-    for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownSignal.signal)) {
+    for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownController.signal)) {
       for (const event of state.yieldEventsByCursor(eventCursor)) {
         if (event.type === "input.received") {
           this.mutateState(AgentExecutionState, (s) => {
@@ -292,13 +306,26 @@ export default class Agent
           });
         } else if (event.type === "abort") {
           this.handleAbort();
-        } else if (event.type === 'human.request') {
+        } else if (event.type === 'question.request' ) {
           this.mutateState(AgentExecutionState, (s) => {
             s.waitingOn.push(event);
-          })
-        } else if (event.type === "human.response") {
+            if (event.autoSubmitAfter > 0) {
+              const requestId = event.requestId;
+              const autoSubmitAfterMs = event.autoSubmitAfter * 1000;
+              setTimeout(() => {
+                this.mutateState(AgentEventState, (s) => {
+                  for (const e of s.events) {
+                    if ((e.type === 'question.response') && e.requestId === requestId) return;
+                  }
+
+                  s.events.push({ type: 'question.response', requestId, result: getDefaultQuestionValue(event.question), timestamp: Date.now() });
+                });
+              }, autoSubmitAfterMs);
+            }
+          });
+        } else if (event.type === "question.response") {
           this.mutateState(AgentExecutionState, (s) => {
-            s.waitingOn = s.waitingOn.filter(item => item.id !== event.requestId);
+            s.waitingOn = s.waitingOn.filter(item => item.requestId !== event.requestId);
           })
         }
       }
@@ -322,12 +349,11 @@ export default class Agent
     this.mutateState(AgentExecutionState, (state) => {
       const requestId = state.currentlyExecuting?.requestId;
 
-      if (state.currentlyExecuting) {
-        state.currentlyExecuting.abortController.abort(reason || "Abort requested");
-      }
+      state.inputQueue.splice(0, state.inputQueue.length);
 
       this.mutateState(AgentEventState, (eventState) => {
         for (const item of state.inputQueue.filter(r => r.requestId !== requestId)) {
+          if (item.requestId === requestId) continue;
           eventState.emit({
             type: "input.handled",
             requestId: item.requestId,
@@ -337,6 +363,10 @@ export default class Agent
           });
         }
       });
+
+      if (state.currentlyExecuting) {
+        state.currentlyExecuting.abortController.abort(reason || "Abort requested");
+      }
     });
   }
 
@@ -352,7 +382,7 @@ export default class Agent
 
     const itemAbortController = new AbortController();
     const handleAgentAbort = () => itemAbortController.abort();
-    this.agentShutdownSignal.signal.addEventListener('abort', handleAgentAbort);
+    this.agentShutdownController.signal.addEventListener('abort', handleAgentAbort);
 
     this.mutateState(AgentExecutionState, (s) => {
       s.currentlyExecuting = { requestId: item.requestId, abortController: itemAbortController };
@@ -385,7 +415,7 @@ export default class Agent
           });
         });
       } finally {
-        this.agentShutdownSignal.signal.removeEventListener('abort', handleAgentAbort);
+        this.agentShutdownController.signal.removeEventListener('abort', handleAgentAbort);
         this.mutateState(AgentExecutionState, (s) => {
           s.currentlyExecuting = null;
           s.inputQueue = s.inputQueue.filter(i => i.requestId !== item.requestId);

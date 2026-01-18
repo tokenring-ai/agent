@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import helpCommand from '../../../commands/help.ts';
 import AgentCommandService from '../../../services/AgentCommandService.ts';
 
@@ -73,7 +73,6 @@ describe('Help Command', () => {
       expect(output).toContain('- Test command');
       expect(output).toContain('- Other command');
       expect(output).toContain('Use /help <command> to get detailed help');
-      expect(output).toContain('Multi-line entry: Type :paste');
     });
 
     it('should show specific command help', async () => {
@@ -170,7 +169,6 @@ describe('Help Command', () => {
       
       expect(output).toContain('**Available chat commands:**');
       expect(output).toContain('Use /help <command> to get detailed help');
-      expect(output).toContain('Multi-line entry: Type :paste');
     });
 
     it('should handle commands with special characters', async () => {
@@ -297,11 +295,8 @@ describe('Help Command', () => {
       await helpCommand.execute(undefined, mockAgent);
 
       const output = mockAgent.chatOutput.mock.calls[0][0];
-      
-      expect(output).toContain('Type /<command> to run');
-      expect(output).toContain('Use /quit or /exit to return');
-      expect(output).toContain('Type :paste to enter multi-line mode');
-      expect(output).toContain('type :end on a new line to finish');
+
+      expect(output).toContain('Use /help <command> to get detailed help for a specific command.');
     });
 
     it('should provide detailed help examples', async () => {

@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from "../../Agent";
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
-import type { HookConfig, HookType } from '../../types.js';
-import { HooksState } from '../../state/hooksState.js';
-import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import {HooksState} from '../../state/hooksState.js';
+import type {HookConfig, HookType} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
 const app = createTestingApp();

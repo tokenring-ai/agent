@@ -1,5 +1,4 @@
-import {z} from "zod";
-import {AgentEventEnvelope, HumanRequestSchema, InputReceivedSchema, ResetWhat} from "../AgentEvents.js";
+import {AgentEventEnvelope, ResetWhat} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
 
 export type AgentEventCursor = {

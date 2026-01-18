@@ -1,3 +1,4 @@
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import {TokenRingAgentCommand} from "../types.ts";
@@ -13,17 +14,14 @@ async function execute(remainder: string, agent: Agent): Promise<void> {
   const agentCommandService = agent.requireServiceByType(AgentCommandService);
   const commands = agentCommandService.getCommands();
 
-  const lines = ["**Available chat commands:**"];
-
-  for (const cmdName of Object.keys(commands).sort()) {
-    lines.push(`- ${commands[cmdName].description}`);
-  }
+  const lines = [
+    "**Available chat commands:**",
+    markdownList(Object.keys(commands).sort().map(cmdName => commands[cmdName].description))
+  ];
 
   lines.push(
     "",
-    "Use /help <command> to get detailed help for a specific command.",
-    "Type /<command> to run. Use /quit or /exit to return to agent selection.",
-    "Multi-line entry: Type :paste to enter multi-line mode, type :end on a new line to finish.",
+    "Use /help <command> to get detailed help for a specific command."
   );
   agent.chatOutput(lines.join("\n"));
 }

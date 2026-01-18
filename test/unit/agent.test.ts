@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
-import {AgentConfig, AgentConfigSchema} from "../../schema";
-import { AgentEventState } from '../../state/agentEventState.ts';
-import { CommandHistoryState } from '../../state/commandHistoryState.js';
-import { CostTrackingState } from '../../state/costTrackingState.ts';
-import { HooksState } from '../../state/hooksState.js';
+import {AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
+import {AgentEventState} from '../../state/agentEventState.ts';
+import {AgentExecutionState} from "../../state/agentExecutionState";
+import {CommandHistoryState} from '../../state/commandHistoryState.js';
+import {CostTrackingState} from '../../state/costTrackingState.ts';
+import {HooksState} from '../../state/hooksState.js';
 
 // Mock TokenRingApp
 const mockApp = {
@@ -22,14 +23,15 @@ const mockApp = {
   subscribeStateAsync: vi.fn(),
 } as any;
 
-const mockConfig: AgentConfig = {
+const mockConfig: ParsedAgentConfig = {
   name: 'Test Agent',
   description: 'A test agent',
   category: 'test',
   debug: false,
-  visual: { color: '#blue' },
+  createMessage: "foo",
+  headless: true,
+  minimumRunning: 0,
   initialCommands: [],
-  type: 'interactive',
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
@@ -40,7 +42,7 @@ describe('Agent', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    agent = new Agent(mockApp, { config: mockConfig, headless: true });
+    agent = new Agent(mockApp, mockConfig);
   });
 
   afterEach(() => {
@@ -52,7 +54,7 @@ describe('Agent', () => {
   describe('Constructor and Initialization', () => {
     it('should create an agent with correct properties', () => {
       expect(agent.name).toBe(mockConfig.name);
-      expect(agent.description).toBe(mockConfig.description);
+      expect(agent.config.description).toBe(mockConfig.description);
       expect(agent.id).toBeDefined();
       expect(agent.headless).toBe(true);
     });
@@ -65,10 +67,10 @@ describe('Agent', () => {
     });
 
     it('should handle headless mode correctly', () => {
-      const headlessAgent = new Agent(mockApp, { config: mockConfig, headless: true });
+      const headlessAgent = new Agent(mockApp, mockConfig);
       expect(headlessAgent.headless).toBe(true);
 
-      const interactiveAgent = new Agent(mockApp, { config: mockConfig, headless: false });
+      const interactiveAgent = new Agent(mockApp, { ...mockConfig, headless: false });
       expect(interactiveAgent.headless).toBe(false);
     });
   });
@@ -128,18 +130,18 @@ describe('Agent', () => {
     });
 
     it('should output system messages', () => {
-      agent.systemMessage('System message');
+      agent.infoMessage('System message');
       
       const eventState = agent.getState(AgentEventState);
       expect(eventState.events[eventState.events.length - 1]).toMatchObject({
         type: 'output.info',
-        message: 'System message\n',
+        message: 'System message',
       });
     });
 
     it('should handle different message levels', () => {
-      agent.systemMessage('Warning message', 'warning');
-      agent.systemMessage('Error message', 'error');
+      agent.warningMessage('Warning message');
+      agent.errorMessage('Error message');
       
       const eventState = agent.getState(AgentEventState);
       expect(eventState.events[eventState.events.length - 2].type).toBe('output.warning');
@@ -203,19 +205,19 @@ describe('Agent', () => {
       agent.requestAbort(reason);
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(1);
-      expect(eventState.events[0]).not.toMatchObject({
+      expect(eventState.events).toHaveLength(3);
+      expect(eventState.events[2]).not.toMatchObject({
         type: 'abort',
         reason,
       });
     });
 
     it('should handle abort requests', () => {
-      agent.mutateState(AgentEventState, state => {
+      agent.mutateState(AgentExecutionState, state => {
         state.inputQueue.push("doesn't matter" as any);
       });
 
-      expect(agent.getState(AgentEventState).idle).toBe(false);
+      expect(agent.getState(AgentExecutionState).idle).toBe(false);
 
       const reason = 'Test abort reason';
       agent.requestAbort(reason);
@@ -237,7 +239,7 @@ describe('Agent', () => {
 
   describe('Human Interface', () => {
     it('should throw error when asking human in headless mode', async () => {
-      await expect(agent.askHuman('text', { prompt: 'Test' })).rejects.toThrow(
+      await expect(agent.askQuestion('text', { prompt: 'Test' })).rejects.toThrow(
         'Cannot ask human for feedback when agent is running in headless mode'
       );
     });
@@ -247,20 +249,20 @@ describe('Agent', () => {
       const result = await agent.busyWhile('Loading...', promise);
       
       expect(result).toBe('result');
-      const eventState = agent.getState(AgentEventState);
+      const eventState = agent.getState(AgentExecutionState);
       expect(eventState.busyWith).toBeNull(); // Should be cleared after completion
     });
   });
 
   describe('Configuration', () => {
     it('should get config slice with valid schema', () => {
-      const visual = agent.getAgentConfigSlice('visual', AgentConfigSchema.shape.visual);
-      expect(visual).toEqual(mockConfig.visual);
+      const visual = agent.getAgentConfigSlice('name', AgentConfigSchema.shape.name);
+      expect(visual).toEqual(mockConfig.name);
     });
 
     it('should throw error for invalid config slice', () => {
       expect(() => {
-        agent.getAgentConfigSlice('nonexistent', AgentConfigSchema.shape.visual);
+        agent.getAgentConfigSlice('nonexistent', AgentConfigSchema.shape.name);
       }).toThrow();
     });
   });
@@ -312,8 +314,9 @@ describe('Agent', () => {
 
   describe('Debug Mode', () => {
     it('should handle debug messages when enabled', () => {
-      const debugAgent = new Agent(mockApp, { 
-        config: { ...mockConfig, debug: true }, 
+      const debugAgent = new Agent(mockApp, {
+        ...mockConfig,
+        debug: true,
         headless: true 
       });
       
@@ -321,14 +324,14 @@ describe('Agent', () => {
       
       const eventState = debugAgent.getState(AgentEventState);
       expect(eventState.events[eventState.events.length - 1].type).toEqual('output.info');
-      expect(eventState.events[eventState.events.length - 1].message).toEqual('Debug message\n');
+      expect(eventState.events[eventState.events.length - 1].message).toEqual('Debug message');
     });
 
     it('should not output debug messages when disabled', () => {
       agent.debugMessage('Debug message');
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[eventState.events.length - 1].message).not.toEqual('Debug message\n');
+      expect(eventState.events[eventState.events.length - 1].message).not.toEqual('Debug message');
     });
   });
 });

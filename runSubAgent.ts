@@ -100,7 +100,19 @@ export async function runSubAgent(
   } = options;
 
   const agentManager = parentAgent.requireServiceByType(AgentManager);
+  const parentEventCursor = parentAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
+
   const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType, { headless });
+
+  let timeoutExceeded = false;
+
+  const abortController = new AbortController();
+
+  const timeoutSeconds = timeout ?? parentAgent.config.maxRunTime;
+  const timer = timeoutSeconds > 0 ? setTimeout(() => {
+    timeoutExceeded = true;
+    abortController.abort();
+  }, timeoutSeconds * 1000) : null;
 
   try {
     let response = "";
@@ -119,48 +131,38 @@ export async function runSubAgent(
       };
     }
 
-    return await new Promise((resolve, reject) => {
-      let resolved = false;
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-      const cleanup = () => {
-        if (!resolved) {
-          resolved = true;
-          const parentAbortSignal = parentAgent.getAbortSignal();
-          parentAbortSignal.removeEventListener('abort', handleParentAbort);
-          if (timeoutId !== null) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
+    async function forwardParentEventsToChild() {
+      for await (const state of parentAgent.subscribeStateAsync(AgentEventState, abortController.signal)) {
+        for (const parentEvent of state.yieldEventsByCursor(parentEventCursor)) {
+          switch (parentEvent.type) {
+            case "question.request":
+            case "question.response":
+              if (forwardHumanRequests) {
+                childAgent.mutateState(AgentEventState, (state) => {
+                  if (state.events.find((childEvent) => childEvent.type == parentEvent.type && childEvent.requestId === parentEvent.requestId)) {
+                    return;
+                  }
+                })
+              }
+              break;
+            case "abort":
+              childAgent.mutateState(AgentEventState, (state) => {
+                state.events.push(parentEvent);
+              });
+              break;
           }
         }
-      };
-
-      const handleParentAbort = () => {
-        cleanup();
-        unsubscribe();
-        childAgent.shutdown("Parent agent was aborted");
-        resolve({
-          status: "cancelled",
-          response: "Parent agent was aborted",
-          childAgent: autoCleanup ? undefined : childAgent,
-        });
-      };
-
-      // Check if parent is already aborted
-      const parentAbortSignal = parentAgent.getAbortSignal();
-      if (parentAbortSignal.aborted) {
-        handleParentAbort();
-        return;
       }
+    }
 
-      // Listen for parent abort events
-      parentAbortSignal.addEventListener('abort', handleParentAbort);
 
-      const unsubscribe = childAgent.subscribeState(AgentEventState, (state) => {
-        if (resolved) return;
-
+    async function forwardChildEventsToParent(): Promise<{ status: "error" | "cancelled" | "success", response: string}> {
+      for await (const state of childAgent.subscribeStateAsync(AgentEventState, abortController.signal)) {
         for (const event of state.yieldEventsByCursor(eventCursor)) {
           switch (event.type) {
+            case "abort":
+              abortController.abort();
+              break;
             case "output.chat":
               if (forwardChatOutput) {
                 parentAgent.chatOutput(event.message);
@@ -201,61 +203,62 @@ export async function runSubAgent(
               }
 
               if (event.requestId === requestId) {
-                cleanup();
-                unsubscribe();
                 const truncatedResponse = trimMiddle(
                   event.message,
                   minContextLength,
                   maxResponseLength
                 );
-                resolve({
+                return {
                   status: event.status,
                   response: truncatedResponse,
-                  childAgent: autoCleanup ? undefined : childAgent,
-                });
+                };
               }
               break;
 
-            case "human.request":
+            case "question.request":
+            case "question.response":
               if (forwardHumanRequests) {
-                const humanRequestId = event.id;
-                parentAgent
-                  .askHuman(event.request)
-                  .then((humanResponse) =>
-                    childAgent?.sendHumanResponse(humanRequestId, humanResponse)
-                  )
-                  .catch((err) => {
-                    if (!resolved) reject(err);
-                  });
-              } else {
-                // If not forwarding, reject the human request
-                const humanRequestId = event.id;
-                childAgent?.sendHumanResponse(
-                  humanRequestId,
-                  "Human input is not available in this context."
-                );
+                parentAgent.mutateState(AgentEventState, (state) => {
+                  if (state.events.find((parentEvent) => parentEvent.type == event.type && parentEvent.requestId === event.requestId)) {
+                    return;
+                  }
+                  state.events.push(event);
+                })
               }
               break;
           }
         }
-      });
-
-      // Use custom timeout if provided, otherwise use agent config
-      const timeoutSeconds = timeout ?? parentAgent.config.maxRunTime;
-      if (timeoutSeconds > 0) {
-        timeoutId = setTimeout(() => {
-          if (!resolved) {
-            cleanup();
-            unsubscribe();
-            resolve({
-              status: "cancelled",
-              response: `Agent timed out after ${timeoutSeconds} seconds.`,
-              childAgent: autoCleanup ? undefined : childAgent,
-            });
-          }
-        }, timeoutSeconds * 1000);
       }
-    });
+
+      return {
+        status: "cancelled",
+        response: "Child agent was aborted"
+      };
+    }
+
+    const [, childResult] = await Promise.all([
+      forwardParentEventsToChild(),
+      forwardChildEventsToParent(),
+    ]);
+
+    if (! childResult) {
+      if (timeoutExceeded) {
+        return {
+          status: "cancelled",
+          response: `Agent timed out after ${timeoutSeconds} seconds.`,
+          childAgent: autoCleanup ? undefined : childAgent,
+        }
+      }
+      return {
+        status: "error",
+        response: "Child agent did not produce a result",
+        childAgent: autoCleanup ? undefined : childAgent,
+      }
+    }
+    return {
+      ...childResult,
+      childAgent: autoCleanup ? undefined : childAgent,
+    };
   } catch (err) {
     return {
       status: "error",
@@ -263,6 +266,7 @@ export async function runSubAgent(
       childAgent: autoCleanup ? undefined : childAgent,
     };
   } finally {
+    if (timer) clearTimeout(timer);
     // Clean up the agent if auto-cleanup is enabled
     if (autoCleanup) {
       childAgent.shutdown("Agent was shut down by parent agent");

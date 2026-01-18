@@ -1,5 +1,5 @@
+import {ContextItem, ParsedChatConfig} from "@tokenring-ai/chat/schema";
 import Agent from "../Agent.ts";
-import {ParsedChatConfig, ContextItem} from "@tokenring-ai/chat/schema";
 import {TodoState} from "../state/todoState.js";
 import {formatTodoList} from "../tools/todo.ts";
 

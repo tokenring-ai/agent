@@ -1,7 +1,7 @@
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import AgentCommandService from '../../services/AgentCommandService.ts';
-import type { TokenRingAgentCommand } from '../../types.js';
+import type {TokenRingAgentCommand} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
 const mockApp = createTestingApp();

@@ -1,8 +1,6 @@
 import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
-import {TokenRingService} from "@tokenring-ai/app/types";
 import Agent from "./Agent.js";
 import {ResetWhat} from "./AgentEvents.ts";
-import type {HumanInterfaceRequestFor, HumanInterfaceResponseFor, HumanInterfaceType} from "./HumanInterfaceRequest.js";
 import {ParsedAgentConfig} from "./schema.ts";
 
 export type TokenRingAgentCommand = {
@@ -27,36 +25,6 @@ export type HookCallback = (
   agent: Agent,
   ...args: any[]
 ) => Promise<void> | void;
-export type MessageLevel = "info" | "warning" | "error";
-
-export interface ChatOutputStream {
-  chatOutput(message: string): void;
-
-  reasoningOutput(message: string): void;
-
-  infoMessage(...messages: string[]): void;
-
-  warningMessage(...messages: string[]): void;
-
-  errorMessage(...messages: (string | Error)[]): void;
-}
-
-export interface AskHumanInterface {
-  askHuman<T extends HumanInterfaceType>(
-    request: HumanInterfaceRequestFor<T>,
-  ): Promise<HumanInterfaceResponseFor<T>>;
-}
-
-export interface ServiceRegistryInterface {
-  requireServiceByType<R extends TokenRingService>(
-    type: abstract new (...args: any[]) => R,
-  ): R;
-
-  getServiceByType<R extends TokenRingService>(
-    type: abstract new (...args: any[]) => R,
-  ): R | undefined;
-}
-
 export type AgentStateSlice = SerializableStateSlice & {
   reset?: (what: ResetWhat[]) => void;
   show: () => string[];

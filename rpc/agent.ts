@@ -1,9 +1,10 @@
 import TokenRingApp from "@tokenring-ai/app";
+import omit from "@tokenring-ai/utility/object/omit";
 import {createJsonRPCEndpoint} from "@tokenring-ai/web-host/jsonrpc/createJsonRPCEndpoint";
 import Agent from "../Agent.ts";
 import {ResetWhat} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
-import { AgentEventState } from "../state/agentEventState.js";
+import {AgentEventState} from "../state/agentEventState.js";
 import {AgentExecutionState} from "../state/agentExecutionState.ts";
 import AgentRpcSchema from "./schema.ts";
 
@@ -16,6 +17,7 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
       name: agent.name,
       description: agent.config.description,
       debugEnabled: agent.config.debug,
+      config: omit(agent.config, ["workHandler"]),
     };
   },
 
@@ -124,10 +126,10 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     return { requestId };
   },
 
-  sendHumanResponse(args, app) {
+  sendQuestionResponse(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    agent.sendHumanResponse(args.requestId, args.response);
+    agent.sendQuestionResponse(args.requestId, { result: args.response.result });
     return { success: true };
   },
 

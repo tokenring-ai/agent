@@ -22,6 +22,12 @@ export default class AgentCommandService implements TokenRingService {
   }
 
   async executeAgentCommand(agent: Agent, message: string): Promise<void> {
+    const signal = agent.getAbortSignal();
+    if (signal.aborted) {
+      agent.warningMessage(`Command execution aborted when running command: ${message}`);
+      return;
+    }
+
     message = message.trim();
     if (message && ! message.startsWith("/")) {
      message = `${this.defaultCommand} ${message}`

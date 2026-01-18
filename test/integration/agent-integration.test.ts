@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
-import {AgentConfig} from "../../schema";
+import {type ParsedAgentConfig} from "../../schema";
 import AgentCommandService from '../../services/AgentCommandService.ts';
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
 import AgentManager from '../../services/AgentManager.ts';
 import {AgentEventState} from "../../state/agentEventState";
 import {CommandHistoryState} from "../../state/commandHistoryState";
 import {CostTrackingState} from "../../state/costTrackingState";
-import type { HookConfig } from '../../types.js';
+import type {HookConfig} from '../../types.js';
 
 // Mock TokenRingApp with all required methods
 const createMockApp = () => ({
@@ -25,14 +25,15 @@ const createMockApp = () => ({
   subscribeStateAsync: vi.fn(),
 });
 
-const mockConfig: AgentConfig = {
+const mockConfig: ParsedAgentConfig = {
   name: 'Integration Test Agent',
   description: 'An agent for integration testing',
   category: 'test',
   debug: false,
-  visual: { color: '#blue' },
   initialCommands: ['test message'],
-  type: 'interactive',
+  minimumRunning: 0,
+  createMessage: "foo",
+  headless: true,
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
@@ -211,9 +212,8 @@ describe('Agent Integration Tests', () => {
     it('should handle sub-agent creation', async () => {
       manager.addAgentConfig('test', mockConfig);
       
-      const subAgent = await manager.spawnSubAgent(agent, { 
-        agentType: 'test', 
-        headless: true 
+      const subAgent = await manager.spawnSubAgent(agent, 'test', {
+        headless: true
       });
       
       expect(subAgent).toBeInstanceOf(Agent);

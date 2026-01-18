@@ -1,7 +1,5 @@
-import { z } from "zod";
-import {
-  HumanInterfaceRequestSchema,
-} from "./HumanInterfaceRequest.js";
+import {z} from "zod";
+import {QuestionSchema} from "./question.ts";
 
 export const ResetWhatSchema = z.enum(["context", "chat", "history", "settings", "memory", "costs"]);
 export type ResetWhat = z.infer<typeof ResetWhatSchema>;
@@ -26,6 +24,8 @@ export const OutputArtifactSchema = z.object({
   body: z.string(),
   timestamp: z.number()
 })
+
+export type Artifact = z.input<typeof OutputArtifactSchema>;
 
 export const OutputChatSchema = z.object({
   type: z.literal("output.chat"),
@@ -62,26 +62,14 @@ export const InputReceivedSchema = z.object({
   requestId: z.string(),
 });
 
+export type InputReceived = z.input<typeof InputReceivedSchema>;
+
 export const InputHandledSchema = z.object({
   type: z.literal("input.handled"),
   timestamp: z.number(),
   message: z.string(),
   requestId: z.string(),
   status: z.enum(["success", "error", "cancelled"]),
-});
-
-export const HumanRequestSchema = z.object({
-  type: z.literal("human.request"),
-  timestamp: z.number(),
-  request: HumanInterfaceRequestSchema,
-  id: z.string(),
-});
-
-export const HumanResponseSchema = z.object({
-  type: z.literal("human.response"),
-  timestamp: z.number(),
-  requestId: z.string(),
-  response: z.any(),
 });
 
 export const ResetSchema = z.object({
@@ -96,6 +84,29 @@ export const AbortSchema = z.object({
   reason: z.string().optional(),
 });
 
+/* A question request is a request that immediately requires an answer from the user for a single form field
+* This is used for functionality such as when the user needs to immediately select a model or provider */
+export const QuestionResponseSchema = z.object({
+  type: z.literal("question.response"),
+  timestamp: z.number(),
+  requestId: z.string(),
+  result: z.any(),
+});
+
+export const QuestionRequestSchema = z.object({
+  type: z.literal("question.request"),
+  immediate: z.boolean().default(true),
+  timestamp: z.number(),
+  requestId: z.string(),
+  message: z.string(),
+  question: QuestionSchema,
+  autoSubmitAfter: z.number().default(0)
+});
+
+export type QuestionRequest = z.input<typeof QuestionRequestSchema>;
+export type ParsedQuestionRequest = z.output<typeof QuestionRequestSchema>
+export type QuestionResponse = z.output<typeof QuestionResponseSchema>;
+
 export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   AgentCreatedSchema,
   AgentStoppedSchema,
@@ -107,10 +118,10 @@ export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   OutputErrorSchema,
   InputReceivedSchema,
   InputHandledSchema,
-  HumanRequestSchema,
-  HumanResponseSchema,
+  QuestionRequestSchema,
+  QuestionResponseSchema,
   ResetSchema,
   AbortSchema,
 ]);
 
-export type AgentEventEnvelope = z.infer<typeof AgentEventEnvelopeSchema>;
+export type AgentEventEnvelope = z.output<typeof AgentEventEnvelopeSchema>;

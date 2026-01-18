@@ -1,7 +1,8 @@
+import omit from "@tokenring-ai/utility/object/omit";
 import {JsonRPCSchema} from "@tokenring-ai/web-host/jsonrpc/types";
-import { z } from "zod";
-import {AgentEventEnvelopeSchema, HumanRequestSchema} from "../AgentEvents.ts";
-
+import {z} from "zod";
+import {AgentEventEnvelopeSchema, QuestionRequestSchema, QuestionResponseSchema} from "../AgentEvents.ts";
+import {AgentConfigSchema} from "../schema.ts";
 
 export default {
   path: "/rpc/agent",
@@ -16,6 +17,7 @@ export default {
         name: z.string(),
         description: z.string(),
         debugEnabled: z.boolean(),
+        config: z.object(omit(AgentConfigSchema.shape, ["workHandler"]))
       })
     },
     getAgentEvents: {
@@ -48,7 +50,7 @@ export default {
       result: z.object({
         idle: z.boolean(),
         busyWith: z.string().nullable(),
-        waitingOn: z.array(HumanRequestSchema),
+        waitingOn: z.array(QuestionRequestSchema),
         statusLine: z.string().nullable()
       })
     },
@@ -60,7 +62,7 @@ export default {
       result: z.object({
         idle: z.boolean(),
         busyWith: z.string().nullable(),
-        waitingOn: z.array(HumanRequestSchema),
+        waitingOn: z.array(QuestionRequestSchema),
         statusLine: z.string().nullable()
       })
     },
@@ -117,12 +119,12 @@ export default {
         requestId: z.string(),
       })
     },
-    sendHumanResponse: {
+    sendQuestionResponse: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
         requestId: z.string(),
-        response: z.any()
+        response: QuestionResponseSchema
       }),
       result: z.object({
         success: z.boolean(),

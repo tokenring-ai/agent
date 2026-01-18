@@ -1,5 +1,5 @@
+import {ContextItem, ParsedChatConfig} from "@tokenring-ai/chat/schema";
 import Agent from "../Agent.ts";
-import {ParsedChatConfig, ContextItem} from "@tokenring-ai/chat/schema";
 import AgentManager from "../services/AgentManager.ts";
 
 export default async function * getContextItems(input: string, chatConfig: ParsedChatConfig, params: {}, agent: Agent): AsyncGenerator<ContextItem> {

@@ -1,7 +1,7 @@
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.ts";
 import AgentLifecycleService from "../services/AgentLifecycleService.js";
 import {TokenRingAgentCommand} from "../types.ts";
-import markdownList from "@tokenring-ai/utility/string/markdownList";
 
 const description =
   "/hooks - List registered hooks or enable/disable hook execution." as const;

@@ -2,7 +2,6 @@ import {z} from "zod";
 import Agent from "../Agent.ts";
 import {AgentStateSlice} from "../types.ts";
 
-
 export const TodoStatusSchema = z.enum(["pending", "in_progress", "completed"]);
 
 export type TodoStatus = z.infer<typeof TodoStatusSchema>;
