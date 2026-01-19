@@ -149,6 +149,20 @@ export default {
       result: z.object({
         success: z.boolean(),
       })
+    },
+    getCommandHistory: {
+      type: "query",
+      input: z.object({
+        agentId: z.string(),
+      }),
+      result: z.array(z.string()),
+    },
+    getAvailableCommands: {
+      type: "query",
+      input: z.object({
+        agentId: z.string(),
+      }),
+      result: z.array(z.string()),
     }
   }
 } satisfies JsonRPCSchema;

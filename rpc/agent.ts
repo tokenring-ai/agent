@@ -6,7 +6,9 @@ import {ResetWhat} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
 import {AgentEventState} from "../state/agentEventState.js";
 import {AgentExecutionState} from "../state/agentExecutionState.ts";
+import {CommandHistoryState} from "../state/commandHistoryState.ts";
 import AgentRpcSchema from "./schema.ts";
+import AgentCommandService from "../services/AgentCommandService.ts";
 
 export default createJsonRPCEndpoint(AgentRpcSchema, {
   getAgent(args, app: TokenRingApp) {
@@ -146,4 +148,16 @@ export default createJsonRPCEndpoint(AgentRpcSchema, {
     agent.reset(args.what as ResetWhat[]);
     return { success: true };
   },
+
+  getCommandHistory(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    return agent.getState(CommandHistoryState).commands;
+  },
+
+  getAvailableCommands(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    return agent.requireServiceByType(AgentCommandService).getCommandNames();
+  }
 });
