@@ -236,10 +236,12 @@ export async function runSubAgent(
       };
     }
 
-    const [, childResult] = await Promise.all([
+    const childResult = await Promise.race([
       forwardParentEventsToChild(),
       forwardChildEventsToParent(),
     ]);
+
+    abortController.abort();
 
     if (! childResult) {
       if (timeoutExceeded) {
