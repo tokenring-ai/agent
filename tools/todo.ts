@@ -22,8 +22,6 @@ export function generateTodoListArtifact(todos: TodoItem[], agent: Agent): void 
     encoding: "text",
     mimeType: "text/markdown",
     body: `
-# Todo List
-
 ${todos.map(todo => todo.status === 'completed'
   ? `- [X] ${todo.content}` 
   : `- [ ] ${todo.content}${ todo.status === 'in_progress' ? ' (in_progress)' : ''}`

@@ -17,7 +17,17 @@ export const AgentConfigSchema = z.object({
   callable: z.boolean().default(true),
   minimumRunning: z.number().default(0),
   idleTimeout: z.number().default(0), // In seconds
-  maxRunTime: z.number().default(0) // In seconds
+  maxRunTime: z.number().default(0), // In seconds
+  subAgent: z.object({
+    forwardChatOutput: z.boolean().default(true),
+    forwardSystemOutput: z.boolean().default(true),
+    forwardHumanRequests: z.boolean().default(true),
+    forwardReasoning: z.boolean().default(false),
+    forwardInputCommands: z.boolean().default(true),
+    timeout: z.number().default(0),
+    maxResponseLength: z.number().default(500),
+    minContextLength: z.number().default(300),
+  }).prefault({})
 });
 
 export const AgentPackageConfigSchema = z

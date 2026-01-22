@@ -55,10 +55,6 @@ async function run(remainder: string, agent: Agent): Promise<void> {
     background: isBg,
     headless: agent.headless,
     command: `/work ${message}`,
-    forwardChatOutput: true,
-    forwardSystemOutput: true,
-    forwardHumanRequests: true,
-    forwardReasoning: true,
   }, agent, true);
 
   if (isBg) {

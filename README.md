@@ -17,6 +17,8 @@ The core agent orchestration system for TokenRing AI, enabling creation and mana
 - **Plugin Integration**: Automatic integration with TokenRing applications
 - **Form Support**: Complex form-based human input requests
 - **Idle/Max Runtime Management**: Automatic cleanup of idle or long-running agents
+- **Minimum Agent Count**: Maintain minimum number of agents per type
+- **Artifact Output**: Support for outputting artifacts (files, documents, etc.)
 
 ## Installation
 
@@ -32,12 +34,16 @@ The central agent implementation providing comprehensive AI agent functionality:
 
 ```typescript
 import Agent from "@tokenring-ai/agent";
+import TokenRingApp from "@tokenring-ai/app";
 
+const app = new TokenRingApp();
+
+// Create agent
 const agent = new Agent(app, {
   config: {
     name: "My Agent",
     description: "Custom development agent",
-    category: "development", 
+    category: "development",
     visual: { color: "blue" },
     type: "interactive",
     initialCommands: ["/help"]
@@ -85,22 +91,28 @@ const agent = new Agent(app, {
 - `emit(event)`: Emit custom events
 
 **Human Interface:**
-- `askHuman<T>(request)`: Request human input
-- `sendHumanResponse(requestId, response)`: Send human response
+- `askForConfirmation({ message, label, default, timeout })`: Request confirmation
+- `askForText({ message, label, masked })`: Request text input
+- `askQuestion<T>(question)`: Request human input with various question types
+- `sendQuestionResponse(requestId, response)`: Send human response
 
 **Lifecycle Management:**
 - `requestAbort(reason)`: Abort current operations
 - `getAbortSignal()`: Get abort signal
-- `getIdleDuration()`: Get time since last activity
-- `getRunDuration()`: Get total run duration
+- `getIdleDuration()`: Get time since last activity (returns number in milliseconds)
+- `getRunDuration()`: Get total run duration (returns number in milliseconds)
 - `reset(what)`: Reset specific state components
 - `shutdown(reason)`: Shutdown agent completely
+- `run(signal)`: Start agent execution loop
 
 **Configuration Access:**
 - `getAgentConfigSlice<T>(key, schema)`: Get config value with validation
 
 **Checkpoint Creation:**
 - `static createAgentFromCheckpoint(app, checkpoint, {headless})`: Create agent from checkpoint
+
+**Output Artifacts:**
+- `artifactOutput({name, encoding, mimeType, body})`: Emit output artifact
 
 ### AgentManager Service
 
@@ -122,9 +134,9 @@ agentManager.addAgentConfigs({
 });
 
 // Spawn agents
-const agent = await agentManager.spawnAgent({ 
-  agentType: "myAgent", 
-  headless: false 
+const agent = await agentManager.spawnAgent({
+  agentType: "myAgent",
+  headless: false
 });
 ```
 
@@ -134,7 +146,7 @@ const agent = await agentManager.spawnAgent({
 - `getAgentTypes()`: Get all available agent types
 - `getAgentConfigs()`: Get all agent configurations
 - `spawnAgent({agentType, headless})`: Create new agent
-- `spawnSubAgent(agent, {agentType, headless})`: Create sub-agent
+- `spawnSubAgent(agent, {agentType, headless, config})`: Create sub-agent
 - `spawnAgentFromConfig(config, {headless})`: Create agent from config
 - `spawnAgentFromCheckpoint(app, checkpoint, {headless})`: Create from checkpoint
 - `getAgent(id)`: Get agent by ID
@@ -142,9 +154,10 @@ const agent = await agentManager.spawnAgent({
 - `deleteAgent(agent)`: Shutdown and remove agent
 
 **Automatic Lifecycle Management:**
-- Idle agent cleanup every 60 seconds
-- Configurable `idleTimeout` per agent (default: 86400 seconds)
+- Idle agent cleanup every 15 seconds
+- Configurable `idleTimeout` per agent (default: 0 = no limit)
 - Configurable `maxRunTime` per agent (default: 0 = no limit)
+- Configurable `minimumRunning` per agent type (default: 0 = no minimum)
 
 ### AgentCommandService Service
 
@@ -216,7 +229,7 @@ const agent = new Agent(app, {
   config: {
     name: "My Agent",
     description: "Custom development agent",
-    category: "development", 
+    category: "development",
     visual: { color: "blue" },
     type: "interactive",
     initialCommands: ["/help"]
@@ -245,17 +258,22 @@ agent.subscribeState(AgentEventState, (state) => {
 class MyCustomState implements AgentStateSlice {
   name = "MyCustomState";
   data: string[] = [];
-  
+
   reset(what: ResetWhat[]) {
     if (what.includes('chat')) this.data = [];
   }
-  
+
   show() {
     return [`Data items: ${this.data.length}`];
   }
-  
-  serialize() { return { data: this.data }; }
-  deserialize(obj: any) { this.data = obj.data || []; }
+
+  serialize() {
+    return { data: this.data };
+  }
+
+  deserialize(obj: any) {
+    this.data = obj.data || [];
+  }
 }
 
 // Use state in agent
@@ -272,8 +290,8 @@ console.log("Checkpoint:", checkpoint);
 
 // Restore from checkpoint
 const restoredAgent = await Agent.createAgentFromCheckpoint(
-  app, 
-  checkpoint, 
+  app,
+  checkpoint,
   { headless: false }
 );
 ```
@@ -304,6 +322,7 @@ const result = await runSubAgent({
   agentType: "code-assistant",
   headless: true,
   command: "/work Analyze this code: function test() { return true; }",
+  background: false,
   forwardChatOutput: true,
   forwardSystemOutput: true,
   forwardReasoning: true,
@@ -311,8 +330,7 @@ const result = await runSubAgent({
   forwardInputCommands: true,
   timeout: 60,
   maxResponseLength: 1000,
-  minContextLength: 300,
-  background: false
+  minContextLength: 300
 }, agent, true);
 
 console.log("Result:", result.status, result.response);
@@ -357,25 +375,30 @@ lifecycleService.enableHooks(["myPlugin/afterChatCompletion"], agent);
 
 ```typescript
 // Simple confirmation
-const confirmed = await agent.askHuman({
-  type: "askForConfirmation",
-  message: "Are you sure you want to proceed?"
+const confirmed = await agent.askForConfirmation({
+  message: "Are you sure you want to proceed?",
+  label: "Confirm?",
+  default: false,
+  timeout: 30
 });
 
 // Text input
-const text = await agent.askHuman({
-  type: "askForText",
-  message: "Enter your name:"
+const text = await agent.askForText({
+  message: "Enter your name:",
+  label: "Name",
+  masked: false
 });
 
 // Single tree selection
-const selection = await agent.askHuman({
-  type: "askForSingleTreeSelection",
-  title: "Choose an option",
-  tree: {
-    name: "root",
-    hasChildren: true,
-    children: [
+const selection = await agent.askQuestion({
+  message: "Choose an option",
+  question: {
+    type: 'treeSelect',
+    label: 'Select',
+    minimumSelections: 1,
+    maximumSelections: 1,
+    defaultValue: ['1'],
+    tree: [
       { name: "Option 1", value: "opt1" },
       { name: "Option 2", value: "opt2" }
     ]
@@ -383,39 +406,70 @@ const selection = await agent.askHuman({
 });
 
 // Complex form
-const formData = await agent.askHuman({
-  type: "askForForm",
-  name: "contactForm",
-  description: "Please fill out the contact form",
-  sections: [
-    {
-      name: "personal",
-      description: "Personal Information",
-      fields: [
-        { type: "text", label: "Full Name", key: "name", required: true },
-        { type: "text", label: "Email", key: "email", required: true }
-      ]
-    },
-    {
-      name: "preferences",
-      description: "Preferences",
-      fields: [
-        { 
-          type: "selectOne", 
-          label: "Category", 
-          key: "category", 
-          options: [
-            { label: "Support", value: "support" },
-            { label: "Sales", value: "sales" }
-          ]
+const formData = await agent.askQuestion({
+  message: "Fill out the contact form",
+  question: {
+    type: 'form',
+    sections: [
+      {
+        name: "personal",
+        description: "Personal Information",
+        fields: {
+          name: {
+            type: 'text',
+            label: 'Full Name',
+            key: 'name',
+            required: true
+          },
+          email: {
+            type: 'text',
+            label: 'Email',
+            key: 'email',
+            required: true
+          }
         }
-      ]
-    }
-  ]
+      },
+      {
+        name: "preferences",
+        description: "Preferences",
+        fields: {
+          category: {
+            type: 'selectOne',
+            label: 'Category',
+            key: 'category',
+            options: [
+              { label: 'Support', value: 'support' },
+              { label: 'Sales', value: 'sales' }
+            ]
+          }
+        }
+      }
+    ]
+  }
 });
 
 // Handle human response
-agent.sendHumanResponse(requestId, selection);
+agent.sendQuestionResponse(requestId, { result: selection });
+```
+
+### Output Artifacts
+
+```typescript
+// Emit an artifact (e.g., markdown file)
+agent.artifactOutput({
+  name: "report.md",
+  encoding: "text",
+  mimeType: "text/markdown",
+  body: `# Report\n\nGenerated content...`
+});
+
+// Emit binary artifact
+agent.artifactOutput({
+  name: "image.png",
+  encoding: "base64",
+  mimeType: "image/png",
+  body: "base64_encoded_data..."
+});
 ```
 
 ### Cost Tracking
@@ -443,6 +497,95 @@ agent.setBusyWith(null);
 agent.setStatusLine(null);
 ```
 
+### Agent Commands
+
+The agent package includes several built-in commands:
+
+#### `/agent` - Agent Management
+```typescript
+// List available agent types
+/agent types
+
+// List running agents
+/agent list
+
+// Run an agent
+/agent run teamLeader analyze the codebase
+
+// Run agent in background
+/agent run --bg researcher find information about AI
+
+// Shutdown agent
+/agent shutdown
+/agent shutdown <agent-id>
+```
+
+#### `/cost` - Cost Tracking
+```typescript
+// Display total costs incurred by the agent
+/cost
+```
+
+#### `/help` - Help System
+```typescript
+// Display help for all commands
+/help
+
+// Display help for specific command
+/help <command>
+```
+
+#### `/hook` - Hook Management
+```typescript
+// List registered hooks
+/hook list
+
+// Enable hooks
+/hook enable <hook-name>
+
+// Disable hooks
+/hook disable <hook-name>
+```
+
+#### `/reset` - State Reset
+```typescript
+// Reset specific state components
+/reset chat
+/reset memory
+/reset settings
+/reset all
+/reset chat memory
+/reset chat memory settings
+```
+
+#### `/settings` - Settings Display
+```typescript
+// Display agent settings
+/settings
+```
+
+#### `/work` - Work Handler
+```typescript
+// Execute work handler
+/work <task>
+```
+
+#### `/debug` - Debug Commands
+```typescript
+// Debug logging controls
+/debug logging on
+/debug logging off
+
+// View debug markdown
+/debug markdown
+
+// View debug services
+/debug services [limit]
+
+// View debug questions
+/debug questions <type>
+```
+
 ## Configuration
 
 ### AgentConfig Schema
@@ -457,13 +600,25 @@ const agentConfig = {
     color: string                  // UI color theme
   },
   workHandler?: Function,          // Custom work handler
+  createMessage: string,           // Message displayed when agent is created (default: "Agent Created")
   initialCommands: string[],       // Startup commands
   persistent?: boolean,            // Enable checkpointing
   storagePath?: string,            // Storage location
   type: "interactive" | "background", // Agent type
   callable?: boolean,              // Enable tool calls (default: true)
-  idleTimeout?: number,            // Idle timeout in seconds (default: 86400)
-  maxRunTime?: number              // Max runtime in seconds (default: 0 = unlimited)
+  idleTimeout?: number,            // Idle timeout in milliseconds (default: 0 = no limit)
+  maxRunTime?: number,             // Max runtime in milliseconds (default: 0 = unlimited)
+  minimumRunning?: number          // Minimum number of agents to keep running (default: 0)
+};
+```
+
+### AgentManager Configuration
+
+```typescript
+const agentManagerConfig = {
+  cleanupInterval: 15000,          // Cleanup check interval in milliseconds (default: 15000)
+  // Per-agent configuration via agent config:
+  // idleTimeout, maxRunTime, minimumRunning
 };
 ```
 
@@ -481,6 +636,7 @@ const agentConfig = {
 - `output.info` - Informational messages
 - `output.warning` - Warning messages
 - `output.error` - Error messages
+- `output.artifact` - Output artifact (files, documents, etc.)
 
 **State Events:**
 - `reset` - State reset
@@ -515,7 +671,7 @@ const config = {
     myAgent: {
       name: "My Agent",
       description: "Custom agent",
-      category: "development", 
+      category: "development",
       visual: { color: "blue" },
       type: "interactive"
     }
@@ -549,9 +705,21 @@ The agent package automatically integrates with TokenRing applications:
 
 | Endpoint | Request Params | Response |
 |----------|---------------|----------|
+| `getAgent` | `{agentId}` | Agent details |
+| `getAgentEvents` | `{agentId, fromPosition}` | Events from position |
+| `streamAgentEvents` | `{agentId, fromPosition}` | Streaming events |
+| `getAgentExecutionState` | `{agentId}` | Execution state |
+| `streamAgentExecutionState` | `{agentId}` | Streaming execution state |
 | `listAgents` | None | Array of agent information |
-| `spawnAgent` | `{agentType, headless}` | Created agent details |
-| `sendMessage` | `{agentId, message}` | Response from agent |
+| `getAgentTypes` | None | Array of agent types |
+| `createAgent` | `{agentType, headless}` | Created agent details |
+| `deleteAgent` | `{agentId}` | Success status |
+| `sendInput` | `{agentId, message}` | Request ID |
+| `sendQuestionResponse` | `{agentId, requestId, response}` | Success status |
+| `abortAgent` | `{agentId, reason}` | Success status |
+| `resetAgent` | `{agentId, what}` | Success status |
+| `getCommandHistory` | `{agentId}` | Command history |
+| `getAvailableCommands` | `{agentId}` | Available command names |
 
 ## State Management
 
@@ -561,6 +729,7 @@ Agents support multiple state slices for different concerns:
 
 **Built-in State Slices:**
 - **AgentEventState**: Event history and current state
+- **AgentExecutionState**: Execution state (busy status, status line, input queue, idle state)
 - **CommandHistoryState**: Command execution history
 - **CostTrackingState**: Resource usage tracking
 - **HooksState**: Hook configuration and enabled hooks
@@ -593,50 +762,108 @@ const checkpoint = agent.generateCheckpoint();
 
 // Restore from checkpoint
 const restoredAgent = await Agent.createAgentFromCheckpoint(
-  app, 
-  checkpoint, 
+  app,
+  checkpoint,
   { headless: false }
 );
 ```
 
-## Human Interface Types
+### AgentExecutionState
 
-### Form Fields
+Tracks the execution state of an agent:
 
 ```typescript
-// Text field
-{ type: 'text', label: 'Name', key: 'name', required: true }
-
-// Select one field
-{ 
-  type: 'selectOne', 
-  label: 'Category', 
-  key: 'category', 
-  options: [{ label: 'A', value: 'a' }, { label: 'B', value: 'b' }] 
+interface AgentExecutionState {
+  busyWith: string | null;        // Currently busy with operation
+  statusLine: string | null;      // Status line indicator
+  waitingOn: Array<ParsedQuestionRequest>; // Pending human requests
+  inputQueue: Array<InputReceived>; // Input queue
+  currentlyExecuting: {           // Currently executing operation
+    requestId: string;
+    abortController: AbortController;
+  } | null;
 }
 
-// Select many field
-{ 
-  type: 'selectMany', 
-  label: 'Tags', 
-  key: 'tags', 
-  options: [{ label: 'Tag 1', value: 't1' }] 
+// Properties
+state.idle: boolean;              // Whether agent is idle (computed: inputQueue.length === 0)
+```
+
+### ResetWhat Types
+
+The reset operation supports multiple target types:
+
+```typescript
+type ResetWhat = "context" | "chat" | "history" | "settings" | "memory" | "costs";
+```
+
+## Human Interface Types
+
+### Question Types
+
+The agent supports several question types for human interaction:
+
+**Text Question:**
+```typescript
+{
+  type: 'text',
+  label: 'Name',
+  description: 'Enter your name',
+  required: true,
+  defaultValue: '',
+  expectedLines: 1,
+  masked: false,
+  autoSubmitAfter: number
 }
+```
 
-// Directory picker
-{ type: 'directory', label: 'Folder', key: 'folder' }
+**Tree Select Question:**
+```typescript
+{
+  type: 'treeSelect',
+  label: 'Choose an option',
+  minimumSelections: 1,
+  maximumSelections: 1,
+  defaultValue: [],
+  allowFreeform: false,
+  tree: [
+    {
+      name: "Option 1",
+      value: "opt1",
+      children: [...]
+    }
+  ]
+}
+```
 
-// File picker
-{ type: 'file', label: 'File', key: 'file' }
+**File Select Question:**
+```typescript
+{
+  type: 'fileSelect',
+  allowFiles: true,
+  allowDirectories: true,
+  label: 'Select files',
+  description: 'Choose files or folders',
+  minimumSelections: 1,
+  maximumSelections: 5,
+  defaultValue: []
+}
+```
 
-// Multiple file picker
-{ type: 'multipleFile', label: 'Files', key: 'files' }
-
-// Tree selection (single)
-{ type: 'askForSingleTreeSelection', title: 'Select', tree: treeLeaf }
-
-// Tree selection (multiple)
-{ type: 'askForMultipleTreeSelection', title: 'Select', tree: treeLeaf }
+**Form Question:**
+```typescript
+{
+  type: 'form',
+  sections: [
+    {
+      name: "personal",
+      description: "Personal Information",
+      fields: {
+        name: { type: 'text', label: 'Full Name', key: 'name', required: true },
+        email: { type: 'text', label: 'Email', key: 'email', required: true }
+      }
+    }
+  ]
+}
 ```
 
 ### Tree Leaf Structure
@@ -645,8 +872,7 @@ const restoredAgent = await Agent.createAgentFromCheckpoint(
 {
   name: string,
   value?: string,
-  hasChildren?: boolean,
-  children?: TreeLeaf[] | (() => TreeLeaf[] | Promise<TreeLeaf[]>)
+  children?: Array<TreeLeaf>
 }
 ```
 
@@ -685,6 +911,7 @@ pkg/agent/
 ├── AgentEvents.ts                    # Event type definitions
 ├── HumanInterfaceRequest.ts          # Human interaction types
 ├── types.ts                          # Core type definitions
+├── schema.ts                         # Agent configuration schema
 ├── index.ts                          # Package exports
 ├── plugin.ts                         # TokenRing plugin integration
 ├── package.json                      # Package configuration
@@ -703,13 +930,14 @@ pkg/agent/
 │       ├── logging.ts                # Debug logging controls
 │       ├── markdown.ts               # Markdown rendering test
 │       ├── services.ts               # Service logs display
-│       └── index.ts                  # Main debug command
+│       └── questions.ts              # Debug questions display
 ├── services/                         # Core services
 │   ├── AgentManager.ts               # Agent management service
 │   ├── AgentLifecycleService.ts      # Lifecycle and hooks service
 │   └── AgentCommandService.ts        # Command execution service
 ├── state/                            # State management
 │   ├── agentEventState.ts            # Event state management
+│   ├── agentExecutionState.ts        # Execution state management
 │   ├── commandHistoryState.ts        # Command history tracking
 │   ├── costTrackingState.ts          # Cost tracking state
 │   ├── hooksState.ts                 # Hook configuration state

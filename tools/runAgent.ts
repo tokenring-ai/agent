@@ -13,9 +13,6 @@ export async function execute(
     agentType,
     message,
     context,
-    forwardChatOutput = true,
-    forwardSystemOutput = true,
-    timeout,
   }: z.infer<typeof inputSchema>,
   parentAgent: Agent,
 ): Promise<{
@@ -35,12 +32,6 @@ export async function execute(
       agentType,
       headless: parentAgent.headless,
       command: `/work ${message}${context ? `\n\nImportant Context:\n${context}` : ''}`,
-      forwardChatOutput,
-      forwardSystemOutput,
-      forwardHumanRequests: true, // Always forward human requests for the tool
-      timeout,
-      maxResponseLength: 500,
-      minContextLength: 300,
     },
     parentAgent,
     true // Auto-cleanup
@@ -62,26 +53,6 @@ const inputSchema = z.object({
     .optional()
     .describe(
       "Important contextual information to pass to the agent, such as file names, task plans, descriptions, instructions, etc. This information is critical to proper agent functionality, and should be detailed and comprehensive. It needs to explain absolutely everything to the agent that will be dispatched. The ONLY information this agent has is the information provided here.",
-    ),
-  forwardChatOutput: z
-    .boolean()
-    .optional()
-    .default(true)
-    .describe(
-      "Whether to forward the sub-agent's chat output to the parent agent. Set to false for silent execution.",
-    ),
-  forwardSystemOutput: z
-    .boolean()
-    .optional()
-    .default(true)
-    .describe(
-      "Whether to forward the sub-agent's system messages to the parent agent.",
-    ),
-  timeout: z
-    .number()
-    .optional()
-    .describe(
-      "Custom timeout in seconds for the sub-agent execution. Overrides the default agent timeout.",
     ),
 });
 

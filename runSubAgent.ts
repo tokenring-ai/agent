@@ -1,11 +1,13 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import AgentManager from "@tokenring-ai/agent/services/AgentManager";
 import {AgentEventState} from "@tokenring-ai/agent/state/agentEventState";
+import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
+import type {ParsedAgentConfig} from "./schema.ts";
 import {AgentExecutionState} from "./state/agentExecutionState.ts";
 
-export interface RunSubAgentOptions {
+export type RunSubAgentOptions = Partial<ParsedAgentConfig["subAgent"]> & {
   /** The type of agent to create */
   agentType: string;
   /** Whether to run the agent in the background and return immediately (default: false) */
@@ -14,27 +16,7 @@ export interface RunSubAgentOptions {
   headless: boolean;
   /** The command to send to the agent */
   command: string;
-  /** The message to send to the agent */
-  //message: string;
-  /** Additional context to include with the message */
-  //context?: string;
-  /** Whether to forward input commands to the parent agent (default: true) */
-  forwardInputCommands?: boolean;
-  /** Whether to forward chat output to the parent agent (default: true) */
-  forwardChatOutput?: boolean;
-  /** Whether to forward system messages to the parent agent (default: true) */
-  forwardSystemOutput?: boolean;
-  /** Whether to forward human requests to the parent agent (default: true) */
-  forwardHumanRequests?: boolean;
-  /** Whether to forward reasoning output to the parent agent (default: true) */
-  forwardReasoning?: boolean;
-  /** Custom timeout in seconds (overrides agent config if provided) */
-  timeout?: number;
-  /** Maximum length for response truncation (default: 500) */
-  maxResponseLength?: number;
-  /** Minimum context length when truncating (default: 300) */
-  minContextLength?: number;
-}
+};
 
 export interface RunSubAgentResult {
   /** Status of the agent execution */
@@ -89,15 +71,15 @@ export async function runSubAgent(
     agentType,
     headless,
     command,
-    forwardChatOutput = true,
-    forwardReasoning = true,
-    forwardSystemOutput = true,
-    forwardHumanRequests = true,
-    forwardInputCommands = true,
-    timeout,
-    maxResponseLength = 500,
-    minContextLength = 300,
-  } = options;
+    forwardChatOutput,
+    forwardReasoning,
+    forwardSystemOutput,
+    forwardHumanRequests,
+    forwardInputCommands,
+    timeout: timeoutSeconds,
+    maxResponseLength,
+    minContextLength,
+  } = deepMerge(options, parentAgent.config.subAgent);
 
   const agentManager = parentAgent.requireServiceByType(AgentManager);
   const parentEventCursor = parentAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
@@ -108,7 +90,6 @@ export async function runSubAgent(
 
   const abortController = new AbortController();
 
-  const timeoutSeconds = timeout ?? parentAgent.config.maxRunTime;
   const timer = timeoutSeconds > 0 ? setTimeout(() => {
     timeoutExceeded = true;
     abortController.abort();
