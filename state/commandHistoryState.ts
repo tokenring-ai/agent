@@ -1,8 +1,14 @@
 import type {ResetWhat} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
+import {z} from "zod";
 
-export class CommandHistoryState implements AgentStateSlice {
+const serializationSchema = z.object({
+  commands: z.array(z.string()).default([])
+}).prefault({});
+
+export class CommandHistoryState implements AgentStateSlice<typeof serializationSchema> {
   name = "CommandHistoryState";
+  serializationSchema = serializationSchema;
   commands: string[] = [];
 
   constructor({commands}: { commands?: string[] }) {
@@ -15,14 +21,14 @@ export class CommandHistoryState implements AgentStateSlice {
     }
   }
 
-  serialize(): object {
+  serialize(): z.output<typeof serializationSchema> {
     return {
       commands: this.commands,
     };
   }
 
-  deserialize(data: any): void {
-    this.commands = data.commands ? [...data.commands] : [];
+  deserialize(data: z.output<typeof serializationSchema>): void {
+    this.commands = data.commands;
   }
 
   show(): string[] {

@@ -98,4 +98,5 @@ export default {
   inputSchema,
   execute,
   requiredContextHandlers,
+  skipArtifactOutput: true
 } satisfies TokenRingToolDefinition<typeof inputSchema>;

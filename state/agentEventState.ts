@@ -1,12 +1,18 @@
-import {AgentEventEnvelope, ResetWhat} from "../AgentEvents.js";
+import {AgentEventEnvelope, AgentEventEnvelopeSchema, ResetWhat} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
+import {z} from "zod";
+
+const serializationSchema = z.object({
+  events: z.array(AgentEventEnvelopeSchema).default([])
+}).prefault({});
 
 export type AgentEventCursor = {
   position: number,
 }
 
-export class AgentEventState implements AgentStateSlice {
+export class AgentEventState implements AgentStateSlice<typeof serializationSchema> {
   name = "AgentEventState";
+  serializationSchema = serializationSchema;
   events: AgentEventEnvelope[] = [];
 
   constructor({events}: { events?: AgentEventEnvelope[] }) {
@@ -21,13 +27,13 @@ export class AgentEventState implements AgentStateSlice {
     // Doesn't reset
   }
 
-  serialize(): object {
+  serialize(): z.output<typeof serializationSchema> {
     return {
       events: this.events
     };
   }
 
-  deserialize(data: any): void {
+  deserialize(data: z.output<typeof serializationSchema>): void {
      // When restoring the event state, we need to clean up the events to put the agent back into a usable state.
     const events = data.events || [];
     const handledEvents = new Set<string>();

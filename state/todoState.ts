@@ -13,8 +13,13 @@ export const TodoItemSchema = z.object({
 
 export type TodoItem = z.infer<typeof TodoItemSchema>;
 
-export class TodoState implements AgentStateSlice {
+const serializationSchema = z.object({
+  todos: z.array(TodoItemSchema).default([])
+}).prefault({});
+
+export class TodoState implements AgentStateSlice<typeof serializationSchema> {
   name = "TodoState";
+  serializationSchema = serializationSchema;
   readonly todos: TodoItem[] = [];
 
   constructor({}) {}
@@ -31,13 +36,13 @@ export class TodoState implements AgentStateSlice {
     // Don't reset on general reset
   }
 
-  serialize(): object {
+  serialize(): z.output<typeof serializationSchema> {
     return {
       todos: this.todos,
     };
   }
 
-  deserialize(data: any): void {
+  deserialize(data: z.output<typeof serializationSchema>): void {
     this.todos.splice(0, this.todos.length, ...data.todos || []);
   }
 

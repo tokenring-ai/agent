@@ -25,7 +25,7 @@ export type HookCallback = (
   agent: Agent,
   ...args: any[]
 ) => Promise<void> | void;
-export type AgentStateSlice = SerializableStateSlice & {
+export type AgentStateSlice<SerializationSchema> = SerializableStateSlice<SerializationSchema> & {
   reset?: (what: ResetWhat[]) => void;
   show: () => string[];
   transferStateFromParent?: (agent: Agent) => void;

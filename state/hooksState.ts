@@ -1,8 +1,14 @@
 import type {ResetWhat} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
+import {z} from "zod";
 
-export class HooksState implements AgentStateSlice {
+const serializationSchema = z.object({
+  enabledHooks: z.array(z.string()).default([])
+}).prefault({});
+
+export class HooksState implements AgentStateSlice<typeof serializationSchema> {
   name = "HooksState";
+  serializationSchema = serializationSchema;
   enabledHooks: string[] = [];
 
   constructor({enabledHooks = []}: { enabledHooks?: string[] } = {}) {
@@ -15,14 +21,14 @@ export class HooksState implements AgentStateSlice {
     }
   }
 
-  serialize(): object {
+  serialize(): z.output<typeof serializationSchema> {
     return {
       enabledHooks: this.enabledHooks,
     };
   }
 
-  deserialize(data: any): void {
-    this.enabledHooks = data.enabledHooks ? [...data.enabledHooks] : [];
+  deserialize(data: z.output<typeof serializationSchema>): void {
+    this.enabledHooks = data.enabledHooks;
   }
 
   show(): string[] {

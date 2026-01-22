@@ -1,13 +1,19 @@
 import type {ResetWhat} from "../AgentEvents.ts";
 import type {AgentStateSlice} from "../types.ts";
+import {z} from "zod";
 
 type Costs = Record<string, number>;
 
-export class CostTrackingState implements AgentStateSlice {
+const serializationSchema = z.object({
+  costs: z.record(z.string(), z.number()).default({})
+}).prefault({});
+
+export class CostTrackingState implements AgentStateSlice<typeof serializationSchema> {
   name = "CostTrackingState";
+  serializationSchema = serializationSchema;
   costs: Costs;
 
-  constructor(private initialCosts:Costs = {}) {
+  constructor(initialCosts:Costs = {}) {
     this.costs = initialCosts;
   }
 
@@ -17,12 +23,12 @@ export class CostTrackingState implements AgentStateSlice {
     }
   }
 
-  serialize(): object {
-    return this.costs;
+  serialize(): z.output<typeof serializationSchema> {
+    return { costs: this.costs };
   }
 
-  deserialize(data: any): void {
-    this.costs = data
+  deserialize(data: z.output<typeof serializationSchema>): void {
+    this.costs = data.costs;
   }
 
   show(): string[] {

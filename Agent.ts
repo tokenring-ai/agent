@@ -23,7 +23,7 @@ export default class Agent {
   requireServiceByType;
   getServiceByType;
 
-  stateManager = new StateManager<AgentStateSlice>();
+  stateManager = new StateManager<AgentStateSlice<any>>();
   initializeState = this.stateManager.initializeState.bind(this.stateManager);
   mutateState = this.stateManager.mutateState.bind(this.stateManager);
   getState = this.stateManager.getState.bind(this.stateManager);
@@ -365,7 +365,7 @@ export default class Agent {
       });
 
       if (state.currentlyExecuting) {
-        state.currentlyExecuting.abortController.abort(reason || "Abort requested");
+        state.currentlyExecuting.abortController.abort(reason ?? "Abort requested");
       }
     });
   }
