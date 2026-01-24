@@ -4,6 +4,7 @@ import Agent from "../Agent.js";
 import {runSubAgent} from "../runSubAgent.ts";
 
 const name = "agent_run";
+const displayName = "Agent/runAgent";
 
 /**
  * Creates a new agent, sends it a message, and waits for the response
@@ -59,5 +60,5 @@ const inputSchema = z.object({
 const requiredContextHandlers= ["available-agents"];
 
 export default {
-  name, description, inputSchema, execute, requiredContextHandlers
+  name, displayName, description, inputSchema, execute, requiredContextHandlers
 } satisfies TokenRingToolDefinition<typeof inputSchema>;

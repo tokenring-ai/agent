@@ -14,6 +14,7 @@ export type TokenRingAgentCommand = {
 };
 export type HookConfig = {
   name: string;
+  displayName: string;
   description: string;
   beforeChatCompletion?: HookCallback;
   afterChatCompletion?: HookCallback;

@@ -4,6 +4,7 @@ import Agent from "../Agent.js";
 import {TodoItem, TodoState} from "../state/todoState.js";
 
 const name = "todo";
+const displayName = "Agent/todo";
 
 export function formatTodoList(todos: TodoItem[]): string {
   // Format the todo list for the LLM
@@ -94,6 +95,7 @@ const requiredContextHandlers: string[] = ['todo-list'];
 
 export default {
   name,
+  displayName,
   description,
   inputSchema,
   execute,
