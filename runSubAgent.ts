@@ -76,6 +76,7 @@ export async function runSubAgent(
     forwardSystemOutput,
     forwardHumanRequests,
     forwardInputCommands,
+    forwardArtifacts,
     timeout: timeoutSeconds,
     maxResponseLength,
     minContextLength,
@@ -206,6 +207,24 @@ export async function runSubAgent(
                   state.events.push(event);
                 })
               }
+              break;
+            case "agent.created":
+              parentAgent.infoMessage(`${agentType} > Agent Created: ${event.message}`);
+              break;
+            case "agent.stopped":
+              parentAgent.infoMessage(`${agentType} > Agent Stopped: ${event.message}`);
+              break;
+            case "output.artifact":
+              if (forwardArtifacts) {
+                parentAgent.artifactOutput(event);
+              }
+              break;
+            case "reset":
+              parentAgent.infoMessage(`${agentType} > Agent Reset: ${event.what}`);
+              break;
+            default:
+              // noinspection JSUnusedLocalSymbols
+              const foo: never = event;
               break;
           }
         }
