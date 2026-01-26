@@ -22,10 +22,6 @@ export class AgentExecutionState implements AgentStateSlice<typeof serialization
     return this.inputQueue.length === 0;
   }
 
-  reset(what: ResetWhat[]): void {
-    // Doesn't reset
-  }
-
   serialize(): z.output<typeof serializationSchema> {
     return {};
   }

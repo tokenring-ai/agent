@@ -1,5 +1,6 @@
 import {TokenRingPlugin} from "@tokenring-ai/app";
 import {ChatService} from "@tokenring-ai/chat";
+import {RpcService} from "@tokenring-ai/rpc";
 import {WebHostService} from "@tokenring-ai/web-host";
 import JsonRpcResource from "@tokenring-ai/web-host/JsonRpcResource";
 import {z} from "zod";
@@ -40,8 +41,8 @@ export default {
 
     app.addServices(new AgentLifecycleService());
 
-    app.waitForService(WebHostService, webHostService => {
-      webHostService.registerResource("Agent RPC endpoint", new JsonRpcResource(app, agentRPC));
+    app.waitForService(RpcService, rpcService => {
+      rpcService.registerEndpoint(agentRPC);
     });
   },
   config: packageConfigSchema

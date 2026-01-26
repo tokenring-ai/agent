@@ -1,10 +1,11 @@
 import omit from "@tokenring-ai/utility/object/omit";
-import {JsonRPCSchema} from "@tokenring-ai/web-host/jsonrpc/types";
+import {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
 import {AgentEventEnvelopeSchema, QuestionRequestSchema, QuestionResponseSchema} from "../AgentEvents.ts";
 import {AgentConfigSchema} from "../schema.ts";
 
 export default {
+  name: "Agent RPC",
   path: "/rpc/agent",
   methods: {
     getAgent: {
@@ -165,4 +166,4 @@ export default {
       result: z.array(z.string()),
     }
   }
-} satisfies JsonRPCSchema;
+} satisfies RPCSchema;

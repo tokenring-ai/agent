@@ -23,10 +23,6 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
     this.events.push(event);
   }
 
-  reset(what: ResetWhat[]): void {
-    // Doesn't reset
-  }
-
   serialize(): z.output<typeof serializationSchema> {
     return {
       events: this.events
@@ -43,8 +39,8 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
 
     this.events = (events as AgentEventEnvelope[]).filter(event => {
       if (event.type === "agent.stopped") return false;
-      if (event.type === "input.received" && ! handledEvents.has(event.requestId)) return false;
-      return true;
+      return !(event.type === "input.received" && !handledEvents.has(event.requestId));
+
     });
   }
 
