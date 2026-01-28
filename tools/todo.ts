@@ -36,7 +36,7 @@ ${todos.map(todo => todo.status === 'completed'
  * This helps track progress, organize complex tasks, and demonstrate thoroughness to the user.
  */
 export async function execute(
-  {todos}: z.infer<typeof inputSchema>,
+  {todos}: z.output<typeof inputSchema>,
   agent: Agent,
 ): Promise<string> {
   // Get the current todo list from the agent's state

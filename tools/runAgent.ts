@@ -14,21 +14,10 @@ export async function execute(
     agentType,
     message,
     context,
-  }: z.infer<typeof inputSchema>,
+  }: z.output<typeof inputSchema>,
   parentAgent: Agent,
-): Promise<{
-  status: "success" | "error" | "cancelled",
-  response: string;
-}> {
-  if (!agentType) {
-    throw new Error("Agent type is required");
-  }
-  if (!message) {
-    throw new Error("Message is required");
-  }
-
-  // Use the helper function with the configured options
-  return await runSubAgent(
+) {
+  const result = await runSubAgent(
     {
       agentType,
       headless: parentAgent.headless,
@@ -37,6 +26,8 @@ export async function execute(
     parentAgent,
     true // Auto-cleanup
   );
+  
+  return { type: 'json' as const, data: result };
 }
 
 const description =
