@@ -1,5 +1,6 @@
 import {TokenRingAgentCommand} from "../types.ts";
 import createSubcommandRouter from "../util/subcommandRouter.ts";
+import app from "./debug/app.ts";
 import logging from "./debug/logging.ts";
 import markdown from "./debug/markdown.ts";
 import questions from "./debug/questions.ts";
@@ -12,6 +13,7 @@ const execute = createSubcommandRouter({
   markdown,
   services,
   questions,
+  app
 });
 
 const help = `# /debug
@@ -20,6 +22,9 @@ const help = `# /debug
 Debug utilities and diagnostics for TokenRing agents.
 
 ## Subcommands
+
+### /debug app shutdown
+Sends an abort command to the app to test the shutdown handling
 
 ### /debug logging on|off
 Enable or disable debug logging output.

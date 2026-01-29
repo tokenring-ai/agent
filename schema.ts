@@ -28,7 +28,8 @@ export const AgentConfigSchema = z.object({
     timeout: z.number().default(0),
     maxResponseLength: z.number().default(500),
     minContextLength: z.number().default(300),
-  }).prefault({})
+  }).prefault({}),
+  enabledHooks: z.array(z.string()).default([]),
 });
 
 export const AgentPackageConfigSchema = z

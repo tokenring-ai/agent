@@ -9,11 +9,9 @@ import {formatAgentId} from "../util/formatAgentId.js";
 export default class AgentManager implements TokenRingService {
   name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
-  private readonly app: TokenRingApp;
   private readonly cleanupCheckIntervalMs = 15000;
 
-  constructor(app: TokenRingApp) {
-    this.app = app;
+  constructor(readonly app: TokenRingApp) {
     app.scheduleEvery(this.cleanupCheckIntervalMs, () => this.checkAndDeleteIdleAgents())
   }
 

@@ -1,114 +1,58 @@
-import markdownList from "@tokenring-ai/utility/string/markdownList";
-import Agent from "../Agent.ts";
-import AgentLifecycleService from "../services/AgentLifecycleService.js";
 import {TokenRingAgentCommand} from "../types.ts";
+import createSubcommandRouter from "../util/subcommandRouter.ts";
+import defaultAction from "./hook/default.ts";
+import disable from "./hook/disable.ts";
+import enable from "./hook/enable.ts";
+import get from "./hook/get.ts";
+import list from "./hook/list.ts";
+import reset from "./hook/reset.ts";
+import select from "./hook/select.ts";
+import set from "./hook/set.ts";
 
-const description =
-  "/hooks - List registered hooks or enable/disable hook execution." as const;
+const description = "/hooks - Manage registered hooks and their execution state";
 
-const help: string = `# /hooks
+const execute = createSubcommandRouter({
+  get,
+  set,
+  select,
+  list,
+  enable,
+  disable,
+  reset,
+  default: defaultAction
+});
 
-## Description
+const help: string = `# /hooks <get|set|select|list|enable|disable|reset>
+
 Manage registered hooks and their execution state. Hooks are special functions that can be triggered during agent lifecycle events.
 
-## Commands
-- **list** - Lists all registered hooks
-- **enable <hookName>** - Enables hook execution
-- **disable <hookName>** - Disables hook execution
+## Usage
 
-## Usage examples
-/hooks                    # Lists all registered hooks
-/hooks list               # Lists all registered hooks
-/hooks enable preProcess  # Enables the preProcess hook
-/hooks disable postProcess # Disables the postProcess hook
+/hooks                        # Show currently enabled hooks (headless) or open selector (interactive)
+/hooks list                   # List all registered hooks
+/hooks get                    # Show currently enabled hooks
+/hooks set <hook1> [hook2...] # Set enabled hooks (replaces current selection)
+/hooks select                 # Interactive tree-based hook selection
+/hooks enable <hook1> [...]   # Enable one or more hooks
+/hooks disable <hook1> [...]  # Disable one or more hooks
+/hooks reset                  # Reset hooks to initial configuration
 
-## Hook types typically include
-- **preProcess**: Runs before agent processing
-- **postProcess**: Runs after agent processing
-- **onMessage**: Runs when a new message is received
-- **onStateChange**: Runs when agent state changes
-- **custom**: User-defined hooks
+## Examples
+
+/hooks                        # Show enabled hooks or open selector
+/hooks list                   # List all registered hooks
+/hooks set preProcess onMessage # Enable only these two hooks
+/hooks enable postProcess     # Enable the postProcess hook
+/hooks disable postProcess    # Disable the postProcess hook
+/hooks disable preProcess onMessage # Disable multiple hooks
+/hooks reset                  # Reset to initial hook configuration
 
 ## Notes
+
 - Hook names are case-sensitive
-- Use /hooks list to see available hooks
-- Disabled hooks are not executed but remain registered`;
-
-async function execute(
-  remainder: string,
-  agent: Agent,
-): Promise<void> {
-  const agentLifecycleService = agent.requireServiceByType(AgentLifecycleService);
-  const registeredHooks = agentLifecycleService.getRegisteredHooks();
-
-  const directOperation = remainder?.trim();
-  if (directOperation) {
-    const parts = directOperation.split(/\s+/);
-    const operation = parts[0];
-    const hookName = parts[1];
-
-    switch (operation) {
-      case "list": {
-        const hookEntries = Object.entries(registeredHooks);
-        const lines: string[] = [];
-        if (hookEntries.length === 0) {
-          lines.push("No hooks are currently registered.");
-        } else {
-          lines.push("Registered hooks:");
-          const names = hookEntries.map(([name]) => name);
-          lines.push(markdownList(names));
-        }
-        agent.infoMessage(lines.join("\n"));
-        break;
-      }
-      case "enable": {
-        if (!hookName) {
-          agent.errorMessage(`Usage: /hooks enable <hookName>`);
-          return;
-        }
-        if (!registeredHooks[hookName]) {
-          agent.errorMessage(`Unknown hook: ${hookName}`);
-          return;
-        }
-        agentLifecycleService.enableHooks([hookName], agent);
-        agent.infoMessage(`Hook '${hookName}' enabled`);
-        break;
-      }
-      case "disable": {
-        if (!hookName) {
-          agent.errorMessage(`Usage: /hooks disable <hookName>`);
-          return;
-        }
-        if (!registeredHooks[hookName]) {
-          agent.errorMessage(`Unknown hook: ${hookName}`);
-          return;
-        }
-        agentLifecycleService.disableHooks([hookName], agent);
-        agent.infoMessage(`Hook '${hookName}' disabled`);
-        break;
-      }
-      default: {
-        agent.errorMessage(
-          "Unknown operation. Usage: /hooks [list|enable|disable] [hookName]",
-        );
-        return;
-      }
-    }
-    return;
-  }
-
-  // Default: list all hooks
-  const hookEntries = Object.entries(registeredHooks);
-  const lines: string[] = [];
-  if (hookEntries.length === 0) {
-    lines.push("No hooks are currently registered.");
-  } else {
-    lines.push("Registered hooks:");
-    const names = hookEntries.map(([name]) => name);
-    lines.push(markdownList(names));
-  }
-  agent.infoMessage(lines.join("\n"));
-}
+- set replaces all enabled hooks with the specified list
+- enable adds hooks to the current enabled set
+- disable removes hooks from the enabled set`;
 
 export default {
   description,

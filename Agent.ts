@@ -42,7 +42,6 @@ export default class Agent {
     this.initializeState(AgentEventState, {});
     this.initializeState(AgentExecutionState, {});
     this.initializeState(CommandHistoryState, {});
-    this.initializeState(HooksState, {});
     this.initializeState(CostTrackingState, {});
     this.initializeState(TodoState, {});
 
