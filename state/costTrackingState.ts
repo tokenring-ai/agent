@@ -1,6 +1,6 @@
+import {z} from "zod";
 import type {ResetWhat} from "../AgentEvents.ts";
 import type {AgentStateSlice} from "../types.ts";
-import {z} from "zod";
 
 type Costs = Record<string, number>;
 
@@ -13,7 +13,7 @@ export class CostTrackingState implements AgentStateSlice<typeof serializationSc
   serializationSchema = serializationSchema;
   costs: Costs;
 
-  constructor(initialCosts:Costs = {}) {
+  constructor(readonly initialCosts: Costs = {}) {
     this.costs = initialCosts;
   }
 
