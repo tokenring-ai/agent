@@ -4,7 +4,7 @@
   "description": "Agent package for TokenRing Coder.",
   "dependencies": {
     "@tokenring-ai/chat": "0.2.0",
-    "zod": "catalog:",
+    "zod": "^4.3.6",
     "@tokenring-ai/utility": "0.2.0",
     "@tokenring-ai/app": "0.2.0",
     "eventemitter3": "^5.0.4",
@@ -25,8 +25,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "type": "module"
 }
