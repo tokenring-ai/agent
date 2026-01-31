@@ -76,8 +76,6 @@ export default class Agent {
     this.requestAbort(reason);
 
     this.agentShutdownController.abort();
-
-    this.infoMessage(`Agent was shutdown: ${reason}`);
   }
 
 
@@ -164,7 +162,6 @@ export default class Agent {
   requestAbort(reason: string) {
     this.mutateState(AgentEventState, (state) => {
       state.emit({type: "abort", timestamp: Date.now(), reason});
-      state.emit({type: "output.info", message: `Aborting current operation, ${reason}`, timestamp: Date.now()});
     });
   }
 
