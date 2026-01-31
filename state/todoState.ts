@@ -1,17 +1,7 @@
 import {z} from "zod";
 import Agent from "../Agent.ts";
+import {type ParsedAgentConfig, type TodoItem, TodoItemSchema} from "../schema.ts";
 import {AgentStateSlice} from "../types.ts";
-
-export const TodoStatusSchema = z.enum(["pending", "in_progress", "completed"]);
-
-export type TodoStatus = z.infer<typeof TodoStatusSchema>;
-export const TodoItemSchema = z.object({
-  id: z.string(),
-  content: z.string(),
-  status: TodoStatusSchema,
-});
-
-export type TodoItem = z.infer<typeof TodoItemSchema>;
 
 const serializationSchema = z.object({
   todos: z.array(TodoItemSchema).default([])
@@ -20,20 +10,19 @@ const serializationSchema = z.object({
 export class TodoState implements AgentStateSlice<typeof serializationSchema> {
   name = "TodoState";
   serializationSchema = serializationSchema;
-  readonly todos: TodoItem[] = [];
+  todos: TodoItem[] = [];
 
-  constructor({}) {}
-
-  transferStateFromParent(agent: Agent) {
-    /* TODO: The todo list is shared with the parent agent by sharing a reference to the same array
-     * This is extremely fragile and should be revisited. We set it to readonly to try and prevent
-     * the array from being replaced
-     */
-    (this.todos as any) = agent.getState(TodoState).todos;
+  constructor(readonly initialConfig: ParsedAgentConfig) {
+    if (initialConfig.todos.initialItems) {
+      this.todos = [...initialConfig.todos.initialItems];
+    }
   }
 
-  reset(_what: string[]): void {
-    // Don't reset on general reset
+  transferStateFromParent(parentAgent: Agent) {
+    if (parentAgent.config.todos.copyToChild) {
+      const parentTodos = parentAgent.getState(TodoState).todos;
+      this.todos = [...parentTodos];
+    }
   }
 
   serialize(): z.output<typeof serializationSchema> {

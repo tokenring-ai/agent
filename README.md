@@ -1,9 +1,11 @@
 # @tokenring-ai/agent
 
 ## Overview
+
 The core agent orchestration system for TokenRing AI, enabling creation and management of AI agents with comprehensive state management, event handling, command execution, tool integration, and lifecycle management. This package provides a complete agent framework that integrates seamlessly with the TokenRing ecosystem.
 
 ## Features
+
 - **Agent Management**: Create, spawn, and manage individual AI agents
 - **State Management**: Persistent state with serialization and checkpointing
 - **Event System**: Comprehensive event handling and emission
@@ -19,6 +21,7 @@ The core agent orchestration system for TokenRing AI, enabling creation and mana
 - **Idle/Max Runtime Management**: Automatic cleanup of idle or long-running agents
 - **Minimum Agent Count**: Maintain minimum number of agents per type
 - **Artifact Output**: Support for outputting artifacts (files, documents, etc.)
+- **Todo Management**: Built-in todo list with sub-agent state transfer
 
 ## Installation
 
@@ -40,22 +43,24 @@ const app = new TokenRingApp();
 
 // Create agent
 const agent = new Agent(app, {
-  config: {
-    name: "My Agent",
-    description: "Custom development agent",
-    category: "development",
-    visual: { color: "blue" },
-    type: "interactive",
-    initialCommands: ["/help"]
-  },
-  headless: false
+  name: "My Agent",
+  description: "Custom development agent",
+  category: "development",
+  debug: false,
+  initialCommands: [],
+  headless: false,
+  callable: true,
+  idleTimeout: 0,
+  maxRunTime: 0,
+  subAgent: {},
+  enabledHooks: [],
+  todos: {}
 });
 ```
 
 **Key Properties:**
 - `id`: Unique agent identifier (UUID)
 - `name`: Agent name
-- `description`: Agent description
 - `config`: Parsed agent configuration
 - `debugEnabled`: Debug logging toggle
 - `headless`: Headless operation mode
@@ -83,7 +88,6 @@ const agent = new Agent(app, {
 **Event Emission:**
 - `chatOutput(content)`: Emit chat output
 - `reasoningOutput(content)`: Emit reasoning content
-- `systemMessage(message, level)`: Emit system messages
 - `infoMessage(...messages)`: Emit info messages
 - `warningMessage(...messages)`: Emit warning messages
 - `errorMessage(...messages)`: Emit error messages
@@ -127,9 +131,15 @@ agentManager.addAgentConfigs({
     name: "My Agent",
     description: "Custom agent description",
     category: "development",
-    visual: { color: "blue" },
-    type: "interactive",
-    initialCommands: ["/help"]
+    debug: false,
+    initialCommands: [],
+    headless: false,
+    callable: true,
+    idleTimeout: 0,
+    maxRunTime: 0,
+    subAgent: {},
+    enabledHooks: [],
+    todos: {}
   }
 });
 
@@ -155,8 +165,8 @@ const agent = await agentManager.spawnAgent({
 
 **Automatic Lifecycle Management:**
 - Idle agent cleanup every 15 seconds
-- Configurable `idleTimeout` per agent (default: 0 = no limit)
-- Configurable `maxRunTime` per agent (default: 0 = no limit)
+- Configurable `idleTimeout` per agent (default: 0 = no limit, in seconds)
+- Configurable `maxRunTime` per agent (default: 0 = no limit, in seconds)
 - Configurable `minimumRunning` per agent type (default: 0 = no minimum)
 
 ### AgentCommandService Service
@@ -226,19 +236,19 @@ const app = new TokenRingApp();
 
 // Create agent
 const agent = new Agent(app, {
-  config: {
-    name: "My Agent",
-    description: "Custom development agent",
-    category: "development",
-    visual: { color: "blue" },
-    type: "interactive",
-    initialCommands: ["/help"]
-  },
-  headless: false
+  name: "My Agent",
+  description: "Custom development agent",
+  category: "development",
+  debug: false,
+  initialCommands: [],
+  headless: false,
+  callable: true,
+  idleTimeout: 0,
+  maxRunTime: 0,
+  subAgent: {},
+  enabledHooks: [],
+  todos: {}
 });
-
-// Initialize agent
-await agent.initialize();
 
 // Handle user input
 const requestId = agent.handleInput({ message: "Hello! How can you help me?" });
@@ -325,11 +335,12 @@ const result = await runSubAgent({
   background: false,
   forwardChatOutput: true,
   forwardSystemOutput: true,
-  forwardReasoning: true,
+  forwardReasoning: false,
   forwardHumanRequests: true,
   forwardInputCommands: true,
+  forwardArtifacts: false,
   timeout: 60,
-  maxResponseLength: 1000,
+  maxResponseLength: 500,
   minContextLength: 300
 }, agent, true);
 
@@ -397,10 +408,16 @@ const selection = await agent.askQuestion({
     label: 'Select',
     minimumSelections: 1,
     maximumSelections: 1,
-    defaultValue: ['1'],
+    defaultValue: [],
     tree: [
-      { name: "Option 1", value: "opt1" },
-      { name: "Option 2", value: "opt2" }
+      {
+        name: "Option 1",
+        value: "opt1"
+      },
+      {
+        name: "Option 2",
+        value: "opt2"
+      }
     ]
   }
 });
@@ -418,14 +435,12 @@ const formData = await agent.askQuestion({
           name: {
             type: 'text',
             label: 'Full Name',
-            key: 'name',
-            required: true
+            defaultValue: ''
           },
           email: {
             type: 'text',
             label: 'Email',
-            key: 'email',
-            required: true
+            defaultValue: ''
           }
         }
       },
@@ -434,12 +449,18 @@ const formData = await agent.askQuestion({
         description: "Preferences",
         fields: {
           category: {
-            type: 'selectOne',
+            type: 'treeSelect',
             label: 'Category',
-            key: 'category',
-            options: [
-              { label: 'Support', value: 'support' },
-              { label: 'Sales', value: 'sales' }
+            defaultValue: [],
+            tree: [
+              {
+                name: "Support",
+                value: "support"
+              },
+              {
+                name: "Sales",
+                value: "sales"
+              }
             ]
           }
         }
@@ -502,6 +523,7 @@ agent.setStatusLine(null);
 The agent package includes several built-in commands:
 
 #### `/agent` - Agent Management
+
 ```typescript
 // List available agent types
 /agent types
@@ -521,12 +543,14 @@ The agent package includes several built-in commands:
 ```
 
 #### `/cost` - Cost Tracking
+
 ```typescript
 // Display total costs incurred by the agent
 /cost
 ```
 
 #### `/help` - Help System
+
 ```typescript
 // Display help for all commands
 /help
@@ -536,6 +560,7 @@ The agent package includes several built-in commands:
 ```
 
 #### `/hook` - Hook Management
+
 ```typescript
 // List registered hooks
 /hook list
@@ -548,6 +573,7 @@ The agent package includes several built-in commands:
 ```
 
 #### `/reset` - State Reset
+
 ```typescript
 // Reset specific state components
 /reset chat
@@ -559,18 +585,21 @@ The agent package includes several built-in commands:
 ```
 
 #### `/settings` - Settings Display
+
 ```typescript
 // Display agent settings
 /settings
 ```
 
 #### `/work` - Work Handler
+
 ```typescript
 // Execute work handler
 /work <task>
 ```
 
 #### `/debug` - Debug Commands
+
 ```typescript
 // Debug logging controls
 /debug logging on
@@ -596,19 +625,34 @@ const agentConfig = {
   description: string,             // Agent purpose
   category: string,                // Agent category
   debug?: boolean,                 // Enable debug logging (default: false)
-  visual: {
-    color: string                  // UI color theme
-  },
-  workHandler?: Function,          // Custom work handler
-  createMessage: string,           // Message displayed when agent is created (default: "Agent Created")
+  workHandler?: Function,          // Custom work handler with (input: string, agent: Agent) => Promise<any>
+  agentType?: string,              // Agent type identifier
   initialCommands: string[],       // Startup commands
-  persistent?: boolean,            // Enable checkpointing
-  storagePath?: string,            // Storage location
-  type: "interactive" | "background", // Agent type
+  createMessage: string,           // Message displayed when agent is created (default: "Agent Created")
+  headless?: boolean,              // Headless mode (default: false)
   callable?: boolean,              // Enable tool calls (default: true)
-  idleTimeout?: number,            // Idle timeout in milliseconds (default: 0 = no limit)
-  maxRunTime?: number,             // Max runtime in milliseconds (default: 0 = unlimited)
-  minimumRunning?: number          // Minimum number of agents to keep running (default: 0)
+  idleTimeout?: number,            // Idle timeout in seconds (default: 0 = no limit)
+  maxRunTime?: number,             // Max runtime in seconds (default: 0 = no limit)
+  subAgent: {                      // Sub-agent configuration
+    forwardChatOutput?: boolean,   // Forward chat output (default: true)
+    forwardSystemOutput?: boolean, // Forward system output (default: true)
+    forwardHumanRequests?: boolean,// Forward human requests (default: true)
+    forwardReasoning?: boolean,    // Forward reasoning (default: false)
+    forwardInputCommands?: boolean,// Forward input commands (default: true)
+    forwardArtifacts?: boolean,    // Forward artifacts (default: false)
+    timeout?: number,              // Sub-agent timeout in seconds (default: 0)
+    maxResponseLength?: number,    // Max response length in characters (default: 500)
+    minContextLength?: number,     // Minimum context length in characters (default: 300)
+  },
+  enabledHooks: string[],          // Enabled hook names (default: [])
+  todos: {                         // Todo list configuration
+    copyToChild: boolean,          // Copy todos to child agents (default: true)
+    initialItems: Array<{          // Initial todo items (default: [])
+      id: string,
+      content: string,
+      status: "pending" | "in_progress" | "completed"
+    }>
+  }
 };
 ```
 
@@ -640,11 +684,13 @@ const agentManagerConfig = {
 
 **State Events:**
 - `reset` - State reset
-- `human.request` - Human input requested
-- `human.response` - Human response provided
 - `abort` - Operation aborted
 - `agent.created` - Agent was created
 - `agent.stopped` - Agent was stopped
+
+**Question Events:**
+- `question.request` - Human input requested
+- `question.response` - Human response provided
 
 ### Event Schema
 
@@ -672,8 +718,15 @@ const config = {
       name: "My Agent",
       description: "Custom agent",
       category: "development",
-      visual: { color: "blue" },
-      type: "interactive"
+      debug: false,
+      initialCommands: [],
+      headless: false,
+      callable: true,
+      idleTimeout: 0,
+      maxRunTime: 0,
+      subAgent: {},
+      enabledHooks: [],
+      todos: {}
     }
   }
 };
@@ -695,6 +748,26 @@ The agent package automatically integrates with TokenRing applications:
 // - Context handlers
 // - Tools and commands
 ```
+
+### Chat Commands
+
+The agent package includes built-in chat commands:
+
+- `/agent` - Agent management commands
+- `/cost` - Cost tracking
+- `/help` - Help system
+- `/hook` - Hook management
+- `/reset` - State reset
+- `/settings` - Settings display
+- `/work` - Work handler invocation
+- `/debug` - Debug commands
+
+### Tools
+
+The agent package includes built-in tools:
+
+- `runAgent` - Execute sub-agent
+- `todo` - Todo list management
 
 ### Context Handlers
 
@@ -808,7 +881,7 @@ The agent supports several question types for human interaction:
   type: 'text',
   label: 'Name',
   description: 'Enter your name',
-  required: true,
+  required: false,
   defaultValue: '',
   expectedLines: 1,
   masked: false,
@@ -819,7 +892,7 @@ The agent supports several question types for human interaction:
 **Tree Select Question:**
 ```typescript
 {
-  type: 'treeSelect',
+  type: "treeSelect",
   label: 'Choose an option',
   minimumSelections: 1,
   maximumSelections: 1,
@@ -858,8 +931,8 @@ The agent supports several question types for human interaction:
       name: "personal",
       description: "Personal Information",
       fields: {
-        name: { type: 'text', label: 'Full Name', key: 'name', required: true },
-        email: { type: 'text', label: 'Email', key: 'email', required: true }
+        name: { type: 'text', label: 'Full Name', defaultValue: '' },
+        email: { type: 'text', label: 'Email', defaultValue: '' }
       }
     }
   ]
@@ -909,7 +982,6 @@ const myAgentPlugin: TokenRingPlugin = {
 pkg/agent/
 ├── Agent.ts                          # Core Agent class implementation
 ├── AgentEvents.ts                    # Event type definitions
-├── HumanInterfaceRequest.ts          # Human interaction types
 ├── types.ts                          # Core type definitions
 ├── schema.ts                         # Agent configuration schema
 ├── index.ts                          # Package exports
@@ -918,6 +990,7 @@ pkg/agent/
 ├── chatCommands.ts                   # Command exports
 ├── tools.ts                          # Tool exports
 ├── runSubAgent.ts                    # Sub-agent execution helper
+├── question.ts                       # Question type definitions
 ├── commands/                         # Built-in commands
 │   ├── agent.ts                      # Agent management commands
 │   ├── cost.ts                       # Cost tracking commands
@@ -930,7 +1003,8 @@ pkg/agent/
 │       ├── logging.ts                # Debug logging controls
 │       ├── markdown.ts               # Markdown rendering test
 │       ├── services.ts               # Service logs display
-│       └── questions.ts              # Debug questions display
+│       ├── questions.ts              # Debug questions display
+│       └── app.ts                    # Debug app info
 ├── services/                         # Core services
 │   ├── AgentManager.ts               # Agent management service
 │   ├── AgentLifecycleService.ts      # Lifecycle and hooks service
