@@ -5,14 +5,24 @@ import Agent from "../Agent.js";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentCheckpointData} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
+import { setTimeout} from "node:timers/promises";
 
 export default class AgentManager implements TokenRingService {
   readonly name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
   private readonly cleanupCheckIntervalMs = 15000;
 
-  constructor(readonly app: TokenRingApp) {
-    app.scheduleEvery(this.cleanupCheckIntervalMs, () => this.checkAndDeleteIdleAgents())
+  constructor(readonly app: TokenRingApp) {}
+
+  async run(signal: AbortSignal): Promise<void> {
+    while (!signal.aborted) {
+      await setTimeout(this.cleanupCheckIntervalMs);
+      try {
+        await this.checkAndDeleteIdleAgents();
+      } catch (error) {
+        this.app.serviceError("[AgentManager] Error while housekeeping agents:", error);
+      }
+    }
   }
 
   private agents: Map<string, Agent> = new Map();

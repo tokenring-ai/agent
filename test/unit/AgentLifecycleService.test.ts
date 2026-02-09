@@ -7,10 +7,12 @@ import type {HookConfig, HookType} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
 const app = createTestingApp();
+app.addServices(new AgentLifecycleService())
 
 // Create a mock agent
 const createMockAgent = () => {
   const agent = createTestingAgent(app);
+
   vi.spyOn(agent, 'requireServiceByType');
   vi.spyOn(agent, 'chatOutput');
   vi.spyOn(agent, 'infoMessage');
@@ -21,6 +23,7 @@ const createMockAgent = () => {
 
 const mockHook: HookConfig = {
   name: 'test-hook',
+  displayName: "Test Hook",
   description: 'A test hook',
   afterChatCompletion: vi.fn(),
   afterTesting: vi.fn(),
@@ -28,6 +31,7 @@ const mockHook: HookConfig = {
 
 const anotherHook: HookConfig = {
   name: 'another-hook',
+  displayName: "Test Hook 2",
   description: 'Another test hook',
   afterChatCompletion: vi.fn(),
   afterAgentInputComplete: vi.fn(),

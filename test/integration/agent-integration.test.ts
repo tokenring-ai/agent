@@ -1,6 +1,8 @@
+import TokenRingApp from "@tokenring-ai/app";
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
-import {type ParsedAgentConfig} from "../../schema";
+import {AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
 import AgentCommandService from '../../services/AgentCommandService.ts';
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
 import AgentManager from '../../services/AgentManager.ts';
@@ -9,23 +11,7 @@ import {CommandHistoryState} from "../../state/commandHistoryState";
 import {CostTrackingState} from "../../state/costTrackingState";
 import type {HookConfig} from '../../types.js';
 
-// Mock TokenRingApp with all required methods
-const createMockApp = () => ({
-  requireService: vi.fn(),
-  getService: vi.fn(),
-  getServices: vi.fn().mockReturnValue([]),
-  trackPromise: vi.fn(),
-  serviceOutput: vi.fn(),
-  serviceError: vi.fn(),
-  scheduleEvery: vi.fn(),
-  getState: vi.fn().mockReturnValue({}),
-  subscribeState: vi.fn(),
-  waitForState: vi.fn(),
-  timedWaitForState: vi.fn(),
-  subscribeStateAsync: vi.fn(),
-});
-
-const mockConfig: ParsedAgentConfig = {
+const mockConfig = AgentConfigSchema.parse({
   name: 'Integration Test Agent',
   description: 'An agent for integration testing',
   category: 'test',
@@ -37,10 +23,10 @@ const mockConfig: ParsedAgentConfig = {
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
-};
+});
 
 describe('Agent Integration Tests', () => {
-  let app: any;
+  let app: TokenRingApp;
   let agent: Agent;
   let commandService: AgentCommandService;
   let lifecycleService: AgentLifecycleService;
@@ -48,32 +34,21 @@ describe('Agent Integration Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    app = createMockApp();
-    
+    app = createTestingApp();
     // Create services
     commandService = new AgentCommandService();
     lifecycleService = new AgentLifecycleService();
     manager = new AgentManager(app);
-    
-    // Register services with app mock
-    app.requireService.mockImplementation((type: any) => {
-      if (type === AgentCommandService) return commandService;
-      if (type === AgentLifecycleService) return lifecycleService;
-      if (type === AgentManager) return manager;
-    });
-    
-    app.getService.mockImplementation((type: any) => {
-      if (type === AgentLifecycleService) return lifecycleService;
-      return undefined;
-    });
+
+    app.addServices(commandService, lifecycleService, manager)
 
     // Create agent
-    agent = new Agent(app, { config: mockConfig, headless: true });
+    agent = new Agent(app, mockConfig);
   });
 
   afterEach(() => {
     if (agent) {
-      agent.shutdown();
+      agent.shutdown("");
     }
     vi.clearAllMocks();
   });
@@ -231,7 +206,7 @@ describe('Agent Integration Tests', () => {
       const checkpoint = agent.generateCheckpoint();
       
       // Create new agent and restore state
-      const newAgent = new Agent(app, { config: mockConfig, headless: true });
+      const newAgent = new Agent(app, mockConfig);
       newAgent.restoreState(checkpoint.state);
       
       // Verify state was restored

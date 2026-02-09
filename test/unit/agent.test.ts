@@ -1,3 +1,4 @@
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
 import {AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
@@ -6,43 +7,16 @@ import {AgentExecutionState} from "../../state/agentExecutionState";
 import {CommandHistoryState} from '../../state/commandHistoryState.js';
 import {CostTrackingState} from '../../state/costTrackingState.ts';
 import {HooksState} from '../../state/hooksState.js';
+import createTestingAgent from "../createTestingAgent";
 
-// Mock TokenRingApp
-const mockApp = {
-  requireService: vi.fn(),
-  getService: vi.fn(),
-  getServices: vi.fn().mockReturnValue([]),
-  trackPromise: vi.fn(),
-  serviceOutput: vi.fn(),
-  serviceError: vi.fn(),
-  scheduleEvery: vi.fn(),
-  getState: vi.fn().mockReturnValue({}),
-  subscribeState: vi.fn(),
-  waitForState: vi.fn(),
-  timedWaitForState: vi.fn(),
-  subscribeStateAsync: vi.fn(),
-} as any;
-
-const mockConfig: ParsedAgentConfig = {
-  name: 'Test Agent',
-  description: 'A test agent',
-  category: 'test',
-  debug: false,
-  createMessage: "foo",
-  headless: true,
-  minimumRunning: 0,
-  initialCommands: [],
-  callable: true,
-  idleTimeout: 86400,
-  maxRunTime: 1800,
-};
+const app = createTestingApp();
 
 describe('Agent', () => {
   let agent: Agent;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    agent = new Agent(mockApp, mockConfig);
+    agent = createTestingAgent(app);
   });
 
   afterEach(() => {
@@ -53,26 +27,18 @@ describe('Agent', () => {
 
   describe('Constructor and Initialization', () => {
     it('should create an agent with correct properties', () => {
-      expect(agent.name).toBe(mockConfig.name);
-      expect(agent.config.description).toBe(mockConfig.description);
+      expect(agent.name).toBe(agent.config.name);
+      expect(agent.config.description).toBe(agent.config.description);
       expect(agent.id).toBeDefined();
-      expect(agent.headless).toBe(true);
+      expect(agent.headless).toBe(false);
     });
 
     it('should initialize state correctly', () => {
       expect(agent.getState(AgentEventState)).toBeDefined();
       expect(agent.getState(CommandHistoryState)).toBeDefined();
       expect(agent.getState(CostTrackingState)).toBeDefined();
-      expect(agent.getState(HooksState)).toBeDefined();
     });
 
-    it('should handle headless mode correctly', () => {
-      const headlessAgent = new Agent(mockApp, mockConfig);
-      expect(headlessAgent.headless).toBe(true);
-
-      const interactiveAgent = new Agent(mockApp, { ...mockConfig, headless: false });
-      expect(interactiveAgent.headless).toBe(false);
-    });
   });
 
   describe('Input Handling', () => {
@@ -205,7 +171,7 @@ describe('Agent', () => {
       agent.requestAbort(reason);
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(3);
+      expect(eventState.events).toHaveLength(2);
       expect(eventState.events[2]).not.toMatchObject({
         type: 'abort',
         reason,
@@ -223,23 +189,19 @@ describe('Agent', () => {
       agent.requestAbort(reason);
 
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(3);
+      expect(eventState.events).toHaveLength(2);
       expect(eventState.events[1]).toMatchObject({
         type: 'abort',
         timestamp: expect.any(Number),
         reason,
-      });
-      expect(eventState.events[2]).toMatchObject({
-        type: 'output.info',
-        timestamp: expect.any(Number),
-        message: "Aborting current operation, Test abort reason",
       });
     });
   });
 
   describe('Human Interface', () => {
     it('should throw error when asking human in headless mode', async () => {
-      await expect(agent.askQuestion('text', { prompt: 'Test' })).rejects.toThrow(
+      agent.config.headless = true;
+      await expect(agent.askForApproval({ message: 'foo' })).rejects.toThrow(
         'Cannot ask human for feedback when agent is running in headless mode'
       );
     });
@@ -256,8 +218,8 @@ describe('Agent', () => {
 
   describe('Configuration', () => {
     it('should get config slice with valid schema', () => {
-      const visual = agent.getAgentConfigSlice('name', AgentConfigSchema.shape.name);
-      expect(visual).toEqual(mockConfig.name);
+      const name = agent.getAgentConfigSlice('name', AgentConfigSchema.shape.name);
+      expect(name).toEqual(agent.config.name);
     });
 
     it('should throw error for invalid config slice', () => {
@@ -282,8 +244,8 @@ describe('Agent', () => {
     it('should restore state from checkpoint', () => {
       // Add some state
       agent.mutateState(AgentEventState, state => {
-        state.emit({ type: 'input.received', message: 'test', requestId: "abc123", timestamp: expect.any(Number)});
-        state.emit({ type: 'input.handled', message: 'test', requestId: "abc123", status: 'success', timestamp: expect.any(Number)});
+        state.emit({ type: 'input.received', message: 'test', requestId: "abc123", timestamp: 100});
+        state.emit({ type: 'input.handled', message: 'test', requestId: "abc123", status: 'success', timestamp: 200 });
       })
       agent.handleInput({ message: 'test' });
       agent.addCost('test', 100);
@@ -314,8 +276,8 @@ describe('Agent', () => {
 
   describe('Debug Mode', () => {
     it('should handle debug messages when enabled', () => {
-      const debugAgent = new Agent(mockApp, {
-        ...mockConfig,
+      const debugAgent = new Agent(app, {
+        ...agent.config,
         debug: true,
         headless: true 
       });

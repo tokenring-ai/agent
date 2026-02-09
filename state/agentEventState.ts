@@ -31,13 +31,13 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
 
   deserialize(data: z.output<typeof serializationSchema>): void {
      // When restoring the event state, we need to clean up the events to put the agent back into a usable state.
-    const events = data.events || [];
+    const events: AgentEventEnvelope[] = data.events || [];
     const handledEvents = new Set<string>();
-    for (const event of events as AgentEventEnvelope[]) {
+    for (const event of events) {
       if (event.type === "input.handled") handledEvents.add(event.requestId);
     }
 
-    this.events = (events as AgentEventEnvelope[]).filter(event => {
+    this.events = events.filter(event => {
       if (event.type === "agent.stopped") return false;
       return !(event.type === "input.received" && !handledEvents.has(event.requestId));
 

@@ -2,7 +2,7 @@ import TokenRingApp from '@tokenring-ai/app';
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
-import {AgentConfig, type ParsedAgentConfig} from "../../schema";
+import {AgentConfig, AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
 import AgentManager from '../../services/AgentManager.ts';
 import type {AgentCheckpointData} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
@@ -21,7 +21,7 @@ const createMockAgent = () => {
 };
 
 
-const mockConfig: ParsedAgentConfig = {
+const mockConfig = AgentConfigSchema.parse({
   name: 'Test Agent',
   description: 'A test agent',
   category: 'test',
@@ -34,7 +34,7 @@ const mockConfig: ParsedAgentConfig = {
   maxRunTime: 1800,
   minimumRunning: 0,
   agentType: 'someAgentType'
-};
+});
 
 const mockCheckpoint: AgentCheckpointData = {
   agentId: 'test-agent-id',
@@ -51,7 +51,6 @@ describe('AgentManager', () => {
     vi.clearAllMocks();
 
     app = createTestingApp();
-    vi.spyOn(app, 'scheduleEvery');
     manager = new AgentManager(app);
     app.addServices(manager);
     
@@ -264,12 +263,6 @@ describe('AgentManager', () => {
       expect(agent.requestAbort).not.toHaveBeenCalled();
     });
 
-  });
-
-  describe('Periodic Cleanup Scheduling', () => {
-    it('should schedule periodic cleanup', () => {
-      expect(app.scheduleEvery).toHaveBeenCalledWith(15000, expect.any(Function));
-    });
   });
 
   describe('Error Handling', () => {

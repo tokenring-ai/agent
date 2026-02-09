@@ -271,13 +271,13 @@ describe('Help Command', () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await helpCommand.execute(undefined, mockAgent);
+      await helpCommand.execute("", mockAgent);
 
       const output = mockAgent.chatOutput.mock.calls[0][0];
-      
+
       // Commands should be sorted
       const lines = output.split('\n');
-      const commandLines = lines.filter(line => line.startsWith('- '));
+      const commandLines = lines.filter(line => line.startsWith(' - '));
       
       expect(commandLines[0]).toContain('Alpha command');
       expect(commandLines[1]).toContain('Beta command');

@@ -1,21 +1,23 @@
 import TokenRingApp from "@tokenring-ai/app";
+import type {ChatAgentConfigSchema} from "@tokenring-ai/chat/schema";
+import {z} from "zod";
 
 // Create a mock agent
 import Agent from "../Agent";
 import {AgentManager} from "../index";
-import {AgentConfig} from "../schema";
+import {AgentConfig, AgentConfigSchema, type ParsedAgentConfig} from "../schema";
 
 const config = {
-  name: "Mock Agent",
-  description: "A mock agent for testing purposes",
-  category: "test",
-  visual: {
-    color: "blue",
-  },
+  ...AgentConfigSchema.parse({
+    name: "Mock Agent",
+    description: "A mock agent for testing purposes",
+    category: "test",
+    createMessage: "",
+  }),
   chat: {
     systemPrompt: "You are a helpful assistant."
-  }
-} satisfies AgentConfig;
+  },
+};
 
 export default function createTestingAgent(app: TokenRingApp) {
   let agentManager = app.getService(AgentManager);
@@ -24,7 +26,7 @@ export default function createTestingAgent(app: TokenRingApp) {
     app.addServices(agentManager);
   }
 
-  const agent = new Agent(app, {headless: true, config});
+  const agent = new Agent(app, config);
   agentManager.agents.set(agent.id, agent);
   return agent;
 };
