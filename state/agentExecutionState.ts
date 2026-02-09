@@ -1,11 +1,11 @@
-import {type InputReceived, type ParsedQuestionRequest, ResetWhat} from "../AgentEvents.js";
+import {type InputReceived, type ParsedQuestionRequest} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
 import {z} from "zod";
 
 const serializationSchema = z.object({}).prefault({});
 
 export class AgentExecutionState implements AgentStateSlice<typeof serializationSchema> {
-  name = "AgentExecutionState";
+  readonly name = "AgentExecutionState";
   serializationSchema = serializationSchema;
   busyWith: string | null = null;
   waitingOn: Array<ParsedQuestionRequest> = []

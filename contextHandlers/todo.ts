@@ -1,7 +1,8 @@
 import {ContextItem, ParsedChatConfig} from "@tokenring-ai/chat/schema";
 import Agent from "../Agent.ts";
 import {TodoState} from "../state/todoState.js";
-import {formatTodoList} from "../tools/todo.ts";
+
+import {formatTodoList} from "../util/todo.ts";
 
 export default async function * getTodoContext(
   input: string,

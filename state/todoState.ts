@@ -8,7 +8,7 @@ const serializationSchema = z.object({
 }).prefault({});
 
 export class TodoState implements AgentStateSlice<typeof serializationSchema> {
-  name = "TodoState";
+  readonly name = "TodoState";
   serializationSchema = serializationSchema;
   todos: TodoItem[] = [];
 

@@ -4,7 +4,7 @@ import Agent from "../Agent.js";
 import type {TokenRingAgentCommand} from "../types.js";
 
 export default class AgentCommandService implements TokenRingService {
-  name = "AgentCommandService";
+  readonly name = "AgentCommandService";
   description = "A service which registers and dispatches agent commands.";
 
   private agentCommands = new KeyedRegistry<TokenRingAgentCommand>();

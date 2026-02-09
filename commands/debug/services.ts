@@ -1,4 +1,5 @@
 import {Agent} from "@tokenring-ai/agent";
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 
 export default async function execute(remainder: string, agent: Agent): Promise<void> {
   const limit = remainder ? parseInt(remainder.trim()) : 50;
@@ -9,11 +10,11 @@ export default async function execute(remainder: string, agent: Agent): Promise<
     return;
   }
 
-  const lines: string[] = [`Showing last ${logs.length} log entries:`];
-  for (const log of logs) {
-    const date = new Date(log.timestamp).toISOString();
-    const level = log.level.toUpperCase();
-    lines.push(`[${date}] ${level}: ${log.message}`);
-  }
-  agent.infoMessage(lines.join("\n"));
+  agent.infoMessage(`
+***Showing last ${logs.length} log entries***:
+${
+    markdownList(logs.map(log => 
+      `[${new Date(log.timestamp).toISOString()}] ${log.level.toUpperCase()}: ${log.message}`
+    ))
+}`);
 }

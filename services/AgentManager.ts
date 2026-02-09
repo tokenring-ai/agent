@@ -7,7 +7,7 @@ import {AgentCheckpointData} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
 
 export default class AgentManager implements TokenRingService {
-  name = "AgentManager";
+  readonly name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
   private readonly cleanupCheckIntervalMs = 15000;
 

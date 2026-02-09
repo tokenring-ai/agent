@@ -1,4 +1,4 @@
-import {AgentEventEnvelope, AgentEventEnvelopeSchema, ResetWhat} from "../AgentEvents.js";
+import {AgentEventEnvelope, AgentEventEnvelopeSchema} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
 import {z} from "zod";
 
@@ -11,7 +11,7 @@ export type AgentEventCursor = {
 }
 
 export class AgentEventState implements AgentStateSlice<typeof serializationSchema> {
-  name = "AgentEventState";
+  readonly name = "AgentEventState";
   serializationSchema = serializationSchema;
   events: AgentEventEnvelope[] = [];
 

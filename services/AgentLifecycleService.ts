@@ -5,7 +5,7 @@ import {HooksState} from "../state/hooksState.js";
 import type {HookConfig, HookType} from "../types.js";
 
 export default class AgentLifecycleService implements TokenRingService {
-  name = "AgentLifecycleService";
+  readonly name = "AgentLifecycleService";
   description = "A service which dispatches hooks when certain agent lifecycle event happen.";
 
   private hooks = new KeyedRegistry<HookConfig>();

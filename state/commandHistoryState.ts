@@ -7,7 +7,7 @@ const serializationSchema = z.object({
 }).prefault({});
 
 export class CommandHistoryState implements AgentStateSlice<typeof serializationSchema> {
-  name = "CommandHistoryState";
+  readonly name = "CommandHistoryState";
   serializationSchema = serializationSchema;
   commands: string[] = [];
 

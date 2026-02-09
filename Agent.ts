@@ -169,7 +169,7 @@ export default class Agent {
     this.emit({ type: "reset", what, timestamp: Date.now() });
   }
 
-  async askForConfirmation({ message, label = "Confirm?", default: defaultValue, timeout: autoSubmitAfter }: { message: string, label?: string, default?: boolean, timeout?: number }) : Promise<boolean> {
+  async askForApproval({ message, label = "Approve ?", default: defaultValue, timeout: autoSubmitAfter }: { message: string, label?: string, default?: boolean, timeout?: number }) : Promise<boolean> {
     const result = await this.askQuestion({
       message,
       question: {
@@ -177,20 +177,20 @@ export default class Agent {
         label: label,
         minimumSelections: 1,
         maximumSelections: 1,
-        defaultValue: defaultValue === undefined ? [] : [defaultValue ? '1' : '0'],
+        defaultValue: defaultValue === undefined ? [] : [defaultValue ? 'Approved' : 'Not approved'],
         tree: [
           {
-            name: "Yes", value: '1'
+            name: "Yes", value: 'Approved'
           },
           {
-            name: "No", value: '0'
+            name: "No", value: 'Not approved'
           }
         ],
       },
       autoSubmitAfter
     });
 
-    return result !== null && result.length > 0 && result[0] === '1';
+    return result !== null && result.length > 0 && result[0] === 'Approved';
   }
 
   async askForText({ message, label, masked} : { message: string, label: string, masked?: boolean }) : Promise<string> {

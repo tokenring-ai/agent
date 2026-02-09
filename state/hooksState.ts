@@ -8,7 +8,7 @@ const serializationSchema = z.object({
 }).prefault({});
 
 export class HooksState implements AgentStateSlice<typeof serializationSchema> {
-  name = "HooksState";
+  readonly name = "HooksState";
   serializationSchema = serializationSchema;
   enabledHooks: string[] = [];
 

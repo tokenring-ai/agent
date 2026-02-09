@@ -153,7 +153,7 @@ describe('AgentManager', () => {
     it('should transfer state from parent to sub-agent', async () => {
       const transferStateFromParent = vi.fn();
       class TestState {
-        name = "TestState";
+        readonly name = "TestState";
         transferStateFromParent = transferStateFromParent;
       }
 

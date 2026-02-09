@@ -9,7 +9,7 @@ const serializationSchema = z.object({
 }).prefault({});
 
 export class CostTrackingState implements AgentStateSlice<typeof serializationSchema> {
-  name = "CostTrackingState";
+  readonly name = "CostTrackingState";
   serializationSchema = serializationSchema;
   costs: Costs;
 

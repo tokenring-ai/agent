@@ -1,36 +1,12 @@
-import {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
+import {TokenRingToolDefinition, type TokenRingToolResult} from "@tokenring-ai/chat/schema";
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {z} from "zod";
 import Agent from "../Agent.js";
-import type {TodoItem} from "../schema.ts";
 import {TodoState} from "../state/todoState.js";
+import {formatTodoList} from "../util/todo.ts";
 
 const name = "todo";
 const displayName = "Agent/todo";
-
-export function formatTodoList(todos: TodoItem[]): string {
-  // Format the todo list for the LLM
-  return [
-    "ID: STATUS CONTENT",
-    ...todos.map((todo, index) => {
-      const status = todo.status === "in_progress" ? "🔄" : todo.status === "completed" ? "✅" : "📝";
-      return `${todo.id}: ${status} ${todo.content}`;
-    })
-  ].join("\n");
-}
-
-export function generateTodoListArtifact(todos: TodoItem[], agent: Agent): void {
-  agent.artifactOutput({
-    name: "todo-list.md",
-    encoding: "text",
-    mimeType: "text/markdown",
-    body: `
-${todos.map(todo => todo.status === 'completed'
-  ? `- [X] ${todo.content}` 
-  : `- [ ] ${todo.content}${ todo.status === 'in_progress' ? ' (in_progress)' : ''}`
-).join("\n")}
-  `.trim()
-  });
-}
 
 /**
  * Creates and manages a structured task list for the current coding session.
@@ -39,7 +15,7 @@ ${todos.map(todo => todo.status === 'completed'
 export async function execute(
   {todos}: z.output<typeof inputSchema>,
   agent: Agent,
-): Promise<string> {
+): Promise<TokenRingToolResult> {
   // Get the current todo list from the agent's state
   const updatedTodos = agent.mutateState(TodoState, state => {
     // Update todos based on the input
@@ -56,7 +32,12 @@ export async function execute(
     return state.todos;
   });
 
-  generateTodoListArtifact(updatedTodos, agent);
+  const renderedTodoList = markdownList(updatedTodos.map(todo => todo.status === 'completed'
+    ? `[X] ${todo.content}`
+    : `[ ] ${todo.content}${ todo.status === 'in_progress' ? ' (in_progress)' : ''}`
+  ));
+
+  agent.infoMessage(`Todo list updated! Current Todo list:\n ${renderedTodoList}`)
 
   const todoList = formatTodoList(updatedTodos);
 
@@ -100,6 +81,5 @@ export default {
   description,
   inputSchema,
   execute,
-  requiredContextHandlers,
-  skipArtifactOutput: true
+  requiredContextHandlers
 } satisfies TokenRingToolDefinition<typeof inputSchema>;

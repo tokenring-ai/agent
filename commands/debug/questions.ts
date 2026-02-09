@@ -13,7 +13,7 @@ export default async function execute(remainder: string, agent: Agent): Promise<
       break;
       
     case "confirm":
-      const confirmResult = await agent.askForConfirmation({
+      const confirmResult = await agent.askForApproval({
         message: "Testing confirmation dialog",
         label: "Do you agree?",
         default: true
