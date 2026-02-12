@@ -81,7 +81,7 @@ export const ResetSchema = z.object({
 export const AbortSchema = z.object({
   type: z.literal("abort"),
   timestamp: z.number(),
-  reason: z.string().optional(),
+  message: z.string()
 });
 
 /* A question request is a request that immediately requires an answer from the user for a single form field

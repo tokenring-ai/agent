@@ -135,7 +135,7 @@ export default {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        reason: z.string().default("User requested abort"),
+        message: z.string(),
       }),
       result: z.object({
         success: z.boolean(),

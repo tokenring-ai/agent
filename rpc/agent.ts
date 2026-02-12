@@ -138,7 +138,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
   abortAgent(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    agent.requestAbort(args.reason);
+    agent.requestAbort(args.message);
     return { success: true };
   },
 

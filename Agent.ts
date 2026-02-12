@@ -158,9 +158,9 @@ export default class Agent {
     return firstActivityTime ? Date.now() - firstActivityTime : 0
   }
 
-  requestAbort(reason: string) {
+  requestAbort(message: string) {
     this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "abort", timestamp: Date.now(), reason});
+      state.emit({type: "abort", timestamp: Date.now(), message});
     });
   }
 
