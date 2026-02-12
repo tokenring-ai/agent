@@ -11,7 +11,8 @@ export default class AgentLifecycleService implements TokenRingService {
   private hooks = new KeyedRegistry<HookConfig>();
 
   registerHook = this.hooks.register;
-  getRegisteredHooks = this.hooks.getAllItems;
+  getAllHookEntries = this.hooks.entries;
+  getAllHookNames = this.hooks.getAllItemNames;
 
   attach(agent: Agent): void {
     agent.initializeState(HooksState, agent.config);

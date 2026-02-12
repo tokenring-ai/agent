@@ -92,8 +92,8 @@ export default createRPCEndpoint(AgentRpcSchema, {
   },
 
   getAgentTypes(_args, app) {
-    const configs = app.requireService(AgentManager).getAgentConfigs();
-    return Object.entries(configs).map(([type, config]: [string, any]) => ({
+    const configs = app.requireService(AgentManager).getAgentConfigEntries();
+    return configs.map(([type, config]: [string, any]) => ({
       type,
       name: config.name,
       description: config.description,

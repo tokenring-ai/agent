@@ -8,10 +8,10 @@ const description = "/agent - Manage and interact with agents" as const;
 
 async function types(remainder: string, agent: Agent): Promise<void> {
   const agentManager = agent.requireServiceByType(AgentManager);
-  const configs = agentManager.getAgentConfigs();
+  const configs = agentManager.getAgentConfigEntries();
   
   agent.chatOutput("**Available agent types:**\n" + 
-    Object.entries(configs)
+    Array.from(configs)
       .map(([type, config]) => `- **${type}**: ${config.description}`)
       .join("\n")
   );

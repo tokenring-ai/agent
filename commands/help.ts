@@ -12,11 +12,15 @@ async function execute(remainder: string, agent: Agent): Promise<void> {
   }
 
   const agentCommandService = agent.requireServiceByType(AgentCommandService);
-  const commands = agentCommandService.getCommands();
+  const commands = agentCommandService.getCommandEntries();
 
   const lines = [
     "**Available chat commands:**",
-    markdownList(Object.keys(commands).sort().map(cmdName => commands[cmdName].description))
+    markdownList(
+      Array.from(commands).sort(
+        (a,b) => a[0].localeCompare(b[0])
+      ).map(([cmdName, command]) => command.description)
+    )
   ];
 
   lines.push(

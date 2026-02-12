@@ -11,8 +11,8 @@ export default class AgentCommandService implements TokenRingService {
   private readonly defaultCommand = "/chat send";
 
   getCommandNames = this.agentCommands.getAllItemNames;
-  getCommands = this.agentCommands.getAllItems;
-  getCommand = this.agentCommands.requireItemByName;
+  getCommandEntries = this.agentCommands.entries;
+  getCommand = this.agentCommands.getItemByName;
 
   addAgentCommands(chatCommands: Record<string, TokenRingAgentCommand>) {
     for (const cmdName in chatCommands) {
@@ -28,31 +28,44 @@ export default class AgentCommandService implements TokenRingService {
     }
 
     message = message.trim();
-    if (message && ! message.startsWith("/")) {
+    if (message === '') {
+      message = "/help";
+    } else if (message.startsWith("@")) {
+      const agentMention = message.slice(1);
+      const match = agentMention.match(/^@(\S+)\s+(.*)$/i);
+      if (match) {
+        const [, agentName, prompt] = match;
+        if (agentName && prompt) {
+          message = `/agent run ${agentName} ${prompt}`;
+        } else {
+          agent.errorMessage(`Invalid agent invocation: ${agentMention}`);
+        }
+      } else {
+        agent.errorMessage(`Invalid agent invocation: ${agentMention}`);
+      }
+    } else if (! message.startsWith("/")) {
      message = `${this.defaultCommand} ${message}`
     }
 
-    let commandName = "help"
-    let remainder = message
-      .replace(/^\s*\/(\S*)/, (_unused, matchedCommandName) => {
-        commandName = matchedCommandName;
-        return "";
-      })
-      .trim();
+    const commandInput = message.slice(1); // Remove leading '/'
+    let match = this.agentCommands.getLongestPrefixMatch(commandInput);
+    if (! match) {
+      let replaced = false;
+      let singularCommandInput = commandInput.replace(/^([a-z]*)s( |$)/g, (match, command, extra) => {
+        replaced = true;
+        return `${command}${extra}`;
+      });
 
-    // Get command from agent's chat commands
-    const commands = this.agentCommands.getAllItems();
-    let command = commands[commandName];
-
-    if (!command && commandName.endsWith("s")) {
-      // If the command name is plural, try it singular as well
-      command = commands[commandName.slice(0, -1)];
+      if (replaced) {
+        match = this.agentCommands.getLongestPrefixMatch(singularCommandInput);
+      }
     }
 
-    if (command) {
-      await command.execute(remainder, agent);
+    if (match) {
+      await match.item.execute(match.remainder, agent);
     } else {
-      agent.errorMessage(`Unknown command: /${commandName}. Type /help for a list of commands.`);
+      const firstWord = commandInput.split(/\s+/)[0];
+      agent.errorMessage(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
     }
   }
 }
