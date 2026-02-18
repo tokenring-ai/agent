@@ -34,9 +34,10 @@ export const AgentConfigSchema = z.object({
     forwardInputCommands: z.boolean().default(true),
     forwardArtifacts: z.boolean().default(false),
     timeout: z.number().default(0),
-    maxResponseLength: z.number().default(500),
-    minContextLength: z.number().default(300),
+    maxResponseLength: z.number().default(10000),
+    minContextLength: z.number().default(1000),
   }).prefault({}),
+  allowedSubAgents: z.array(z.string()).default([]),
   enabledHooks: z.array(z.string()).default([]),
   todos: z.object({
     copyToChild: z.boolean().default(true),

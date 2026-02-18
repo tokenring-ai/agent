@@ -3,9 +3,11 @@ import AgentManager from "@tokenring-ai/agent/services/AgentManager";
 import {AgentEventState} from "@tokenring-ai/agent/state/agentEventState";
 import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
+import {like} from "@tokenring-ai/utility/string/like";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 import type {ParsedAgentConfig} from "./schema.ts";
 import {AgentExecutionState} from "./state/agentExecutionState.ts";
+import {SubAgentState} from "./state/subAgentState.ts";
 
 export type RunSubAgentOptions = Partial<ParsedAgentConfig["subAgent"]> & {
   /** The type of agent to create */
@@ -85,6 +87,12 @@ export async function runSubAgent(
   const agentManager = parentAgent.requireServiceByType(AgentManager);
   const parentEventCursor = parentAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
+  const subAgentState = parentAgent.getState(SubAgentState);
+
+  if (!subAgentState.allowedSubAgents.some(allowedAgent => like(allowedAgent, agentType))) {
+    throw new Error(`Sub-agent type "${agentType}" is not allowed for this agent.`);
+  }
+
   const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType, { headless });
 
   let timeoutExceeded = false;
@@ -97,8 +105,6 @@ export async function runSubAgent(
   }, timeoutSeconds * 1000) : null;
 
   try {
-    let response = "";
-
     await childAgent.waitForState(AgentExecutionState, (state) => state.idle);
     const eventCursor = childAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
@@ -139,6 +145,7 @@ export async function runSubAgent(
 
 
     async function forwardChildEventsToParent(): Promise<{ status: "error" | "cancelled" | "success", response: string}> {
+      const response = [];
       for await (const state of childAgent.subscribeStateAsync(AgentEventState, abortController.signal)) {
         for (const event of state.yieldEventsByCursor(eventCursor)) {
           switch (event.type) {
@@ -149,7 +156,7 @@ export async function runSubAgent(
               if (forwardChatOutput) {
                 parentAgent.chatOutput(event.message);
               }
-              response += event.message;
+              response.push(event.message);
               break;
 
             case "output.reasoning":
@@ -186,7 +193,7 @@ export async function runSubAgent(
 
               if (event.requestId === requestId) {
                 const truncatedResponse = trimMiddle(
-                  event.message,
+                  response.join(),
                   minContextLength,
                   maxResponseLength
                 );

@@ -12,6 +12,7 @@ import {AgentEventState} from "./state/agentEventState.ts";
 import {AgentExecutionState} from "./state/agentExecutionState.ts";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {CostTrackingState} from "./state/costTrackingState.ts";
+import {SubAgentState} from "./state/subAgentState.ts";
 import {TodoState} from "./state/todoState.ts";
 import {AgentCheckpointData, AgentStateSlice} from "./types.js";
 import {formatAgentId} from "./util/formatAgentId.ts";
@@ -43,6 +44,7 @@ export default class Agent {
     this.initializeState(CommandHistoryState, {});
     this.initializeState(CostTrackingState, {});
     this.initializeState(TodoState, config);
+    this.initializeState(SubAgentState, config);
 
     this.emit({ type: "agent.created", timestamp: Date.now(), message: config.createMessage });
 
@@ -387,7 +389,6 @@ export default class Agent {
       try {
         await agentCommandService.executeAgentCommand(this, item.message);
         await agentLifecycleService?.executeHooks(this, "afterAgentInputComplete", item.message);
-
 
         this.mutateState(AgentEventState, (s) => {
           s.emit({

@@ -5,6 +5,7 @@ import logging from "./debug/logging.ts";
 import markdown from "./debug/markdown.ts";
 import questions from "./debug/questions.ts";
 import services from "./debug/services.ts";
+import chat from "./debug/chat.ts";
 
 const description = "/debug - Debug utilities and diagnostics" as const;
 
@@ -13,7 +14,8 @@ const execute = createSubcommandRouter({
   markdown,
   services,
   questions,
-  app
+  app,
+  chat
 });
 
 const help = `# /debug
@@ -25,6 +27,9 @@ Debug utilities and diagnostics for TokenRing agents.
 
 ### /debug app shutdown
 Sends an abort command to the app to test the shutdown handling
+
+### /debug chat throwError
+Throws an error in the chat handler to test error handling
 
 ### /debug logging on|off
 Enable or disable debug logging output.

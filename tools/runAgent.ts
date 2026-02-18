@@ -26,8 +26,11 @@ export async function execute(
     parentAgent,
     true // Auto-cleanup
   );
-  
-  return { type: 'json' as const, data: result };
+
+  return { type: 'json' as const, data: {
+    status: result.status,
+    response: result.response
+  } };
 }
 
 const description =

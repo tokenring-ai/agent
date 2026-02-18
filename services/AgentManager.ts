@@ -32,6 +32,7 @@ export default class AgentManager implements TokenRingService {
   getAgentConfigEntries = this.agentConfigRegistry.entries;
   getAgentConfig = this.agentConfigRegistry.getItemByName;
   getAgentTypes = this.agentConfigRegistry.getAllItemNames;
+  getAgentTypesLike = this.agentConfigRegistry.getItemEntriesLike;
 
   addAgentConfigs(agentConfigs: Record<string, ParsedAgentConfig>) {
     for (const agentType in agentConfigs) {

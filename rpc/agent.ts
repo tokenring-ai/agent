@@ -37,14 +37,15 @@ export default createRPCEndpoint(AgentRpcSchema, {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
 
-    let curPosition = args.fromPosition;
+    let position = args.fromPosition;
 
     for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
+      let events = state.events.slice(position);
+      position = state.events.length;
       yield {
-        events: state.events.slice(curPosition),
-        position: state.events.length
+        events,
+        position
       };
-      curPosition = state.events.length;
     }
   },
 
