@@ -27,7 +27,7 @@ export default {
       chatService.registerContextHandlers(contextHandlers);
     });
 
-    const agentCommandService = new AgentCommandService();
+    const agentCommandService = new AgentCommandService(app);
     agentCommandService.addAgentCommands(chatCommands);
     app.addServices(agentCommandService);
 
