@@ -1,11 +1,12 @@
 import Agent from "../Agent.ts";
 import type {ResetWhat} from "../AgentEvents.js";
+import {CommandFailedError} from "../AgentError.ts";
 import {TokenRingAgentCommand} from "../types.ts";
 
 const description =
   "/reset - Clear chat state and/or memory and/or settings." as const;
 
-export function execute(remainder: string, agent: Agent): void {
+export function execute(remainder: string, agent: Agent): string {
   // Parse arguments
   let args = remainder?.trim().split(/\s+/) || [];
 
@@ -33,17 +34,15 @@ export function execute(remainder: string, agent: Agent): void {
   }
 
   if (unknownArgs.length > 0) {
-    for (const u of unknownArgs) {
-      agent.errorMessage(`Unknown argument: ${u}`);
-    }
-    agent.errorMessage("Valid arguments are: chat, memory, settings, all");
-    return;
+    throw new CommandFailedError(`Unknown arguments: ${unknownArgs.join(", ")}. Valid arguments are: chat, memory, settings, all`);
   }
 
   if (toClear.size > 0) {
     agent.reset(Array.from(toClear) as ResetWhat[]);
-    agent.infoMessage(`Reset ${Array.from(toClear).join(", ")}`);
+    return `Reset ${Array.from(toClear).join(", ")}`;
   }
+  
+  return "Nothing to reset.";
 }
 
 const help: string = `# /reset

@@ -25,7 +25,7 @@ export default class AgentManager implements TokenRingService {
     }
   }
 
-  private agents: Map<string, Agent> = new Map();
+  private agents = new Map<string, { agent: Agent, shutdownController: AbortController }>();
   private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
 
   addAgentConfig = this.agentConfigRegistry.register;
@@ -43,9 +43,10 @@ export default class AgentManager implements TokenRingService {
 
 
   async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig>) {
-    const agent = await Agent.createAgentFromCheckpoint(this.app, checkpoint, config);
+    const shutdownController = new AbortController();
+    const agent = await Agent.createAgentFromCheckpoint(this.app, checkpoint, config, shutdownController.signal);
 
-    this.agents.set(agent.id, agent);
+    this.agents.set(agent.id, { agent, shutdownController });
 
     return agent;
   }
@@ -55,7 +56,7 @@ export default class AgentManager implements TokenRingService {
   }
 
   async spawnAgentFromConfig(config: ParsedAgentConfig) {
-    return this.createAgent({ ...config, createMessage: `Agent created from config: ${config.name}`});
+    return this.createAgent({ ...config, createMessage: `Agent created from config: ${config.name} (${config.agentType})`});
   }
 
   async spawnSubAgent(agent: Agent, agentType: string, config: Partial<ParsedAgentConfig>): Promise<Agent> {
@@ -63,7 +64,7 @@ export default class AgentManager implements TokenRingService {
     // Create a new agent of the specified type
     const newAgent = await this.createAgent({
       ...agentConfig,
-      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.name}`,
+      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.name} (${agentConfig.agentType})`,
       ...config,
     });
 
@@ -78,44 +79,49 @@ export default class AgentManager implements TokenRingService {
   }
 
   private async createAgent(options: ParsedAgentConfig) {
-    const agent = new Agent(this.app, options);
+    const shutdownController = new AbortController();
+    const agent = new Agent(this.app, options, shutdownController.signal);
 
-    this.agents.set(agent.id, agent);
+    this.agents.set(agent.id, { agent, shutdownController });
 
     this.app.trackPromise(signal => agent.run(signal));
 
     return agent;
   }
 
-  async deleteAgent(agent: Agent): Promise<void> {
-    agent.shutdown('AgentManager initiated shutdown');
-    this.agents.delete(agent.id);
+  async deleteAgent(agentId: string, reason: string): Promise<void> {
+    const agentEntry = this.agents.get(agentId);
+    if (!agentEntry) throw new Error(`Agent ${agentId} not found`);
+
+    const { agent, shutdownController } = agentEntry;
+    agent.requestAbort(reason);
+    shutdownController.abort(reason);
+
+    this.agents.delete(agentId);
   }
 
   getAgents(): Agent[] {
-    return Array.from(this.agents.values());
+    return Array.from(this.agents.values()).map(({ agent }) => agent);
   }
 
   getAgent(id: string): Agent | null {
-    return this.agents.get(id) ?? null;
+    return this.agents.get(id)?.agent ?? null;
   }
 
   private async checkAndDeleteIdleAgents() {
-    for (const agent of this.agents.values()) {
+    for (const [agentId,{ agent }] of this.agents.entries()) {
       const idleTimeout = agent.config.idleTimeout;
       const maxRunTime = agent.config.maxRunTime;
       if (idleTimeout && agent.getIdleDuration() > idleTimeout * 1000) {
         try {
-          agent.shutdown(`Agent has been idle for ${agent.getIdleDuration() / 1000} seconds`);
-          await this.deleteAgent(agent);
+          await this.deleteAgent(agentId, `Agent has been idle for ${agent.getIdleDuration() / 1000} seconds`);
           this.app.serviceOutput(`Agent ${agent.id} has been deleted due to inactivity.`);
         } catch (err) {
           this.app.serviceError(`Failed to delete idle agent ${agent.id}:`, err);
         }
       } else if (maxRunTime && agent.getRunDuration() > maxRunTime * 1000) {
         try {
-          agent.shutdown(`Agent has been running for ${agent.getRunDuration() / 1000} seconds`);
-          await this.deleteAgent(agent);
+          await this.deleteAgent(agentId, `Agent has been running for ${agent.getRunDuration() / 1000} seconds`);
           this.app.serviceOutput(`Agent ${agent.id} has been deleted due to max runtime.`);
         } catch (err) {
           this.app.serviceError(`Failed to delete agent ${agent.id} due to max runtime:`, err);
@@ -126,7 +132,7 @@ export default class AgentManager implements TokenRingService {
     for (const [agentType, agentSpec] of this.agentConfigRegistry.entries()) {
       if (agentSpec.minimumRunning > 0) {
         let agentCount = 0;
-        for (const agent of this.agents.values()) {
+        for (const {agent} of this.agents.values()) {
           if (agent.config.agentType === agentType) agentCount++;
         }
 

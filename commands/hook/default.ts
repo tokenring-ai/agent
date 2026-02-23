@@ -2,10 +2,10 @@ import Agent from "../../Agent.ts";
 import get from "./get.ts";
 import select from "./select.ts";
 
-export default async function defaultAction(_remainder: string, agent: Agent): Promise<void> {
+export default async function defaultAction(_remainder: string, agent: Agent): Promise<string> {
   if (agent.headless) {
-    await get("", agent);
+    return await get("", agent);
   } else {
-    await select("", agent);
+    return await select("", agent);
   }
 }

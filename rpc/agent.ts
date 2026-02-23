@@ -116,9 +116,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
   },
 
   async deleteAgent(args, app) {
-    const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-    await app.requireService(AgentManager).deleteAgent(agent);
+    await app.requireService(AgentManager).deleteAgent(args.agentId, args.reason);
     return { success: true };
   },
 

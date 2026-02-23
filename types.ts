@@ -9,7 +9,7 @@ export type TokenRingAgentCommand = {
   execute: (
     input: string,
     agent: Agent,
-  ) => Promise<void | string> | void | string;
+  ) => Promise<string> | string;
   help: string;
 };
 export type HookConfig = {
@@ -30,6 +30,10 @@ export type AgentStateSlice<SerializationSchema> = SerializableStateSlice<Serial
   reset?: (what: ResetWhat[]) => void;
   show: () => string[];
   transferStateFromParent?: (agent: Agent) => void;
+}
+
+export type AgentCreationContext = {
+  items: string[];
 }
 
 export interface AgentCheckpointData {

@@ -7,13 +7,13 @@ export type ResetWhat = z.infer<typeof ResetWhatSchema>;
 export const AgentCreatedSchema = z.object({
   type: z.literal("agent.created"),
   message: z.string(),
-  timestamp: z.number()
+  timestamp: z.number(),
 });
 
 export const AgentStoppedSchema = z.object({
   type: z.literal("agent.stopped"),
   message: z.string(),
-  timestamp: z.number()
+  timestamp: z.number(),
 });
 
 export const OutputArtifactSchema = z.object({
@@ -22,7 +22,7 @@ export const OutputArtifactSchema = z.object({
   encoding: z.enum(["text","base64"]),
   mimeType: z.string(),
   body: z.string(),
-  timestamp: z.number()
+  timestamp: z.number(),
 })
 
 export type Artifact = z.input<typeof OutputArtifactSchema>;

@@ -1,6 +1,7 @@
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
+import {CommandFailedError} from "../AgentError.ts";
 import type {TokenRingAgentCommand} from "../types.js";
 
 export default class AgentCommandService implements TokenRingService {
@@ -20,11 +21,10 @@ export default class AgentCommandService implements TokenRingService {
     }
   }
 
-  async executeAgentCommand(agent: Agent, message: string): Promise<void> {
+  async executeAgentCommand(agent: Agent, message: string): Promise<string> {
     const signal = agent.getAbortSignal();
     if (signal.aborted) {
-      agent.warningMessage(`Command execution aborted when running command: ${message}`);
-      return;
+      throw new CommandFailedError("Command execution aborted");
     }
 
     message = message.trim();
@@ -38,10 +38,10 @@ export default class AgentCommandService implements TokenRingService {
         if (agentName && prompt) {
           message = `/agent run ${agentName} ${prompt}`;
         } else {
-          agent.errorMessage(`Invalid agent invocation: ${agentMention}`);
+          throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
         }
       } else {
-        agent.errorMessage(`Invalid agent invocation: ${agentMention}`);
+        throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
       }
     } else if (! message.startsWith("/")) {
      message = `${this.defaultCommand} ${message}`
@@ -62,10 +62,11 @@ export default class AgentCommandService implements TokenRingService {
     }
 
     if (match) {
-      await match.item.execute(match.remainder, agent);
+      const result = await match.item.execute(match.remainder, agent);
+      return result ? result.trim() : "Command completed successfully";
     } else {
       const firstWord = commandInput.split(/\s+/)[0];
-      agent.errorMessage(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
+      throw new CommandFailedError(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
     }
   }
 }

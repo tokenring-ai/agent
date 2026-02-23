@@ -1,4 +1,5 @@
 import Agent from "../Agent.ts";
+import {CommandFailedError} from "../AgentError.ts";
 import {runSubAgent} from "../runSubAgent.ts";
 import AgentManager from "../services/AgentManager.ts";
 import {TokenRingAgentCommand} from "../types.ts";
@@ -6,39 +7,35 @@ import createSubcommandRouter from "../util/subcommandRouter.ts";
 
 const description = "/agent - Manage and interact with agents" as const;
 
-async function types(remainder: string, agent: Agent): Promise<void> {
+async function types(remainder: string, agent: Agent): Promise<string> {
   const agentManager = agent.requireServiceByType(AgentManager);
   const configs = agentManager.getAgentConfigEntries();
   
-  agent.chatOutput("**Available agent types:**\n" + 
+  return "**Available agent types:**\n" +
     Array.from(configs)
       .map(([type, config]) => `- **${type}**: ${config.description}`)
-      .join("\n")
-  );
+      .join("\n");
 }
 
-async function list(remainder: string, agent: Agent): Promise<void> {
+async function list(remainder: string, agent: Agent): Promise<string> {
   const agentManager = agent.requireServiceByType(AgentManager);
   const agents = agentManager.getAgents();
   
   if (agents.length === 0) {
-    agent.chatOutput("No running agents.");
-    return;
+    return "No running agents.";
   }
-  
-  agent.chatOutput("**Running agents:**\n" + 
+
+  return "**Running agents:**\n" +
     agents.map(a => `- **${a.name}** (${a.id.slice(0, 8)}): ${a.config.description}`)
-      .join("\n")
-  );
+      .join("\n");
 }
 
-async function run(remainder: string, agent: Agent): Promise<void> {
+async function run(remainder: string, agent: Agent): Promise<string> {
   const isBg = remainder.includes("--bg");
   const input = remainder.replace("--bg", "").trim();
   
   if (!input) {
-    agent.errorMessage("Usage: /agent run [--bg] <agentType> <message>");
-    return;
+    throw new CommandFailedError("Usage: /agent run [--bg] <agentType> <message>");
   }
   
   const parts = input.split(/\s+/);
@@ -46,8 +43,7 @@ async function run(remainder: string, agent: Agent): Promise<void> {
   const message = parts.slice(1).join(" ");
   
   if (!message) {
-    agent.errorMessage("Please provide a message for the agent");
-    return;
+    throw new CommandFailedError("Please provide a message for the agent");
   }
   
   const result = await runSubAgent({
@@ -58,21 +54,18 @@ async function run(remainder: string, agent: Agent): Promise<void> {
   }, agent, true);
 
   if (isBg) {
-    agent.chatOutput(`Agent started in background.`);
+    return `Agent started in background.`;
+  } else {
+    return "Sub-agent completed successfully.";
   }
 }
-async function shutdown(remainder: string, agent: Agent): Promise<void> {
+async function shutdown(remainder: string, agent: Agent): Promise<string> {
   const id = remainder.trim() || agent.id;
 
   const agentManager = agent.requireServiceByType(AgentManager);
 
-  const agentToShutdown = agentManager.getAgent(id);
-  if (! agentToShutdown) {
-    agent.errorMessage(`Agent ${id} not found`);
-    return;
-  }
-
-  agent.shutdown("Agent was shut down with /agent shutdown command");
+  await agentManager.deleteAgent(id, "Agent was shut down with /agent shutdown command");
+  return `Agent ${id} shut down.`;
 }
 
 const execute = createSubcommandRouter({

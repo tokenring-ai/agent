@@ -1,23 +1,22 @@
 import {Agent} from "@tokenring-ai/agent";
+import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.js";
 import {TokenRingAgentCommand} from "../types.ts";
 
 const description =
   "/work - Runs the agents work handler with the message";
 
-async function execute(remainder: string, agent: Agent): Promise<void> {
+async function execute(remainder: string, agent: Agent): Promise<string> {
   if (!remainder?.trim()) {
-    agent.infoMessage(
-      "Please provide a message indicating the work to be completed",
-    );
-    return;
+    throw new CommandFailedError("Please provide a message indicating the work to be completed");
   }
 
   /* If the agent has a custom workflow defined, use it */
   if (agent.config.workHandler) {
-    await agent.config.workHandler(remainder, agent);
+    const result = await agent.config.workHandler(remainder, agent);
+    return typeof result === 'string' ? result : "Work completed successfully";
   } else {
-    await agent.requireServiceByType(AgentCommandService).executeAgentCommand(agent, remainder);
+    return await agent.requireServiceByType(AgentCommandService).executeAgentCommand(agent, remainder);
   }
 }
 

@@ -105,6 +105,7 @@ export default {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
+        reason: z.string()
       }),
       result: z.object({
         success: z.boolean(),

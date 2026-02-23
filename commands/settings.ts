@@ -5,7 +5,7 @@ import {TokenRingAgentCommand} from "../types.ts";
 
 const description = "/settings - Show current chat settings." as const;
 
-export function execute(_remainder: string, agent: Agent): void {
+export function execute(_remainder: string, agent: Agent): string {
   const activeServices = agent.app.getServices();
 
   const lines: string[] = [
@@ -20,7 +20,7 @@ export function execute(_remainder: string, agent: Agent): void {
     lines.push(markdownList(sliceLines));
   });
 
-  agent.infoMessage(lines.join("\n"));
+  return lines.join("\n");
 }
 
 const help: string = `# /settings

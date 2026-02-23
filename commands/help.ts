@@ -1,11 +1,12 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.ts";
+import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import {TokenRingAgentCommand} from "../types.ts";
 
 const description = "/help - Show this help message" as const;
 
-async function execute(remainder: string, agent: Agent): Promise<void> {
+async function execute(remainder: string, agent: Agent): Promise<string> {
   const command = remainder?.trim();
   if (command) {
     return getHelpOnCommand(command, agent);
@@ -27,16 +28,17 @@ async function execute(remainder: string, agent: Agent): Promise<void> {
     "",
     "Use /help <command> to get detailed help for a specific command."
   );
-  agent.chatOutput(lines.join("\n"));
+
+  return lines.join("\n");
 }
 
-function getHelpOnCommand(command: string, agent: Agent): void {
+function getHelpOnCommand(command: string, agent: Agent): string {
   const agentCommandService = agent.requireServiceByType(AgentCommandService);
   const commandInfo = agentCommandService.getCommand(command);
   if (commandInfo) {
-    agent.chatOutput(commandInfo.help.trim());
+    return commandInfo.help.trim();
   } else {
-    agent.chatOutput(`No help available for command /${command}`);
+    throw new CommandFailedError(`No help available for command /${command}`);
   }
 }
 

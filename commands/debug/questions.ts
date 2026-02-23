@@ -1,6 +1,7 @@
 import {Agent} from "@tokenring-ai/agent";
+import {CommandFailedError} from "../../AgentError.ts";
 
-export default async function execute(remainder: string, agent: Agent): Promise<void> {
+export default async function execute(remainder: string, agent: Agent): Promise<string> {
   const type = remainder.trim().toLowerCase();
   
   switch (type) {
@@ -9,17 +10,15 @@ export default async function execute(remainder: string, agent: Agent): Promise<
         message: "Testing text input",
         label: "Enter some text:"
       });
-      agent.infoMessage(`You entered: ${textResult}`);
-      break;
-      
+      return `You entered: ${textResult}`;
+
     case "confirm":
       const confirmResult = await agent.askForApproval({
         message: "Testing confirmation dialog",
         label: "Do you agree?",
         default: true
       });
-      agent.infoMessage(`You selected: ${confirmResult ? "Yes" : "No"}`);
-      break;
+      return `You selected: ${confirmResult ? "Yes" : "No"}`;
       
     case "tree":
       const treeResult = await agent.askQuestion({
@@ -44,9 +43,8 @@ export default async function execute(remainder: string, agent: Agent): Promise<
           ]
         }
       });
-      agent.infoMessage(`You selected: ${treeResult?.join(", ") || "nothing"}`);
-      break;
-      
+      return `You selected: ${treeResult?.join(", ") || "nothing"}`;
+
     case "file":
       const fileResult = await agent.askQuestion({
         message: "Testing file select",
@@ -59,8 +57,7 @@ export default async function execute(remainder: string, agent: Agent): Promise<
           maximumSelections: 5
         }
       });
-      agent.infoMessage(`You selected: ${fileResult?.join(", ") || "nothing"}`);
-      break;
+      return `You selected: ${fileResult?.join(", ") || "nothing"}`;
       
     case "form":
       const formResult = await agent.askQuestion({
@@ -130,10 +127,9 @@ export default async function execute(remainder: string, agent: Agent): Promise<
           ]
         }
       });
-      agent.infoMessage(`Form results: ${JSON.stringify(formResult, null, 2)}`);
-      break;
+      return `Form results: ${JSON.stringify(formResult, null, 2)}`;
       
     default:
-      agent.errorMessage(`Unknown question type: ${type}. Use: text, confirm, tree, file, or form`);
+      throw new CommandFailedError(`Unknown question type: ${type}. Use: text, confirm, tree, file, or form`);
   }
 }

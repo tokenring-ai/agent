@@ -2,13 +2,12 @@ import Agent from "../../Agent.ts";
 import type {TreeLeaf} from "../../question.ts";
 import AgentLifecycleService from "../../services/AgentLifecycleService.js";
 
-export default async function select(_remainder: string, agent: Agent): Promise<void> {
+export default async function select(_remainder: string, agent: Agent): Promise<string> {
   const agentLifecycleService = agent.requireServiceByType(AgentLifecycleService);
   const hookNames = agentLifecycleService.getAllHookNames();
 
   if (hookNames.length === 0) {
-    agent.infoMessage("No hooks are currently registered.");
-    return;
+    return "No hooks are currently registered."
   }
 
   const hookTree: TreeLeaf[] = [
@@ -32,9 +31,9 @@ export default async function select(_remainder: string, agent: Agent): Promise<
   });
 
   if (selection) {
-    agent.infoMessage(`Selected hook: ${selection.join(", ") || "(none)"}`);
     agentLifecycleService.setEnabledHooks(selection,agent);
+    return `Selected hook: ${selection.join(", ") || "(none)"}`;
   } else {
-    agent.infoMessage("Hook selection cancelled.");
+    return "Hook selection cancelled.";
   }
 }
