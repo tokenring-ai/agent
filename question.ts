@@ -87,9 +87,9 @@ export type ResultTypeForSection<T extends z.input<typeof FormSectionSchema>> = 
 }
 
 export type ResultTypeForQuestion<T extends z.input<typeof QuestionSchema>> =
-  T extends { type: 'text' } ? string | null :
-    T extends { type: 'fileSelect' } ? string[] | null :
-      T extends { type: 'treeSelect' } ? string[] | null :
+  T extends { type: 'text' } ? (T["required"] extends true ? string : string | null) :
+    T extends { type: 'fileSelect' } ? string[] :
+      T extends { type: 'treeSelect' } ? string[] :
         T extends { type: 'form' } ? {
           // Iterate over the union of elements in the 'sections' array
           [S in T['sections'][number] as S['name']]: ResultTypeForSection<S>

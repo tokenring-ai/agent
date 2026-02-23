@@ -171,7 +171,7 @@ export default class Agent {
     this.emit({ type: "reset", what, timestamp: Date.now() });
   }
 
-  async askForApproval({ message, label = "Approve ?", default: defaultValue, timeout: autoSubmitAfter }: { message: string, label?: string, default?: boolean, timeout?: number }) : Promise<boolean> {
+  async askForApproval({ message, label = "Approve ?", default: defaultValue, timeout: autoSubmitAfter }: { message: string, label?: string, default?: boolean, timeout?: number }) : Promise<boolean | null> {
     const result = await this.askQuestion({
       message,
       question: {
@@ -195,8 +195,8 @@ export default class Agent {
     return result !== null && result.length > 0 && result[0] === 'Approved';
   }
 
-  async askForText({ message, label, masked} : { message: string, label: string, masked?: boolean }) : Promise<string> {
-    const result = await this.askQuestion({
+  async askForText({ message, label, masked} : { message: string, label: string, masked?: boolean }) : Promise<string | null> {
+    return await this.askQuestion({
       message,
       question: {
         type: 'text',
@@ -204,10 +204,9 @@ export default class Agent {
         masked
       }
     });
-    return result || '';
   }
 
-  async askQuestion<T extends Omit<QuestionRequest,"type" | "requestId" | "timestamp">>(question: T): Promise<ResultTypeForQuestion<T["question"]>>  {
+  async askQuestion<T extends Omit<QuestionRequest,"type" | "requestId" | "timestamp">>(question: T): Promise<ResultTypeForQuestion<T["question"]> | null>  {
     if (this.config.headless) {
       throw new Error("Cannot ask human for feedback when agent is running in headless mode");
     }
