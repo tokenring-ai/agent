@@ -8,6 +8,32 @@ export const TodoItemSchema = z.object({
 });
 export type TodoItem = z.infer<typeof TodoItemSchema>;
 
+export const AgentCommandConfigSchema = z.object({
+  /** Whether to register this agent as a command (default: true if command config is provided) */
+  enabled: z.boolean().default(true),
+  /** Custom command name (defaults to agentType if not provided) */
+  name: z.string().optional(),
+  /** Custom command description (defaults to agent description if not provided) */
+  description: z.string().optional(),
+  /** Custom help text for the command */
+  help: z.string().optional(),
+  /** Whether to run in background mode by default */
+  background: z.boolean().default(false),
+  /** Whether to forward chat output */
+  forwardChatOutput: z.boolean().default(true),
+  /** Whether to forward system output */
+  forwardSystemOutput: z.boolean().default(true),
+  /** Whether to forward human requests */
+  forwardHumanRequests: z.boolean().default(true),
+  /** Whether to forward reasoning output */
+  forwardReasoning: z.boolean().default(false),
+  /** Whether to forward input commands */
+  forwardInputCommands: z.boolean().default(true),
+  /** Whether to forward artifacts */
+  forwardArtifacts: z.boolean().default(false),
+});
+export type AgentCommandConfig = z.infer<typeof AgentCommandConfigSchema>;
+
 export const AgentConfigSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -23,6 +49,8 @@ export const AgentConfigSchema = z.object({
   headless: z.boolean().default(false),
   //type: z.enum(["interactive", "background"]),
   callable: z.boolean().default(true),
+  /** Register this agent as a callable command */
+  command: AgentCommandConfigSchema.optional(),
   minimumRunning: z.number().default(0),
   idleTimeout: z.number().default(0), // In seconds
   maxRunTime: z.number().default(0), // In seconds

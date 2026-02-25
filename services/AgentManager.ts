@@ -5,9 +5,11 @@ import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.js";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
-import {AgentCheckpointData, type AgentCreationContext} from "../types.js";
+import {AgentCheckpointData, type AgentCreationContext, type TokenRingAgentCommand} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
 import { setTimeout} from "node:timers/promises";
+import {runSubAgent} from "../runSubAgent.ts";
+import AgentCommandService from "./AgentCommandService.js";
 
 export default class AgentManager implements TokenRingService {
   readonly name = "AgentManager";
@@ -30,15 +32,88 @@ export default class AgentManager implements TokenRingService {
   private agents = new Map<string, { agent: Agent, shutdownController: AbortController }>();
   private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
 
-  addAgentConfig = this.agentConfigRegistry.register;
   getAgentConfigEntries = this.agentConfigRegistry.entries;
   getAgentConfig = this.agentConfigRegistry.getItemByName;
   getAgentTypes = this.agentConfigRegistry.getAllItemNames;
   getAgentTypesLike = this.agentConfigRegistry.getItemEntriesLike;
 
+  addAgentConfig = (agentType: string, config: ParsedAgentConfig) => {
+    config.agentType ??= agentType;
+    this.agentConfigRegistry.register(agentType, config);
+    
+    // Register as command if configured
+    if (config.command?.enabled !== false && config.command) {
+      this.registerAgentCommand(agentType, config);
+    }
+  };
+
+  /**
+   * Register an agent as a callable command
+   */
+  private registerAgentCommand(agentType: string, config: ParsedAgentConfig) {
+    const commandConfig = config.command!;
+    const commandName = commandConfig.name || agentType;
+    const commandDescription = commandConfig.description || config.description;
+    
+    const agentCommand: TokenRingAgentCommand = {
+      description: commandDescription,
+      execute: async (remainder: string, agent: Agent): Promise<string> => {
+        const message = remainder.trim();
+        
+        const result = await runSubAgent({
+          agentType,
+          background: commandConfig.background,
+          headless: agent.headless,
+          command: message ? `/work ${message}` : "/work",
+          forwardChatOutput: commandConfig.forwardChatOutput,
+          forwardSystemOutput: commandConfig.forwardSystemOutput,
+          forwardHumanRequests: commandConfig.forwardHumanRequests,
+          forwardReasoning: commandConfig.forwardReasoning,
+          forwardInputCommands: commandConfig.forwardInputCommands,
+          forwardArtifacts: commandConfig.forwardArtifacts,
+        }, agent, true);
+
+        if (commandConfig.background) {
+          return `Agent ${agentType} started in background.`;
+        }
+        
+        if (result.status === "success") {
+          return result.response || "Agent completed successfully.";
+        } else if (result.status === "cancelled") {
+          return `Agent was cancelled: ${result.response}`;
+        } else {
+          return `Agent error: ${result.response}`;
+        }
+      },
+      help: commandConfig.help ?? `# /${commandName}
+
+## Description
+${commandDescription}
+
+## Usage
+/${commandName} <message>
+
+Runs the "${agentType}" agent with the provided message.
+
+## Examples
+/${commandName} analyze the codebase
+/${commandName} help me write a test`
+    };
+
+    // Try to register with AgentCommandService immediately, or wait for it to be available
+    const commandService = this.app.getService(AgentCommandService);
+    if (commandService) {
+      commandService.addAgentCommands({ [commandName]: agentCommand });
+    } else {
+      // Wait for the service to be available
+      this.app.waitForService(AgentCommandService, (service) => {
+        service.addAgentCommands({ [commandName]: agentCommand });
+      });
+    }
+  }
+
   addAgentConfigs(agentConfigs: Record<string, ParsedAgentConfig>) {
     for (const agentType in agentConfigs) {
-      agentConfigs[agentType].agentType ??= agentType;
       this.addAgentConfig(agentType, agentConfigs[agentType]);
     }
   }

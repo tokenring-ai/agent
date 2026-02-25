@@ -10,6 +10,7 @@ The core agent orchestration system for TokenRing AI, enabling creation and mana
 - **State Management**: Persistent state with serialization and checkpointing
 - **Event System**: Comprehensive event handling and emission
 - **Command System**: Slash command interface with extensible commands
+- **Agent Command Registration**: Register agents as callable commands for easy invocation
 - **Tool Integration**: Tool execution with context and parameter validation
 - **Hook System**: Lifecycle hooks for extensibility
 - **Human Interface**: Request/response system for human interaction
@@ -173,6 +174,9 @@ const agent = await agentManager.spawnAgent({
 - Configurable `maxRunTime` per agent (default: 0 = no limit, in seconds)
 - Configurable `minimumRunning` per agent type (default: 0 = no minimum)
 
+**Automatic Command Registration:**
+When an agent config includes the `command` option, the agent is automatically registered as a callable command. See [Agent Command Registration](#agent-command-registration) for details.
+
 ### AgentCommandService Service
 
 Service for managing and executing agent commands:
@@ -267,6 +271,76 @@ agent.subscribeState(AgentEventState, (state) => {
     console.log("Event:", event.type, event);
   }
 });
+```
+
+### Agent Command Registration
+
+Agents can be automatically registered as callable commands, allowing users to invoke them directly using a simple slash command syntax. This provides a more intuitive interface than using `/agent run <type> <message>`.
+
+```typescript
+// Register agent as a command
+agentManager.addAgentConfig("researcher", {
+  name: "Researcher Agent",
+  description: "Researches topics and provides summaries",
+  category: "research",
+  command: {
+    enabled: true,                    // Enable command registration (default: true)
+    name: "research",                 // Custom command name (defaults to agentType)
+    description: "Research a topic",  // Custom description (defaults to agent description)
+    help: `# /research
+
+## Description
+Research a topic and provide a comprehensive summary.
+
+## Usage
+/research <topic>
+
+## Examples
+/research artificial intelligence
+/research quantum computing`,        // Custom help text
+    background: false,                // Run in background (default: false)
+    forwardChatOutput: true,          // Forward chat output (default: true)
+    forwardSystemOutput: true,        // Forward system output (default: true)
+    forwardHumanRequests: true,       // Forward human requests (default: true)
+    forwardReasoning: false,          // Forward reasoning (default: false)
+    forwardInputCommands: true,       // Forward input commands (default: true)
+    forwardArtifacts: false,          // Forward artifacts (default: false)
+  },
+  // ... other config options
+});
+
+// Now users can invoke the agent with:
+// /research artificial intelligence
+// Instead of:
+// /agent run researcher artificial intelligence
+```
+
+**Command Configuration Options:**
+- `enabled`: Whether to register this agent as a command (default: `true` when `command` is provided)
+- `name`: Custom command name (defaults to the agent type)
+- `description`: Command description shown in help (defaults to agent description)
+- `help`: Custom help text for the command (markdown supported)
+- `background`: Run the agent in background mode (default: `false`)
+- `forwardChatOutput`: Forward chat output to parent (default: `true`)
+- `forwardSystemOutput`: Forward system output to parent (default: `true`)
+- `forwardHumanRequests`: Forward human input requests to parent (default: `true`)
+- `forwardReasoning`: Forward reasoning output to parent (default: `false`)
+- `forwardInputCommands`: Forward input commands to parent (default: `true`)
+- `forwardArtifacts`: Forward artifacts to parent (default: `false`)
+
+**Simple Example:**
+```typescript
+// Minimal configuration - uses defaults
+agentManager.addAgentConfig("translator", {
+  name: "Translator",
+  description: "Translates text between languages",
+  category: "utility",
+  command: {},  // Just enable with defaults
+  // ... other config
+});
+
+// Users can now use:
+// /translator Hello, how are you?
 ```
 
 ### State Management and Checkpointing
@@ -644,6 +718,19 @@ const agentConfig = {
   createMessage: string,           // Message displayed when agent is created (default: "Agent Created")
   headless?: boolean,              // Headless mode (default: false)
   callable?: boolean,              // Enable tool calls (default: true)
+  command?: {                      // Register agent as a callable command
+    enabled?: boolean,             // Enable command registration (default: true)
+    name?: string,                 // Custom command name (defaults to agentType)
+    description?: string,          // Custom command description (defaults to agent description)
+    help?: string,                 // Custom help text for the command
+    background?: boolean,          // Run in background mode (default: false)
+    forwardChatOutput?: boolean,   // Forward chat output (default: true)
+    forwardSystemOutput?: boolean, // Forward system output (default: true)
+    forwardHumanRequests?: boolean,// Forward human requests (default: true)
+    forwardReasoning?: boolean,    // Forward reasoning (default: false)
+    forwardInputCommands?: boolean,// Forward input commands (default: true)
+    forwardArtifacts?: boolean,    // Forward artifacts (default: false)
+  },
   minimumRunning?: number,         // Minimum running agents of this type (default: 0)
   idleTimeout?: number,            // Idle timeout in seconds (default: 0 = no limit)
   maxRunTime?: number,             // Max runtime in seconds (default: 0 = no limit)
