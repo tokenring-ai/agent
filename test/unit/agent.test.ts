@@ -27,7 +27,7 @@ describe('Agent', () => {
 
   describe('Constructor and Initialization', () => {
     it('should create an agent with correct properties', () => {
-      expect(agent.name).toBe(agent.config.name);
+      expect(agent.displayName).toBe(agent.config.name);
       expect(agent.config.description).toBe(agent.config.description);
       expect(agent.id).toBeDefined();
       expect(agent.headless).toBe(false);

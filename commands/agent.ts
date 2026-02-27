@@ -26,7 +26,7 @@ async function list(remainder: string, agent: Agent): Promise<string> {
   }
 
   return "**Running agents:**\n" +
-    agents.map(a => `- **${a.name}** (${a.id.slice(0, 8)}): ${a.config.description}`)
+    agents.map(a => `- **${a.displayName}** (${a.id.slice(0, 8)}): ${a.config.description}`)
       .join("\n");
 }
 
@@ -105,6 +105,7 @@ Runs an agent of the specified type with the given message.
 /agent run --bg researcher find information about AI`;
 
 export default {
+  name: "agent",
   description,
   execute,
   help,

@@ -67,6 +67,7 @@ Examples:
 `;
 
 export default {
+  name: "debug",
   description,
   execute,
   help,

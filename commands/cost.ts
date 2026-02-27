@@ -23,6 +23,7 @@ Displays total costs incurred by the Agent, including AI Chat, Image Generation,
 `;
 
 export default {
+  name: "costs",
   description,
   execute,
   help,

@@ -49,6 +49,7 @@ AgentConfig:
   Temperature: 0.7`;
 
 export default {
+  name: "settings",
   description,
   execute,
   help,

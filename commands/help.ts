@@ -68,6 +68,7 @@ Displays detailed help information for all available commands. Each command show
 > **Note:** This command is always available and provides the most comprehensive overview of what you can do in the CLI interface.`;
 
 export default {
+  name: "help",
   description,
   execute,
   help,

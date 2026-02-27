@@ -5,9 +5,8 @@ import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
-import {getDefaultQuestionValue} from "../question.ts";
+import type {InputReceived} from "../AgentEvents.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
-import {AgentExecutionState} from "../state/agentExecutionState.ts";
 import type {TokenRingAgentCommand} from "../types.js";
 import AgentLifecycleService from "./AgentLifecycleService.ts";
 
@@ -22,11 +21,15 @@ export default class AgentCommandService implements TokenRingService {
   getCommandEntries = this.agentCommands.entries;
   getCommand = this.agentCommands.getItemByName;
 
-  constructor(private readonly app: TokenRingApp) {}
+  constructor(private readonly app: TokenRingApp) {
+  }
 
-  addAgentCommands(chatCommands: Record<string, TokenRingAgentCommand>) {
-    for (const cmdName in chatCommands) {
-      this.agentCommands.register(cmdName, chatCommands[cmdName]);
+  addAgentCommands(...commands: (TokenRingAgentCommand | TokenRingAgentCommand[])[]) {
+    for (const command of commands.flat()) {
+      this.agentCommands.register(command.name, command);
+      for (const alias of command.aliases ?? []) {
+        this.agentCommands.register(alias, command);
+      }
     }
   }
 
@@ -52,23 +55,12 @@ export default class AgentCommandService implements TokenRingService {
       } else {
         throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
       }
-    } else if (! message.startsWith("/")) {
-     message = `${this.defaultCommand} ${message}`
+    } else if (!message.startsWith("/")) {
+      message = `${this.defaultCommand} ${message}`
     }
 
     const commandInput = message.slice(1); // Remove leading '/'
     let match = this.agentCommands.getLongestPrefixMatch(commandInput);
-    if (! match) {
-      let replaced = false;
-      let singularCommandInput = commandInput.replace(/^([a-z]*)s( |$)/g, (match, command, extra) => {
-        replaced = true;
-        return `${command}${extra}`;
-      });
-
-      if (replaced) {
-        match = this.agentCommands.getLongestPrefixMatch(singularCommandInput);
-      }
-    }
 
     if (match) {
       const result = await match.item.execute(match.remainder, agent);
@@ -80,137 +72,86 @@ export default class AgentCommandService implements TokenRingService {
   }
 
   async attach(agent: Agent) {
-    this.app.trackPromise(this, async (abortSignal) => {
-      await this.runAgentLoop(agent, abortSignal);
-    });
+    agent.runBackgroundTask(async (signal) => this.runAgentLoop(agent, signal));
   }
 
   async runAgentLoop(agent: Agent, signal: AbortSignal): Promise<void> {
     signal.addEventListener('abort', () => agent.agentShutdownSignal);
 
-    if (agent.config.initialCommands.length > 0) {
-      agent.mutateState(AgentEventState, (state) => {
+    await agent.waitForState(AgentEventState, state => state.events.some(
+      event => event.type === "agent.created"
+    ))
+
+    agent.mutateState(AgentEventState, (state) => {
+      state.updateExecutionState({
+        running: true,
+      });
+      if (agent.config.initialCommands.length > 0) {
         for (const message of agent.config.initialCommands) {
           state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
         }
-      })
-    }
-
-    const eventCursor = { position: 0 };
-
-    for await (const state of agent.subscribeStateAsync(AgentEventState, agent.agentShutdownSignal)) {
-      for (const event of state.yieldEventsByCursor(eventCursor)) {
-        if (event.type === "input.received") {
-          agent.mutateState(AgentExecutionState, (s) => {
-            s.inputQueue.push(event);
-          });
-        } else if (event.type === "abort") {
-          this.handleAbort(agent, event.message);
-        } else if (event.type === 'question.request' ) {
-          agent.mutateState(AgentExecutionState, (s) => {
-            s.waitingOn.push(event);
-            if (event.autoSubmitAfter > 0) {
-              const requestId = event.requestId;
-              const autoSubmitAfterMs = event.autoSubmitAfter * 1000;
-              setTimeout(() => {
-                agent.mutateState(AgentEventState, (s) => {
-                  for (const e of s.events) {
-                    if ((e.type === 'question.response') && e.requestId === requestId) return;
-                  }
-
-                  s.events.push({ type: 'question.response', requestId, result: getDefaultQuestionValue(event.question), timestamp: Date.now() });
-                });
-              }, autoSubmitAfterMs);
-            }
-          });
-        } else if (event.type === "question.response") {
-          agent.mutateState(AgentExecutionState, (s) => {
-            s.waitingOn = s.waitingOn.filter(item => item.requestId !== event.requestId);
-          })
-        }
-      }
-
-      this.startNextExecution(agent);
-    }
-  }
-
-  private handleAbort(agent: Agent, reason?: string): void {
-    agent.mutateState(AgentExecutionState, (state) => {
-      const requestId = state.currentlyExecuting?.requestId;
-
-      state.inputQueue.splice(0, state.inputQueue.length);
-
-      agent.mutateState(AgentEventState, (eventState) => {
-        for (const item of state.inputQueue.filter(r => r.requestId !== requestId)) {
-          if (item.requestId === requestId) continue;
-          eventState.emit({
-            type: "input.handled",
-            requestId: item.requestId,
-            status: "cancelled",
-            message: "Aborted",
-            timestamp: Date.now(),
-          });
-        }
-      });
-
-      if (state.currentlyExecuting) {
-        state.currentlyExecuting.abortController.abort(reason ?? "Abort requested");
       }
     });
+
+    for await (const state of agent.subscribeStateAsync(AgentEventState, agent.agentShutdownSignal)) {
+      if (state.latestExecutionState!.inputQueue.length === 0) continue;
+
+      const item = state.latestExecutionState!.inputQueue[0];
+
+      const itemAbortController = new AbortController();
+      const handleAgentAbort = () => itemAbortController.abort();
+      agent.agentShutdownSignal.addEventListener('abort', handleAgentAbort);
+
+      agent.mutateState(AgentEventState, (s) => {
+        s.updateExecutionState({currentlyExecuting: item.requestId});
+        s.currentExecutionAbortController = itemAbortController;
+      });
+
+      try {
+        await this.processAgentInput(agent, item, itemAbortController.signal);
+      } finally {
+        agent.agentShutdownSignal.removeEventListener('abort', handleAgentAbort);
+        agent.mutateState(AgentEventState, (eventState) => {
+          eventState.currentExecutionAbortController = null;
+          eventState.updateExecutionState({
+            currentlyExecuting: null,
+            inputQueue: [...eventState.latestExecutionState!.inputQueue.filter(i => i.requestId !== item.requestId)],
+          })
+        });
+      }
+    }
   }
 
-  private startNextExecution(agent: Agent): void {
-    const state = agent.getState(AgentExecutionState);
-    if (state.currentlyExecuting || state.inputQueue.length === 0) return;
-
-    const item = state.inputQueue[0];
-
+  private async processAgentInput(agent: Agent, item: InputReceived, signal: AbortSignal) {
     const agentCommandService = agent.requireServiceByType(AgentCommandService);
     const agentLifecycleService = agent.getServiceByType(AgentLifecycleService);
 
+    try {
+      const message = await agentCommandService.executeAgentCommand(agent, item.message);
+      await agentLifecycleService?.executeHooks(agent, "afterAgentInputComplete", item.message);
 
-    const itemAbortController = new AbortController();
-    const handleAgentAbort = () => itemAbortController.abort();
-    agent.agentShutdownSignal.addEventListener('abort', handleAgentAbort);
-
-    agent.mutateState(AgentExecutionState, (s) => {
-      s.currentlyExecuting = { requestId: item.requestId, abortController: itemAbortController };
-    });
-
-    agent.app.trackPromise(this, async () => {
-      try {
-        const message = await agentCommandService.executeAgentCommand(agent, item.message);
-        await agentLifecycleService?.executeHooks(agent, "afterAgentInputComplete", item.message);
-
-        agent.mutateState(AgentEventState, (s) => {
-          s.emit({
-            type: "input.handled",
-            requestId: item.requestId,
-            status: "success",
-            message,
-            timestamp: Date.now(),
-          });
+      agent.mutateState(AgentEventState, (s) => {
+        s.emit({
+          type: "input.handled",
+          requestId: item.requestId,
+          status: "success",
+          message,
+          timestamp: Date.now(),
         });
-      } catch (err) {
-        const status = itemAbortController.signal.aborted ? "cancelled" : "error";
+      });
+    } catch (err) {
+      const status = signal.aborted ? "cancelled" : "error";
 
-        const message = err instanceof CommandFailedError ? err.message : formatLogMessages([err as Error]);
-        agent.mutateState(AgentEventState, (s) => {
-          s.emit({
-            type: "input.handled",
-            requestId: item.requestId,
-            status,
-            message,
-            timestamp: Date.now(),
-          });
+      const message = err instanceof CommandFailedError ? err.message : formatLogMessages([err as Error]);
+      agent.mutateState(AgentEventState, (s) => {
+        s.emit({
+          type: "input.handled",
+          requestId: item.requestId,
+          status,
+          message,
+          timestamp: Date.now(),
         });
-      } finally {
-        agent.agentShutdownSignal.removeEventListener('abort', handleAgentAbort);
-        agent.mutateState(AgentExecutionState, (s) => {
-          s.currentlyExecuting = null;
-          s.inputQueue = s.inputQueue.filter(i => i.requestId !== item.requestId);
-        });
-      }
-    });
+      });
+    }
   }
 }

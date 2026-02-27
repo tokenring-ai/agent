@@ -103,6 +103,18 @@ export const QuestionRequestSchema = z.object({
   autoSubmitAfter: z.number().default(0)
 });
 
+export const AgentExecutionStateSchema = z.object({
+  type: z.literal("agent.execution"),
+  running: z.boolean(),
+  timestamp: z.number(),
+  busyWith: z.string().nullable(),
+  waitingOn: z.array(QuestionRequestSchema),
+  inputQueue: z.array(InputReceivedSchema),
+  currentlyExecuting: z.string().nullable(),
+  statusLine: z.string().nullable()
+});
+
+
 export type QuestionRequest = z.input<typeof QuestionRequestSchema>;
 export type ParsedQuestionRequest = z.output<typeof QuestionRequestSchema>
 export type QuestionResponse = z.output<typeof QuestionResponseSchema>;
@@ -110,6 +122,7 @@ export type QuestionResponse = z.output<typeof QuestionResponseSchema>;
 export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   AgentCreatedSchema,
   AgentStoppedSchema,
+  AgentExecutionStateSchema,
   OutputArtifactSchema,
   OutputChatSchema,
   OutputReasoningSchema,

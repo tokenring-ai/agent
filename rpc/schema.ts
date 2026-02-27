@@ -15,7 +15,7 @@ export default {
       }),
       result: z.object({
         id: z.string(),
-        name: z.string(),
+        displayName: z.string(),
         description: z.string(),
         debugEnabled: z.boolean(),
         config: z.object(omit(AgentConfigSchema.shape, ["workHandler"]))
@@ -72,7 +72,7 @@ export default {
       input: z.object({}),
       result: z.array(z.object({
         id: z.string(),
-        name: z.string(),
+        displayName: z.string(),
         description: z.string(),
         idle: z.boolean(),
         statusMessage: z.string()
@@ -83,7 +83,7 @@ export default {
       input: z.object({}),
       result: z.array(z.object({
         type: z.string(),
-        name: z.string(),
+        displayName: z.string(),
         description: z.string(),
         category: z.string().optional(),
         callable: z.boolean().optional(),
@@ -97,7 +97,7 @@ export default {
       }),
       result: z.object({
         id: z.string(),
-        name: z.string(),
+        displayName: z.string(),
         description: z.string(),
       })
     },

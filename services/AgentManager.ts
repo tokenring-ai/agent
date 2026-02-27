@@ -36,32 +36,33 @@ export default class AgentManager implements TokenRingService {
   getAgentConfig = this.agentConfigRegistry.getItemByName;
   getAgentTypes = this.agentConfigRegistry.getAllItemNames;
   getAgentTypesLike = this.agentConfigRegistry.getItemEntriesLike;
+  addAgentConfigs(...configs: ParsedAgentConfig[])  {
+    for (const config of configs) {
+      this.agentConfigRegistry.register(config.agentType, config);
 
-  addAgentConfig = (agentType: string, config: ParsedAgentConfig) => {
-    config.agentType ??= agentType;
-    this.agentConfigRegistry.register(agentType, config);
-    
-    // Register as command if configured
-    if (config.command?.enabled !== false && config.command) {
-      this.registerAgentCommand(agentType, config);
+      // Register as command if configured
+      if (config.command?.enabled !== false && config.command) {
+        this.registerAgentCommand(config);
+      }
     }
   };
 
   /**
    * Register an agent as a callable command
    */
-  private registerAgentCommand(agentType: string, config: ParsedAgentConfig) {
+  private registerAgentCommand(config: ParsedAgentConfig) {
     const commandConfig = config.command!;
-    const commandName = commandConfig.name || agentType;
+    const commandName = commandConfig.name || config.agentType;
     const commandDescription = commandConfig.description || config.description;
     
     const agentCommand: TokenRingAgentCommand = {
+      name: commandName,
       description: commandDescription,
       execute: async (remainder: string, agent: Agent): Promise<string> => {
         const message = remainder.trim();
         
         const result = await runSubAgent({
-          agentType,
+          agentType: config.agentType,
           background: commandConfig.background,
           headless: agent.headless,
           command: message ? `/work ${message}` : "/work",
@@ -74,7 +75,7 @@ export default class AgentManager implements TokenRingService {
         }, agent, true);
 
         if (commandConfig.background) {
-          return `Agent ${agentType} started in background.`;
+          return `Agent ${config.agentType} started in background.`;
         }
         
         if (result.status === "success") {
@@ -93,7 +94,7 @@ ${commandDescription}
 ## Usage
 /${commandName} <message>
 
-Runs the "${agentType}" agent with the provided message.
+Runs the "${config.agentType}" agent with the provided message.
 
 ## Examples
 /${commandName} analyze the codebase
@@ -101,23 +102,9 @@ Runs the "${agentType}" agent with the provided message.
     };
 
     // Try to register with AgentCommandService immediately, or wait for it to be available
-    const commandService = this.app.getService(AgentCommandService);
-    if (commandService) {
-      commandService.addAgentCommands({ [commandName]: agentCommand });
-    } else {
-      // Wait for the service to be available
-      this.app.waitForService(AgentCommandService, (service) => {
-        service.addAgentCommands({ [commandName]: agentCommand });
-      });
-    }
+    const commandService = this.app.requireService(AgentCommandService);
+    commandService.addAgentCommands(agentCommand);
   }
-
-  addAgentConfigs(agentConfigs: Record<string, ParsedAgentConfig>) {
-    for (const agentType in agentConfigs) {
-      this.addAgentConfig(agentType, agentConfigs[agentType]);
-    }
-  }
-
 
   async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig>) {
     return this.createAgent({
@@ -132,7 +119,7 @@ Runs the "${agentType}" agent with the provided message.
   }
 
   async spawnAgentFromConfig(config: ParsedAgentConfig) {
-    return this.createAgent({ ...config, createMessage: `Agent created from config: ${config.name} (${config.agentType})`});
+    return this.createAgent({ ...config, createMessage: `Agent created from config: ${config.displayName} (${config.agentType})`});
   }
 
   async spawnSubAgent(agent: Agent, agentType: string, config: Partial<ParsedAgentConfig>): Promise<Agent> {
@@ -140,7 +127,7 @@ Runs the "${agentType}" agent with the provided message.
     // Create a new agent of the specified type
     const newAgent = await this.createAgent({
       ...agentConfig,
-      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.name} (${agentConfig.agentType})`,
+      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.displayName} (${agentConfig.agentType})`,
       ...config,
     });
 
@@ -149,7 +136,7 @@ Runs the "${agentType}" agent with the provided message.
     }
 
     agent.infoMessage(
-      `Created new agent: ${newAgent.config.name} (${formatAgentId(newAgent.id)})`,
+      `Created new agent: ${newAgent.config.displayName} (${formatAgentId(newAgent.id)})`,
     );
     return newAgent;
   }

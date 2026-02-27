@@ -55,8 +55,8 @@ describe('AgentManager', () => {
     app.addServices(manager);
     
     // Add test configurations
-    manager.addAgentConfig('test', mockConfig);
-    manager.addAgentConfig('background', {
+    manager.addAgentConfigs('test', mockConfig);
+    manager.addAgentConfigs('background', {
       ...mockConfig,
       name: 'Background Agent',
     });
@@ -80,7 +80,7 @@ describe('AgentManager', () => {
         name: 'New Agent',
       };
 
-      manager.addAgentConfig('new', testConfig);
+      manager.addAgentConfigs('new', testConfig);
       
       const configs = manager.getAgentConfigs();
       expect(configs).toHaveProperty('new');
@@ -231,7 +231,7 @@ describe('AgentManager', () => {
     it('should delete idle agents exceeding timeout', async () => {
       // Create agent with short timeout
       const shortTimeoutConfig = { ...mockConfig, idleTimeout: 1 }; // 1 second
-      manager.addAgentConfig('short', shortTimeoutConfig);
+      manager.addAgentConfigs('short', shortTimeoutConfig);
       
       const agent = await manager.spawnAgent({ agentType: 'short', headless: true });
       
@@ -286,7 +286,7 @@ describe('AgentManager', () => {
       };
 
       expect(() => {
-        manager.addAgentConfig('invalid', invalidConfig as AgentConfig);
+        manager.addAgentConfigs('invalid', invalidConfig as AgentConfig);
       }).not.toThrow();
     });
   });

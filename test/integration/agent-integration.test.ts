@@ -176,7 +176,7 @@ describe('Agent Integration Tests', () => {
 
   describe('Manager Integration', () => {
     it('should create agents through manager', async () => {
-      manager.addAgentConfig('test', mockConfig);
+      manager.addAgentConfigs('test', mockConfig);
       
       const managedAgent = await manager.spawnAgent({ agentType: 'test', headless: true });
       
@@ -185,7 +185,7 @@ describe('Agent Integration Tests', () => {
     });
 
     it('should handle sub-agent creation', async () => {
-      manager.addAgentConfig('test', mockConfig);
+      manager.addAgentConfigs('test', mockConfig);
       
       const subAgent = await manager.spawnSubAgent(agent, 'test', {
         headless: true

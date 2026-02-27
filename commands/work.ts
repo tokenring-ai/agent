@@ -35,6 +35,7 @@ Invokes the work handler for the agent, with the message corresponding to the wo
 - Otherwise, the default AgentCommandService will handle the request`;
 
 export default {
+  name: "work",
   description,
   execute,
   help,

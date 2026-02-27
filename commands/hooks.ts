@@ -1,13 +1,13 @@
 import {TokenRingAgentCommand} from "../types.ts";
 import createSubcommandRouter from "../util/subcommandRouter.ts";
-import defaultAction from "./hook/default.ts";
-import disable from "./hook/disable.ts";
-import enable from "./hook/enable.ts";
-import get from "./hook/get.ts";
-import list from "./hook/list.ts";
-import reset from "./hook/reset.ts";
-import select from "./hook/select.ts";
-import set from "./hook/set.ts";
+import defaultAction from "./hooks/default.ts";
+import disable from "./hooks/disable.ts";
+import enable from "./hooks/enable.ts";
+import get from "./hooks/get.ts";
+import list from "./hooks/list.ts";
+import reset from "./hooks/reset.ts";
+import select from "./hooks/select.ts";
+import set from "./hooks/set.ts";
 
 const description = "/hooks - Manage registered hooks and their execution state";
 
@@ -55,6 +55,7 @@ Manage registered hooks and their execution state. Hooks are special functions t
 - disable removes hooks from the enabled set`;
 
 export default {
+  name: "hooks",
   description,
   execute,
   help,

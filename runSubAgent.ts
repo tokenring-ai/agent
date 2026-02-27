@@ -6,7 +6,6 @@ import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {like} from "@tokenring-ai/utility/string/like";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 import type {ParsedAgentConfig} from "./schema.ts";
-import {AgentExecutionState} from "./state/agentExecutionState.ts";
 import {SubAgentState} from "./state/subAgentState.ts";
 
 export type RunSubAgentOptions = Partial<ParsedAgentConfig["subAgent"]> & {
@@ -105,7 +104,7 @@ export async function runSubAgent(
   }, timeoutSeconds * 1000) : null;
 
   try {
-    await childAgent.waitForState(AgentExecutionState, (state) => state.idle);
+    await childAgent.waitForState(AgentEventState, (state) => state.idle);
     const eventCursor = childAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
     const requestId = childAgent.handleInput({ message: command });
@@ -228,6 +227,9 @@ export async function runSubAgent(
               break;
             case "reset":
               parentAgent.infoMessage(`${agentType} > Agent Reset: ${event.what}`);
+              break;
+            case "agent.execution":
+              /* ignored */
               break;
             default:
               // noinspection JSUnusedLocalSymbols

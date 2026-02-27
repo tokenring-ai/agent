@@ -4,17 +4,15 @@ import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import {AgentEventEnvelope, OutputArtifactSchema, type QuestionRequest, QuestionRequestSchema, QuestionResponseSchema, ResetWhat} from "./AgentEvents.js";
-import {type ResultTypeForQuestion} from "./question.js";
+import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.js";
 import {AgentConfig, ParsedAgentConfig} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.js";
 import {AgentEventState} from "./state/agentEventState.ts";
-import {AgentExecutionState} from "./state/agentExecutionState.ts";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
 import {CostTrackingState} from "./state/costTrackingState.ts";
 import {SubAgentState} from "./state/subAgentState.ts";
 import {TodoState} from "./state/todoState.ts";
 import {AgentCheckpointData, AgentStateSlice} from "./types.js";
-import {formatAgentId} from "./util/formatAgentId.ts";
 
 export default class Agent {
   readonly id: string = uuid();
@@ -37,7 +35,6 @@ export default class Agent {
     this.debugEnabled = config.debug;
 
     this.initializeState(AgentEventState, {});
-    this.initializeState(AgentExecutionState, {});
     this.initializeState(CommandHistoryState, {});
     this.initializeState(CostTrackingState, {});
     this.initializeState(TodoState, config);
@@ -52,8 +49,8 @@ export default class Agent {
     return this.config.headless;
   }
 
-  get name() {
-    return this.config.name;
+  get displayName() {
+    return this.config.displayName;
   }
 
   generateCheckpoint(): AgentCheckpointData {
@@ -188,11 +185,25 @@ export default class Agent {
     }
 
     let requestId = uuid();
+    const event = QuestionRequestSchema.parse({ type: 'question.request', requestId, timestamp: Date.now(), ...question });
 
     const eventCursor = this.mutateState(AgentEventState, (state) => {
-      state.emit(QuestionRequestSchema.parse({ type: 'question.request', requestId, timestamp: Date.now(), ...question }));
+      state.emit(event);
       return state.getEventCursorFromCurrentPosition();
     });
+
+    if (event.autoSubmitAfter > 0) {
+      const autoSubmitAfterMs = event.autoSubmitAfter * 1000;
+      setTimeout(() => {
+        this.mutateState(AgentEventState, (s) => {
+          for (const e of s.events) {
+            if ((e.type === 'question.response') && e.requestId === requestId) return;
+          }
+
+          s.emit({ type: 'question.response', requestId, result: getDefaultQuestionValue(event.question), timestamp: Date.now() });
+        });
+      }, autoSubmitAfterMs);
+    }
 
     for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownSignal)) {
       for (const event of state.yieldEventsByCursor(eventCursor)) {
@@ -206,23 +217,30 @@ export default class Agent {
 
   async busyWhile<T>(message: string, awaitable: Promise<T> | (() => Promise<T>)): Promise<T> {
     if (typeof awaitable === "function") awaitable = awaitable();
-    this.mutateState(AgentExecutionState, (state) => state.busyWith = message);
+
+    let prevBusyWith: string | null;
+    this.mutateState(AgentEventState, (state) => {
+      prevBusyWith = state.latestExecutionState.busyWith;
+      state.updateExecutionState({ busyWith: prevBusyWith ? `${prevBusyWith} & ${message}` : message });
+    })
     try {
       return await awaitable;
     } finally {
-      this.mutateState(AgentExecutionState, (state) => state.busyWith = null);
+      this.mutateState(AgentEventState, (state) => {
+        state.updateExecutionState({ busyWith: prevBusyWith });
+      })
     }
   }
 
   setBusyWith(message: string | null) {
-    this.mutateState(AgentExecutionState, (state) => {
-      state.busyWith = message;
+    this.mutateState(AgentEventState, (state) => {
+      state.updateExecutionState({ busyWith: message });
     })
   }
 
-  setStatusLine(status: string | null) {
-    this.mutateState(AgentExecutionState, (state) => {
-      state.statusLine = status;
+  setStatusLine(statusLine: string | null) {
+    this.mutateState(AgentEventState, (state) => {
+      state.updateExecutionState({ statusLine: statusLine });
     })
   }
 
@@ -253,9 +271,17 @@ export default class Agent {
   };
 
   getAbortSignal() {
-    const state = this.getState(AgentExecutionState);
-    return state.currentlyExecuting?.abortController.signal || this.agentShutdownSignal;
+    const state = this.getState(AgentEventState);
+    return state.currentExecutionAbortController?.signal || this.agentShutdownSignal;
   }
+
+  runBackgroundTask(task: (signal: AbortSignal) => Promise<void>) {
+    task(this.agentShutdownSignal)
+    .catch(error => {
+      this.errorMessage("Error while running background task", error as Error);
+    });
+  }
+
   private emit(event: AgentEventEnvelope): void {
     this.mutateState(AgentEventState, (state) => state.emit(event));
   }

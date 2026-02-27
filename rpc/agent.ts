@@ -1,11 +1,11 @@
 import TokenRingApp from "@tokenring-ai/app";
 import omit from "@tokenring-ai/utility/object/omit";
 import {createRPCEndpoint} from "@tokenring-ai/rpc/createRPCEndpoint";
+import {z} from "zod";
 import Agent from "../Agent.ts";
-import {ResetWhat} from "../AgentEvents.ts";
+import {AgentExecutionStateSchema, ResetWhat} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
 import {AgentEventState} from "../state/agentEventState.js";
-import {AgentExecutionState} from "../state/agentExecutionState.ts";
 import {CommandHistoryState} from "../state/commandHistoryState.ts";
 import AgentRpcSchema from "./schema.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
@@ -16,7 +16,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
     if (!agent) throw new Error("Agent not found");
     return {
       id: agent.id,
-      name: agent.name,
+      displayName: agent.displayName,
       description: agent.config.description,
       debugEnabled: agent.config.debug,
       config: omit(agent.config, ["workHandler"]),
@@ -52,12 +52,12 @@ export default createRPCEndpoint(AgentRpcSchema, {
   getAgentExecutionState(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    const state = agent.getState(AgentExecutionState);
+    const state = agent.getState(AgentEventState);
     return {
       idle: state.idle,
-      busyWith: state.busyWith,
-      waitingOn: state.waitingOn,
-      statusLine: state.statusLine,
+      busyWith: state.latestExecutionState.busyWith,
+      waitingOn: state.latestExecutionState.waitingOn,
+      statusLine: state.latestExecutionState.statusLine,
     };
   },
 
@@ -65,38 +65,41 @@ export default createRPCEndpoint(AgentRpcSchema, {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
 
-    for await (const state of agent.subscribeStateAsync(AgentExecutionState, signal)) {
+    let lastExecutionState: z.output<typeof AgentExecutionStateSchema> | null = null;
+    for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
+      if (state.latestExecutionState === lastExecutionState) continue;
       yield {
         idle: state.idle,
-        busyWith: state.busyWith,
-        waitingOn: state.waitingOn,
-        statusLine: state.statusLine,
+        busyWith: state.latestExecutionState.busyWith,
+        waitingOn: state.latestExecutionState.waitingOn,
+        statusLine: state.latestExecutionState.statusLine,
       };
+      lastExecutionState = state.latestExecutionState;
     }
   },
   listAgents(_args, app) {
     return app.requireService(AgentManager).getAgents().map((agent: Agent) => {
-      const agentState = agent.getState(AgentExecutionState);
+      const agentState = agent.getState(AgentEventState);
 
       return {
         id: agent.id,
-        name: agent.name,
+        displayName: agent.displayName,
         description: agent.config.description,
         idle: agentState.idle,
-        statusMessage: agentState.waitingOn.length > 0
+        statusMessage: agentState.latestExecutionState.waitingOn.length > 0
           ? "Waiting on user input..."
           : agentState.idle
             ? "Agent is idle"
-            : agentState.busyWith ?? "Agent is working...."
+            : agentState.latestExecutionState.busyWith ?? "Agent is working...."
       }
     });
   },
 
   getAgentTypes(_args, app) {
     const configs = app.requireService(AgentManager).getAgentConfigEntries();
-    return configs.map(([type, config]: [string, any]) => ({
+    return configs.map(([type, config]) => ({
       type,
-      name: config.name,
+      displayName: config.displayName,
       description: config.description,
       category: config.category,
       callable: config.callable,
@@ -110,7 +113,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
     });
     return {
       id: agent.id,
-      name: agent.config.name,
+      displayName: agent.displayName,
       description: agent.config.description,
     };
   },

@@ -35,7 +35,8 @@ export const AgentCommandConfigSchema = z.object({
 export type AgentCommandConfig = z.infer<typeof AgentCommandConfigSchema>;
 
 export const AgentConfigSchema = z.object({
-  name: z.string(),
+  agentType: z.string(),
+  displayName: z.string(),
   description: z.string(),
   category: z.string(),
   debug: z.boolean().default(false),
@@ -43,7 +44,6 @@ export const AgentConfigSchema = z.object({
     input: z.tuple([z.string(), z.any()]),
     output: z.any()
   }).optional(),
-  agentType: z.string().optional(),
   initialCommands: z.array(z.string()).default([]),
   createMessage: z.string().default("Agent Created"),
   headless: z.boolean().default(false),
@@ -73,8 +73,10 @@ export const AgentConfigSchema = z.object({
   }).prefault({}),
 });
 
-export const AgentPackageConfigSchema = z
-  .record(z.string(), AgentConfigSchema.loose())
-  .optional();
+export const AgentPackageConfigSchema = z.object({
+  app: z.array(AgentConfigSchema.loose()).optional(),
+  user: z.array(AgentConfigSchema.loose()).optional(),
+});
+
 export type AgentConfig = z.input<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;

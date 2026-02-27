@@ -71,6 +71,7 @@ Clears various aspects of agent state. Multiple targets can be specified.
 - Use 'all' to reset everything at once`;
 
 export default {
+  name: "reset",
   description,
   execute,
   help,

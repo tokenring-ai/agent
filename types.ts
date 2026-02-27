@@ -4,7 +4,8 @@ import {ResetWhat} from "./AgentEvents.ts";
 import {ParsedAgentConfig} from "./schema.ts";
 
 export type TokenRingAgentCommand = {
-  name?: string;
+  name: string;
+  aliases?: string[];
   description: string;
   execute: (
     input: string,
