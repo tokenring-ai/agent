@@ -55,10 +55,21 @@ export const OutputErrorSchema = z.object({
   message: z.string(),
 });
 
+export const InputAttachmentSchema = z.object({
+  name: z.string(),
+  encoding: z.enum(["text","base64","href"]),
+  mimeType: z.string(),
+  body: z.string(),
+  timestamp: z.number(),
+})
+
+export type InputAttachment = z.input<typeof InputAttachmentSchema>;
+
 export const InputReceivedSchema = z.object({
   type: z.literal("input.received"),
   timestamp: z.number(),
   message: z.string(),
+  attachments: z.array(InputAttachmentSchema).optional(),
   requestId: z.string(),
 });
 

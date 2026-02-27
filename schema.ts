@@ -9,8 +9,6 @@ export const TodoItemSchema = z.object({
 export type TodoItem = z.infer<typeof TodoItemSchema>;
 
 export const AgentCommandConfigSchema = z.object({
-  /** Whether to register this agent as a command (default: true if command config is provided) */
-  enabled: z.boolean().default(true),
   /** Custom command name (defaults to agentType if not provided) */
   name: z.string().optional(),
   /** Custom command description (defaults to agent description if not provided) */

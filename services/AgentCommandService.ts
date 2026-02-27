@@ -5,7 +5,7 @@ import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
-import type {InputReceived} from "../AgentEvents.ts";
+import type {InputAttachment, InputReceived} from "../AgentEvents.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
 import type {TokenRingAgentCommand} from "../types.js";
 import AgentLifecycleService from "./AgentLifecycleService.ts";
@@ -33,7 +33,7 @@ export default class AgentCommandService implements TokenRingService {
     }
   }
 
-  async executeAgentCommand(agent: Agent, message: string): Promise<string> {
+  async executeAgentCommand(agent: Agent, message: string, attachments: InputAttachment[] = []): Promise<string> {
     const signal = agent.getAbortSignal();
     if (signal.aborted) {
       throw new CommandFailedError("Command execution aborted");
@@ -63,8 +63,16 @@ export default class AgentCommandService implements TokenRingService {
     let match = this.agentCommands.getLongestPrefixMatch(commandInput);
 
     if (match) {
-      const result = await match.item.execute(match.remainder, agent);
-      return result ? result.trim() : "Command completed successfully";
+      if (match.item.allowAttachments) {
+        const result = await match.item.execute({ input: match.remainder, attachments }, agent);
+        return result ? result.trim() : "Command completed successfully";
+      } else {
+        if (attachments.length > 0) {
+          throw new CommandFailedError(`Attachments are not allowed for command: /${match.item.name}`);
+        }
+        const result = await match.item.execute(match.remainder, agent);
+        return result ? result.trim() : "Command completed successfully";
+      }
     } else {
       const firstWord = commandInput.split(/\s+/)[0];
       throw new CommandFailedError(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
@@ -127,7 +135,7 @@ export default class AgentCommandService implements TokenRingService {
     const agentLifecycleService = agent.getServiceByType(AgentLifecycleService);
 
     try {
-      const message = await agentCommandService.executeAgentCommand(agent, item.message);
+      const message = await agentCommandService.executeAgentCommand(agent, item.message, item.attachments);
       await agentLifecycleService?.executeHooks(agent, "afterAgentInputComplete", item.message);
 
       agent.mutateState(AgentEventState, (s) => {

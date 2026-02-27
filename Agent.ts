@@ -3,7 +3,15 @@ import StateManager from "@tokenring-ai/app/StateManager";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
-import {AgentEventEnvelope, OutputArtifactSchema, type QuestionRequest, QuestionRequestSchema, QuestionResponseSchema, ResetWhat} from "./AgentEvents.js";
+import {
+  AgentEventEnvelope,
+  type InputAttachment,
+  OutputArtifactSchema,
+  type QuestionRequest,
+  QuestionRequestSchema,
+  QuestionResponseSchema,
+  ResetWhat
+} from "./AgentEvents.js";
 import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.js";
 import {AgentConfig, ParsedAgentConfig} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.js";
@@ -92,14 +100,15 @@ export default class Agent {
   /**
    * Handle input from the user.
    * @param message
+   * @param attachments
    * @returns A unique request ID for the input. This can be used to track the status of the request, e.g. to cancel it.
    */
-  handleInput({message}: { message: string }): string {
+  handleInput({ message, attachments }: { message: string, attachments?: InputAttachment[] }): string {
     const requestId = uuid();
     message = message.trim();
     
     this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "input.received", message, requestId, timestamp: Date.now()});
+      state.emit({type: "input.received", message, attachments, requestId, timestamp: Date.now()});
     });
 
     this.mutateState(CommandHistoryState, (state) => {

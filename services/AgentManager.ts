@@ -41,7 +41,7 @@ export default class AgentManager implements TokenRingService {
       this.agentConfigRegistry.register(config.agentType, config);
 
       // Register as command if configured
-      if (config.command?.enabled !== false && config.command) {
+      if (config.command) {
         this.registerAgentCommand(config);
       }
     }

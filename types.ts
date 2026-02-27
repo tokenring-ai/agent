@@ -1,18 +1,28 @@
 import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 import Agent from "./Agent.js";
-import {ResetWhat} from "./AgentEvents.ts";
+import {InputAttachment, ResetWhat} from "./AgentEvents.ts";
 import {ParsedAgentConfig} from "./schema.ts";
 
-export type TokenRingAgentCommand = {
+export type TokenRingBaseAgentCommand = {
   name: string;
   aliases?: string[];
   description: string;
+  help: string;
+};
+export type TokenRingAgentCommand = TokenRingBaseAgentCommand & (
+  {
+    allowAttachments: true;
+    execute: (
+      opts: { input: string; attachments: InputAttachment[] },
+      agent: Agent,
+    ) => Promise<string> | string;
+  } | {
   execute: (
     input: string,
     agent: Agent,
   ) => Promise<string> | string;
-  help: string;
-};
+  allowAttachments?: false;
+});
 export type HookConfig = {
   name: string;
   displayName: string;
