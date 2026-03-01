@@ -3,6 +3,7 @@ import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.js";
+import {CommandFailedError} from "../AgentError.ts";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
 import {AgentCheckpointData, type AgentCreationContext, type TokenRingAgentCommand} from "../types.js";
@@ -60,12 +61,15 @@ export default class AgentManager implements TokenRingService {
       description: commandDescription,
       execute: async (remainder: string, agent: Agent): Promise<string> => {
         const message = remainder.trim();
+        if (! message) throw new CommandFailedError("Message to agent cannot be empty")
         
         const result = await runSubAgent({
           agentType: config.agentType,
           background: commandConfig.background,
           headless: agent.headless,
-          command: message ? `/work ${message}` : "/work",
+          input: {
+            message: `/work ${message}`
+          },
           forwardChatOutput: commandConfig.forwardChatOutput,
           forwardSystemOutput: commandConfig.forwardSystemOutput,
           forwardHumanRequests: commandConfig.forwardHumanRequests,

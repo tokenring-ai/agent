@@ -5,6 +5,7 @@ import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {like} from "@tokenring-ai/utility/string/like";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
+import type {BareInputReceivedMessage} from "./AgentEvents.ts";
 import type {ParsedAgentConfig} from "./schema.ts";
 import {SubAgentState} from "./state/subAgentState.ts";
 
@@ -16,7 +17,7 @@ export type RunSubAgentOptions = Partial<ParsedAgentConfig["subAgent"]> & {
   /** Whether to run the agent in headless mode */
   headless: boolean;
   /** The command to send to the agent */
-  command: string;
+  input: BareInputReceivedMessage;
 };
 
 export interface RunSubAgentResult {
@@ -71,7 +72,7 @@ export async function runSubAgent(
   let {
     agentType,
     headless,
-    command,
+    input,
     forwardChatOutput,
     forwardReasoning,
     forwardSystemOutput,
@@ -107,10 +108,10 @@ export async function runSubAgent(
     await childAgent.waitForState(AgentEventState, (state) => state.idle);
     const eventCursor = childAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
-    const requestId = childAgent.handleInput({ message: command });
+    const requestId = childAgent.handleInput(input);
 
     if (options.background) {
-      childAgent.infoMessage(`${agentType} (background) > `, command.trim());
+      childAgent.infoMessage(`${agentType} (background) > `, input.message.trim());
       return {
         status: "success",
         response: "Agent started in background.",

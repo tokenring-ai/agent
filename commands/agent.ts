@@ -50,7 +50,9 @@ async function run(remainder: string, agent: Agent): Promise<string> {
     agentType,
     background: isBg,
     headless: agent.headless,
-    command: `/work ${message}`,
+    input: {
+      message: `/work ${message}`,
+    }
   }, agent, true);
 
   if (isBg) {

@@ -126,7 +126,10 @@ export default createRPCEndpoint(AgentRpcSchema, {
   sendInput(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    const requestId = agent.handleInput({ message: args.message });
+    const requestId = agent.handleInput({ 
+      message: args.message, 
+      attachments: args.attachments 
+    });
     return { requestId };
   },
 

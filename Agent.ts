@@ -4,8 +4,8 @@ import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import {
-  AgentEventEnvelope,
-  type InputAttachment,
+  AgentEventEnvelope, type BareInputReceivedMessage,
+  type InputReceived,
   OutputArtifactSchema,
   type QuestionRequest,
   QuestionRequestSchema,
@@ -96,35 +96,31 @@ export default class Agent {
     });
   }
 
-
   /**
    * Handle input from the user.
-   * @param message
-   * @param attachments
+   * @param input
    * @returns A unique request ID for the input. This can be used to track the status of the request, e.g. to cancel it.
    */
-  handleInput({ message, attachments }: { message: string, attachments?: InputAttachment[] }): string {
+  handleInput(input: BareInputReceivedMessage): string {
     const requestId = uuid();
-    message = message.trim();
-    
+
     this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "input.received", message, attachments, requestId, timestamp: Date.now()});
+      state.emit({type: "input.received", requestId, timestamp: Date.now(), ...input});
     });
 
     this.mutateState(CommandHistoryState, (state) => {
-      state.commands.push(message);
+      state.commands.push(input.message);
     });
 
     return requestId;
   }
 
-
   chatOutput(message: string) {
-    this.emit({ type: "output.chat", message, timestamp: Date.now() });
+    this.emit({type: "output.chat", message, timestamp: Date.now()});
   }
 
   reasoningOutput(message: string) {
-    this.emit({ type: "output.reasoning", message, timestamp: Date.now() });
+    this.emit({type: "output.reasoning", message, timestamp: Date.now()});
   }
 
   getIdleDuration(): number {
@@ -150,10 +146,15 @@ export default class Agent {
 
   reset(what: ResetWhat[]) {
     this.stateManager.forEach(item => item.reset?.(what))
-    this.emit({ type: "reset", what, timestamp: Date.now() });
+    this.emit({type: "reset", what, timestamp: Date.now()});
   }
 
-  async askForApproval({ message, label = "Approve ?", default: defaultValue, timeout: autoSubmitAfter }: { message: string, label?: string, default?: boolean, timeout?: number }) : Promise<boolean | null> {
+  async askForApproval({message, label = "Approve ?", default: defaultValue, timeout: autoSubmitAfter}: {
+    message: string,
+    label?: string,
+    default?: boolean,
+    timeout?: number
+  }): Promise<boolean | null> {
     const result = await this.askQuestion({
       message,
       question: {
@@ -177,7 +178,7 @@ export default class Agent {
     return result !== null && result.length > 0 && result[0] === 'Approved';
   }
 
-  async askForText({ message, label, masked} : { message: string, label: string, masked?: boolean }) : Promise<string | null> {
+  async askForText({message, label, masked}: { message: string, label: string, masked?: boolean }): Promise<string | null> {
     return await this.askQuestion({
       message,
       question: {
@@ -188,13 +189,13 @@ export default class Agent {
     });
   }
 
-  async askQuestion<T extends Omit<QuestionRequest,"type" | "requestId" | "timestamp">>(question: T): Promise<ResultTypeForQuestion<T["question"]> | null>  {
+  async askQuestion<T extends Omit<QuestionRequest, "type" | "requestId" | "timestamp">>(question: T): Promise<ResultTypeForQuestion<T["question"]> | null> {
     if (this.config.headless) {
       throw new Error("Cannot ask human for feedback when agent is running in headless mode");
     }
 
     let requestId = uuid();
-    const event = QuestionRequestSchema.parse({ type: 'question.request', requestId, timestamp: Date.now(), ...question });
+    const event = QuestionRequestSchema.parse({type: 'question.request', requestId, timestamp: Date.now(), ...question});
 
     const eventCursor = this.mutateState(AgentEventState, (state) => {
       state.emit(event);
@@ -209,7 +210,7 @@ export default class Agent {
             if ((e.type === 'question.response') && e.requestId === requestId) return;
           }
 
-          s.emit({ type: 'question.response', requestId, result: getDefaultQuestionValue(event.question), timestamp: Date.now() });
+          s.emit({type: 'question.response', requestId, result: getDefaultQuestionValue(event.question), timestamp: Date.now()});
         });
       }, autoSubmitAfterMs);
     }
@@ -230,46 +231,47 @@ export default class Agent {
     let prevBusyWith: string | null;
     this.mutateState(AgentEventState, (state) => {
       prevBusyWith = state.latestExecutionState.busyWith;
-      state.updateExecutionState({ busyWith: prevBusyWith ? `${prevBusyWith} & ${message}` : message });
+      state.updateExecutionState({busyWith: prevBusyWith ? `${prevBusyWith} & ${message}` : message});
     })
     try {
       return await awaitable;
     } finally {
       this.mutateState(AgentEventState, (state) => {
-        state.updateExecutionState({ busyWith: prevBusyWith });
+        state.updateExecutionState({busyWith: prevBusyWith});
       })
     }
   }
 
   setBusyWith(message: string | null) {
     this.mutateState(AgentEventState, (state) => {
-      state.updateExecutionState({ busyWith: message });
+      state.updateExecutionState({busyWith: message});
     })
   }
 
   setStatusLine(statusLine: string | null) {
     this.mutateState(AgentEventState, (state) => {
-      state.updateExecutionState({ statusLine: statusLine });
+      state.updateExecutionState({statusLine: statusLine});
     })
   }
 
   infoMessage = (...messages: string[]) =>
-    this.emit({ type: "output.info", message: formatLogMessages(messages), timestamp: Date.now() });
+    this.emit({type: "output.info", message: formatLogMessages(messages), timestamp: Date.now()});
 
   warningMessage = (...messages: string[]) =>
-    this.emit({ type: "output.warning", message: formatLogMessages(messages), timestamp: Date.now() });
+    this.emit({type: "output.warning", message: formatLogMessages(messages), timestamp: Date.now()});
 
   errorMessage = (...messages: (string | Error)[]) =>
-    this.emit({ type: "output.error", message: formatLogMessages(messages), timestamp: Date.now() });
+    this.emit({type: "output.error", message: formatLogMessages(messages), timestamp: Date.now()});
 
   debugMessage = (...messages: string[]) => {
     if (this.debugEnabled) {
-      this.emit({ type: "output.info", message: formatLogMessages(messages), timestamp: Date.now() });
+      this.emit({type: "output.info", message: formatLogMessages(messages), timestamp: Date.now()});
     }
   };
+
   artifactOutput({name, encoding, mimeType, body}: Omit<z.input<typeof OutputArtifactSchema>, "type" | "timestamp">) {
     this.mutateState(AgentEventState, (state) => {
-      state.events.push({ type: 'output.artifact', name, encoding, mimeType, body, timestamp: Date.now() });
+      state.events.push({type: 'output.artifact', name, encoding, mimeType, body, timestamp: Date.now()});
     });
   }
 
@@ -286,9 +288,9 @@ export default class Agent {
 
   runBackgroundTask(task: (signal: AbortSignal) => Promise<void>) {
     task(this.agentShutdownSignal)
-    .catch(error => {
-      this.errorMessage("Error while running background task", error as Error);
-    });
+      .catch(error => {
+        this.errorMessage("Error while running background task", error as Error);
+      });
   }
 
   private emit(event: AgentEventEnvelope): void {

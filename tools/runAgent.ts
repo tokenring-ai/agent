@@ -21,7 +21,9 @@ export async function execute(
     {
       agentType,
       headless: parentAgent.headless,
-      command: `/work ${message}${context ? `\n\nImportant Context:\n${context}` : ''}`,
+      input: {
+        message: `/work ${message}${context ? `\n\nImportant Context:\n${context}` : ''}`,
+      },
     },
     parentAgent,
     true // Auto-cleanup

@@ -1,7 +1,7 @@
 import omit from "@tokenring-ai/utility/object/omit";
 import {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
-import {AgentEventEnvelopeSchema, QuestionRequestSchema, QuestionResponseSchema} from "../AgentEvents.ts";
+import {AgentEventEnvelopeSchema, InputAttachmentSchema, QuestionRequestSchema, QuestionResponseSchema} from "../AgentEvents.ts";
 import {AgentConfigSchema} from "../schema.ts";
 
 export default {
@@ -116,6 +116,7 @@ export default {
       input: z.object({
         agentId: z.string(),
         message: z.string(),
+        attachments: z.array(InputAttachmentSchema).optional(),
       }),
       result: z.object({
         requestId: z.string(),

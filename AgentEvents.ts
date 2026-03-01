@@ -74,6 +74,7 @@ export const InputReceivedSchema = z.object({
 });
 
 export type InputReceived = z.input<typeof InputReceivedSchema>;
+export type BareInputReceivedMessage = Omit<InputReceived, "timestamp" | "type" | "requestId">;
 
 export const InputHandledSchema = z.object({
   type: z.literal("input.handled"),
