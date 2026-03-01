@@ -18,6 +18,8 @@ export type RunSubAgentOptions = Partial<ParsedAgentConfig["subAgent"]> & {
   headless: boolean;
   /** The command to send to the agent */
   input: BareInputReceivedMessage;
+  /** Whether to disable sub-agent permission checks (default: false) */
+  disablePermissionCheck?: boolean;
 };
 
 export interface RunSubAgentResult {
@@ -82,15 +84,18 @@ export async function runSubAgent(
     timeout: timeoutSeconds,
     maxResponseLength,
     minContextLength,
+    disablePermissionCheck,
   } = deepMerge(options, parentAgent.config.subAgent);
 
   const agentManager = parentAgent.requireServiceByType(AgentManager);
   const parentEventCursor = parentAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
-  const subAgentState = parentAgent.getState(SubAgentState);
+  if (! disablePermissionCheck) {
+    const subAgentState = parentAgent.getState(SubAgentState);
 
-  if (!subAgentState.allowedSubAgents.some(allowedAgent => like(allowedAgent, agentType))) {
-    throw new Error(`Sub-agent type "${agentType}" is not allowed for this agent.`);
+    if (!subAgentState.allowedSubAgents.some(allowedAgent => like(allowedAgent, agentType))) {
+      throw new Error(`Sub-agent type "${agentType}" is not allowed for this agent.`);
+    }
   }
 
   const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType, { headless });
@@ -193,7 +198,7 @@ export async function runSubAgent(
 
               if (event.requestId === requestId) {
                 const truncatedResponse = trimMiddle(
-                  response.join(),
+                  response.join(""),
                   minContextLength,
                   maxResponseLength
                 );

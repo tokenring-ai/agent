@@ -76,6 +76,7 @@ export default class AgentManager implements TokenRingService {
           forwardReasoning: commandConfig.forwardReasoning,
           forwardInputCommands: commandConfig.forwardInputCommands,
           forwardArtifacts: commandConfig.forwardArtifacts,
+          disablePermissionCheck: true // Agents registered as commands are always allowed to run
         }, agent, true);
 
         if (commandConfig.background) {
