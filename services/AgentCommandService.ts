@@ -2,6 +2,7 @@ import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {v4 as uuid} from "uuid";
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
@@ -30,6 +31,7 @@ export default class AgentCommandService implements TokenRingService {
       for (const alias of command.aliases ?? []) {
         this.agentCommands.register(alias, command);
       }
+
     }
   }
 
@@ -59,24 +61,43 @@ export default class AgentCommandService implements TokenRingService {
       message = `${this.defaultCommand} ${message}`
     }
 
-    const commandInput = message.slice(1); // Remove leading '/'
+    let commandInput = message.slice(1); // Remove leading '/'
+    const isHelpCommand = commandInput.startsWith("help ");
+    if (isHelpCommand) {
+      commandInput = commandInput.slice(5);
+    }
+
     let match = this.agentCommands.getLongestPrefixMatch(commandInput);
 
     if (match) {
+      if (isHelpCommand) {
+        return match.item.help;
+      }
+
       if (match.item.allowAttachments) {
         const result = await match.item.execute({ input: match.remainder, attachments }, agent);
         return result ? result.trim() : "Command completed successfully";
-      } else {
-        if (attachments.length > 0) {
-          throw new CommandFailedError(`Attachments are not allowed for command: /${match.item.name}`);
-        }
-        const result = await match.item.execute(match.remainder, agent);
-        return result ? result.trim() : "Command completed successfully";
       }
-    } else {
-      const firstWord = commandInput.split(/\s+/)[0];
-      throw new CommandFailedError(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
+
+      if (attachments.length > 0) {
+        throw new CommandFailedError(`Attachments are not allowed for command: /${match.item.name}`);
+      }
+      const result = await match.item.execute(match.remainder, agent);
+      return result ? result.trim() : "Command completed successfully";
     }
+    const firstWord = commandInput.split(/\s+/)[0];
+    const matchingCommands = this.agentCommands.getItemEntriesLike(`${firstWord}*`)
+    if (matchingCommands.length > 0) {
+      throw new CommandFailedError(`
+Unknown command: /${firstWord}. 
+
+Possible matching commands: 
+${markdownList(matchingCommands.map((cmd) => cmd[1].description).sort())}
+
+Type /help for a list of commands.`
+      );
+    }
+    throw new CommandFailedError(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
   }
 
   async attach(agent: Agent) {
@@ -143,7 +164,7 @@ export default class AgentCommandService implements TokenRingService {
           type: "input.handled",
           requestId: item.requestId,
           status: "success",
-          message,
+          message: message.trim(),
           timestamp: Date.now(),
         });
       });
@@ -156,7 +177,7 @@ export default class AgentCommandService implements TokenRingService {
           type: "input.handled",
           requestId: item.requestId,
           status,
-          message,
+          message: message.trim(),
           timestamp: Date.now(),
         });
       });

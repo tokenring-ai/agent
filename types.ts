@@ -17,12 +17,13 @@ export type TokenRingAgentCommand = TokenRingBaseAgentCommand & (
       agent: Agent,
     ) => Promise<string> | string;
   } | {
-  execute: (
-    input: string,
-    agent: Agent,
-  ) => Promise<string> | string;
-  allowAttachments?: false;
-});
+    execute: (
+      input: string,
+      agent: Agent,
+    ) => Promise<string> | string;
+    allowAttachments?: false;
+  }
+);
 export type HookConfig = {
   name: string;
   displayName: string;

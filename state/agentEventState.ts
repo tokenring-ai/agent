@@ -1,5 +1,4 @@
 import {AgentEventEnvelope, AgentEventEnvelopeSchema, AgentExecutionStateSchema} from "../AgentEvents.js";
-import {getDefaultQuestionValue} from "../question.ts";
 import {AgentStateSlice} from "../types.ts";
 import {z} from "zod";
 
@@ -31,17 +30,16 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
     return this.latestExecutionState.running && this.latestExecutionState.inputQueue.length === 0;
   }
 
-  events: AgentEventEnvelope[] = [this.latestExecutionState]
+  events: AgentEventEnvelope[] = [this.latestExecutionState];
 
   constructor({}: {}) {}
 
   updateExecutionState(state: Partial<z.output<typeof AgentExecutionStateSchema>>) {
-    this.latestExecutionState = {
+    this.emit({
       ...this.latestExecutionState,
       ...state,
       timestamp: Date.now()
-    };
-    this.emit(this.latestExecutionState);
+    });
   }
 
   emit(event: AgentEventEnvelope): void {
@@ -53,9 +51,9 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
         inputQueue: [...this.latestExecutionState.inputQueue, event],
       });
     } else if (event.type === "abort") {
-      const requestId = this.latestExecutionState!.currentlyExecuting
+      const requestId = this.latestExecutionState.currentlyExecuting
 
-      for (const item of this.latestExecutionState!.inputQueue) {
+      for (const item of this.latestExecutionState.inputQueue) {
         if (item.requestId === requestId) continue;
         this.emit({
           type: "input.handled",
@@ -67,7 +65,7 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
       }
 
       this.updateExecutionState({
-        inputQueue: this.latestExecutionState!.inputQueue.filter(i => i.requestId !== requestId)
+        inputQueue: this.latestExecutionState.inputQueue.filter(i => i.requestId !== requestId)
       });
 
       if (this.currentExecutionAbortController) {
@@ -75,11 +73,11 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
       }
     } else if (event.type === 'question.request' ) {
       this.updateExecutionState({
-        waitingOn: [...this.latestExecutionState!.waitingOn, event],
+        waitingOn: [...this.latestExecutionState.waitingOn, event],
       });
     } else if (event.type === "question.response") {
       this.updateExecutionState({
-        waitingOn: this.latestExecutionState!.waitingOn.filter(item => item.requestId !== event.requestId),
+        waitingOn: this.latestExecutionState.waitingOn.filter(item => item.requestId !== event.requestId),
       });
     }
   }

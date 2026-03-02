@@ -1,13 +1,14 @@
 import {Agent} from "@tokenring-ai/agent";
 import {CommandFailedError} from "../../AgentError.ts";
+import {TokenRingAgentCommand} from "../../types.ts";
 
-export default async function execute(remainder: string, agent: Agent): Promise<string> {
-  switch (remainder.trim()) {
-    case 'throwError': {
-      throw new Error("This is an error thrown by the chat handler");
-    }
-
-    default:
-      throw new CommandFailedError(`Unknown app debugging command: ${remainder}`);
-  }
+async function execute(remainder: string, _agent: Agent): Promise<string> {
+  throw new Error("This is an error thrown by the chat handler");
 }
+
+export default {
+  name: "debug chat throwError",
+  description: "/debug chat throwError - Throw an error in the chat handler",
+  execute,
+  help: "## /debug chat throwError\n\nThrows an error in the chat handler to test error handling.",
+} satisfies TokenRingAgentCommand;

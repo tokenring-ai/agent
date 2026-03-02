@@ -1,16 +1,14 @@
 import {Agent} from "@tokenring-ai/agent";
-import {CommandFailedError} from "../../AgentError.ts";
+import {TokenRingAgentCommand} from "../../types.ts";
 
-export default async function execute(remainder: string, agent: Agent): Promise<string> {
-  switch (remainder.trim()) {
-    case 'shutdown': {
-      setTimeout(async () => {
-        agent.app.shutdown();
-      })
-      return "Sending app shutdown command in 1 second...";
-    }
-      
-    default:
-      throw new CommandFailedError(`Unknown app debugging command: ${remainder}`);
-  }
+async function execute(_remainder: string, agent: Agent): Promise<string> {
+  setTimeout(() => agent.app.shutdown());
+  return "Sending app shutdown command...";
 }
+
+export default {
+  name: "debug app shutdown",
+  description: "/debug app shutdown - Send an abort command to the app",
+  execute,
+  help: "## /debug app shutdown\n\nSends an abort command to the app to test the shutdown handling.",
+} satisfies TokenRingAgentCommand;

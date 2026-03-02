@@ -5,7 +5,6 @@ import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import {
   AgentEventEnvelope, type BareInputReceivedMessage,
-  type InputReceived,
   OutputArtifactSchema,
   type QuestionRequest,
   QuestionRequestSchema,
@@ -270,15 +269,11 @@ export default class Agent {
   };
 
   artifactOutput({name, encoding, mimeType, body}: Omit<z.input<typeof OutputArtifactSchema>, "type" | "timestamp">) {
-    this.mutateState(AgentEventState, (state) => {
-      state.events.push({type: 'output.artifact', name, encoding, mimeType, body, timestamp: Date.now()});
-    });
+    this.emit({type: 'output.artifact', name, encoding, mimeType, body, timestamp: Date.now()});
   }
 
   sendQuestionResponse = (requestId: string, response: Omit<z.infer<typeof QuestionResponseSchema>, "type" | "requestId" | "timestamp">) => {
-    this.mutateState(AgentEventState, (state) => {
-      state.events.push({type: "question.response", requestId, ...response, timestamp: Date.now()});
-    });
+    this.emit({type: "question.response", requestId, ...response, timestamp: Date.now()});
   };
 
   getAbortSignal() {

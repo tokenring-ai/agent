@@ -54,12 +54,13 @@ export default class AgentManager implements TokenRingService {
   private registerAgentCommand(config: ParsedAgentConfig) {
     const commandConfig = config.command!;
     const commandName = commandConfig.name || config.agentType;
-    const commandDescription = commandConfig.description || config.description;
+    const commandDescription = `/${commandName} - ${commandConfig.description || config.description}`;
     
     const agentCommand: TokenRingAgentCommand = {
       name: commandName,
       description: commandDescription,
       execute: async (remainder: string, agent: Agent): Promise<string> => {
+
         const message = remainder.trim();
         if (! message) throw new CommandFailedError("Message to agent cannot be empty")
         

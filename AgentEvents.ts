@@ -126,6 +126,8 @@ export const AgentExecutionStateSchema = z.object({
   statusLine: z.string().nullable()
 });
 
+export type ParsedAgentExecutionState = z.output<typeof AgentExecutionStateSchema>;
+
 
 export type QuestionRequest = z.input<typeof QuestionRequestSchema>;
 export type ParsedQuestionRequest = z.output<typeof QuestionRequestSchema>
