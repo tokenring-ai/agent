@@ -77,6 +77,7 @@ export async function runSubAgent(
     input,
     forwardChatOutput,
     forwardReasoning,
+    forwardStatusMessages,
     forwardSystemOutput,
     forwardHumanRequests,
     forwardInputCommands,
@@ -139,6 +140,8 @@ export async function runSubAgent(
               }
               break;
             case "abort":
+            case "pause":
+            case "resume":
               childAgent.mutateState(AgentEventState, (state) => {
                 state.events.push(parentEvent);
               });
@@ -173,6 +176,13 @@ export async function runSubAgent(
             case "output.info":
             case "output.warning":
               if (forwardSystemOutput) {
+                parentAgent.mutateState(AgentEventState, (state) => {
+                  state.events.push(event);
+                })
+              }
+              break;
+            case "status":
+              if (forwardStatusMessages) {
                 parentAgent.mutateState(AgentEventState, (state) => {
                   state.events.push(event);
                 })
@@ -231,10 +241,9 @@ export async function runSubAgent(
                 parentAgent.artifactOutput(event);
               }
               break;
-            case "reset":
-              parentAgent.infoMessage(`${agentType} > Agent Reset: ${event.what}`);
-              break;
             case "agent.execution":
+            case "pause":
+            case "resume":
               /* ignored */
               break;
             default:

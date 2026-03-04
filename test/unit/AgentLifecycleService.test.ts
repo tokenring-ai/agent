@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from "../../Agent";
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
 import {HooksState} from '../../state/hooksState.js';
-import type {HookConfig, HookType} from '../../types.js';
+import type {HookSubscription, HookType} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
 const app = createTestingApp();
@@ -21,7 +21,7 @@ const createMockAgent = () => {
   return agent;
 };
 
-const mockHook: HookConfig = {
+const mockHook: HookSubscription = {
   name: 'test-hook',
   displayName: "Test Hook",
   description: 'A test hook',
@@ -29,7 +29,7 @@ const mockHook: HookConfig = {
   afterTesting: vi.fn(),
 };
 
-const anotherHook: HookConfig = {
+const anotherHook: HookSubscription = {
   name: 'another-hook',
   displayName: "Test Hook 2",
   description: 'Another test hook',
@@ -160,7 +160,7 @@ describe('AgentLifecycleService', () => {
     });
 
     it('should handle hooks with missing callback types', async () => {
-      const partialHook: HookConfig = {
+      const partialHook: HookSubscription = {
         name: 'partial',
         description: 'Partial hook',
         afterChatCompletion: vi.fn(),
@@ -176,13 +176,13 @@ describe('AgentLifecycleService', () => {
     });
 
     it('should execute all enabled hooks of the specified type', async () => {
-      const hook1: HookConfig = {
+      const hook1: HookSubscription = {
         name: 'hook1',
         description: 'Hook 1',
         afterChatCompletion: vi.fn(),
       };
 
-      const hook2: HookConfig = {
+      const hook2: HookSubscription = {
         name: 'hook2',
         description: 'Hook 2',
         afterChatCompletion: vi.fn(),
@@ -200,7 +200,7 @@ describe('AgentLifecycleService', () => {
     });
 
     it('should handle hook execution errors gracefully', async () => {
-      const errorHook: HookConfig = {
+      const errorHook: HookSubscription = {
         name: 'error',
         description: 'Error hook',
         afterChatCompletion: vi.fn().mockRejectedValue(new Error('Hook failed')),
@@ -225,7 +225,7 @@ describe('AgentLifecycleService', () => {
       ];
 
       allHookTypes.forEach(type => {
-        const hook: HookConfig = {
+        const hook: HookSubscription = {
           name: type,
           description: `${type} hook`,
         };

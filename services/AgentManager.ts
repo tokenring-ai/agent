@@ -2,14 +2,14 @@ import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
+import {setTimeout} from "node:timers/promises";
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
+import {runSubAgent} from "../runSubAgent.ts";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
 import {AgentCheckpointData, type AgentCreationContext, type TokenRingAgentCommand} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
-import { setTimeout} from "node:timers/promises";
-import {runSubAgent} from "../runSubAgent.ts";
 import AgentCommandService from "./AgentCommandService.js";
 
 export default class AgentManager implements TokenRingService {
@@ -113,9 +113,10 @@ Runs the "${config.agentType}" agent with the provided message.
   }
 
   async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig>) {
+    const agentConfig = this.agentConfigRegistry.requireItemByName(checkpoint.agentType);
     return this.createAgent({
-      ...checkpoint.config,
-      createMessage: `Recovered agent of type: ${checkpoint.config.agentType} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`,
+      ...agentConfig,
+      createMessage: `Recovered agent of type: ${checkpoint.agentType} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`,
       ...config
     }, checkpoint.state);
   }

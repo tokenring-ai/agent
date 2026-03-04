@@ -1,6 +1,6 @@
+import {z} from "zod";
 import {AgentEventEnvelope, AgentEventEnvelopeSchema, AgentExecutionStateSchema} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
-import {z} from "zod";
 
 const serializationSchema = z.object({
   events: z.array(AgentEventEnvelopeSchema).default([])
@@ -17,11 +17,11 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
     type: 'agent.execution',
     timestamp: Date.now(),
     running: false,
+    paused: false,
     busyWith: null,
     waitingOn: [],
     inputQueue: [],
-    currentlyExecuting: null,
-    statusLine: null
+    currentlyExecuting: null
   };
 
   currentExecutionAbortController: AbortController | null = null;
@@ -71,6 +71,14 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
       if (this.currentExecutionAbortController) {
         this.currentExecutionAbortController.abort(event.message);
       }
+    } else if (event.type === "pause") {
+      this.updateExecutionState({
+        paused: true,
+      });
+    } else if (event.type === "resume") {
+      this.updateExecutionState({
+        paused: false,
+      });
     } else if (event.type === 'question.request' ) {
       this.updateExecutionState({
         waitingOn: [...this.latestExecutionState.waitingOn, event],
@@ -89,29 +97,57 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
   }
 
   deserialize(data: z.output<typeof serializationSchema>): void {
-     // When restoring the event state, we need to clean up the events to put the agent back into a usable this.
+     // When restoring the event state, we need to clean up the events to put the agent back into a usable state
     const events: AgentEventEnvelope[] = data.events || [];
-    const handledEvents = new Set<string>();
+    const receivedEvents = new Set<string>();
     for (const event of events) {
-      if (event.type === "input.handled") handledEvents.add(event.requestId);
+      if (event.type === "input.received") receivedEvents.add(event.requestId);
     }
 
-    this.events = events.filter(event => {
-      if (event.type === "agent.stopped") return false;
-      return !(event.type === "input.received" && !handledEvents.has(event.requestId));
-    });
+    for (const event of events) {
+      switch (event.type) {
+        case "agent.execution":
+        case "agent.created":
+        case "agent.stopped":
+        case "pause":
+        case "resume":
+        case "abort":
+          break
+        case "input.handled":
+          receivedEvents.delete(event.requestId);
+          this.events.push({...event, timestamp: Date.now()})
+          break;
+        case "input.received":
+          receivedEvents.add(event.requestId);
+          this.events.push({...event, timestamp: Date.now()})
+          break;
+        case "status":
+        case "output.info":
+        case "output.warning":
+        case "output.error":
+        case "output.chat":
+        case "output.reasoning":
+        case "output.artifact":
+        case "question.request":
+        case "question.response":
+          this.events.push({...event, timestamp: Date.now()})
+          break;
+        default:
+          // noinspection JSUnusedLocalSymbols
+          const foo: never = event;
+          break;
+      }
+    }
 
-    // TODO: this needs to restore a proper execution state
-    this.latestExecutionState = {
-      type: 'agent.execution',
-      timestamp: Date.now(),
-      running: false,
-      busyWith: null,
-      waitingOn: [],
-      inputQueue: [],
-      currentlyExecuting: null,
-      statusLine: null
-    };
+    for (const requestId of receivedEvents.values()) {
+      this.emit({
+        type: "input.handled",
+        requestId: requestId,
+        status: "cancelled",
+        message: "Command was in a mid-execution state during checkpoint restore.",
+        timestamp: Date.now(),
+      });
+    }
   }
 
   show(): string[] {

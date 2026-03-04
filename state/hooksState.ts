@@ -1,7 +1,6 @@
-import type {ResetWhat} from "../AgentEvents.js";
+import {z} from "zod";
 import type {ParsedAgentConfig} from "../schema.ts";
 import {AgentStateSlice} from "../types.ts";
-import {z} from "zod";
 
 const serializationSchema = z.object({
   enabledHooks: z.array(z.string()).default([])
@@ -16,10 +15,8 @@ export class HooksState implements AgentStateSlice<typeof serializationSchema> {
     this.enabledHooks = [...initialConfig.enabledHooks];
   }
 
-  reset(what: ResetWhat[]): void {
-    if (what.includes("settings")) {
-      this.enabledHooks = [...this.initialConfig.enabledHooks];
-    }
+  reset(): void {
+          this.enabledHooks = [...this.initialConfig.enabledHooks];
   }
 
   serialize(): z.output<typeof serializationSchema> {

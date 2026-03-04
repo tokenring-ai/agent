@@ -2,6 +2,7 @@ import {TokenRingToolDefinition, type TokenRingToolResult} from "@tokenring-ai/c
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {z} from "zod";
 import Agent from "../Agent.js";
+import {AgentEventState} from "../state/agentEventState.ts";
 import {TodoState} from "../state/todoState.js";
 import {formatTodoList} from "../util/todo.ts";
 
@@ -36,6 +37,16 @@ export async function execute(
     ? `[X] ${todo.content}`
     : `[ ] ${todo.content}${ todo.status === 'in_progress' ? ' (in_progress)' : ''}`
   ));
+
+  if (updatedTodos.length > 0) {
+    const currentTask =
+      updatedTodos.find((t) => t.status === 'in_progress') ??
+      updatedTodos.find((t) => t.status === 'pending');
+
+    if (currentTask) {
+      agent.updateStatus(currentTask.content);
+    }
+  }
 
   agent.infoMessage(`Todo list updated! Current Todo list:\n ${renderedTodoList}`)
 

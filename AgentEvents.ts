@@ -1,9 +1,6 @@
 import {z} from "zod";
 import {QuestionSchema} from "./question.ts";
 
-export const ResetWhatSchema = z.enum(["context", "chat", "history", "settings", "memory", "costs"]);
-export type ResetWhat = z.infer<typeof ResetWhatSchema>;
-
 export const AgentCreatedSchema = z.object({
   type: z.literal("agent.created"),
   message: z.string(),
@@ -84,10 +81,16 @@ export const InputHandledSchema = z.object({
   status: z.enum(["success", "error", "cancelled"]),
 });
 
-export const ResetSchema = z.object({
-  type: z.literal("reset"),
+export const PauseSchema = z.object({
+  type: z.literal("pause"),
   timestamp: z.number(),
-  what: z.array(ResetWhatSchema),
+  message: z.string()
+});
+
+export const ResumeSchema = z.object({
+  type: z.literal("resume"),
+  timestamp: z.number(),
+  message: z.string()
 });
 
 export const AbortSchema = z.object({
@@ -95,6 +98,12 @@ export const AbortSchema = z.object({
   timestamp: z.number(),
   message: z.string()
 });
+
+export const StatusSchema = z.object({
+  type: z.literal("status"),
+  timestamp: z.number(),
+  message: z.string()
+})
 
 /* A question request is a request that immediately requires an answer from the user for a single form field
 * This is used for functionality such as when the user needs to immediately select a model or provider */
@@ -118,17 +127,15 @@ export const QuestionRequestSchema = z.object({
 export const AgentExecutionStateSchema = z.object({
   type: z.literal("agent.execution"),
   running: z.boolean(),
+  paused: z.boolean(),
   timestamp: z.number(),
   busyWith: z.string().nullable(),
   waitingOn: z.array(QuestionRequestSchema),
   inputQueue: z.array(InputReceivedSchema),
-  currentlyExecuting: z.string().nullable(),
-  statusLine: z.string().nullable()
+  currentlyExecuting: z.string().nullable()
 });
 
 export type ParsedAgentExecutionState = z.output<typeof AgentExecutionStateSchema>;
-
-
 export type QuestionRequest = z.input<typeof QuestionRequestSchema>;
 export type ParsedQuestionRequest = z.output<typeof QuestionRequestSchema>
 export type QuestionResponse = z.output<typeof QuestionResponseSchema>;
@@ -147,8 +154,10 @@ export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   InputHandledSchema,
   QuestionRequestSchema,
   QuestionResponseSchema,
-  ResetSchema,
+  PauseSchema,
+  ResumeSchema,
   AbortSchema,
+  StatusSchema,
 ]);
 
 export type AgentEventEnvelope = z.output<typeof AgentEventEnvelopeSchema>;

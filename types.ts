@@ -1,7 +1,7 @@
 import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
 import Agent from "./Agent.js";
-import {InputAttachment, ResetWhat} from "./AgentEvents.ts";
-import {ParsedAgentConfig} from "./schema.ts";
+import {InputAttachment} from "./AgentEvents.ts";
+import type {HookCallback} from "./util/hooks.ts";
 
 export type TokenRingBaseAgentCommand = {
   name: string;
@@ -24,22 +24,20 @@ export type TokenRingAgentCommand = TokenRingBaseAgentCommand & (
     allowAttachments?: false;
   }
 );
-export type HookConfig = {
+
+export type Hook = {
+  type: "hook";
+};
+
+export type HookSubscription = {
   name: string;
   displayName: string;
   description: string;
-  beforeChatCompletion?: HookCallback;
-  afterChatCompletion?: HookCallback;
-  afterTesting?: HookCallback;
-  afterAgentInputComplete?: HookCallback;
+  callbacks: HookCallback<any>[];
 };
-export type HookType = "afterChatCompletion" | "beforeChatCompletion" | "afterAgentInputComplete";
-export type HookCallback = (
-  agent: Agent,
-  ...args: any[]
-) => Promise<void> | void;
+
 export type AgentStateSlice<SerializationSchema> = SerializableStateSlice<SerializationSchema> & {
-  reset?: (what: ResetWhat[]) => void;
+  reset?: () => void;
   show: () => string[];
   transferStateFromParent?: (agent: Agent) => void;
 }
@@ -50,8 +48,9 @@ export type AgentCreationContext = {
 
 export interface AgentCheckpointData {
   agentId: string;
+  sessionId: string;
   createdAt: number;
-  config: ParsedAgentConfig;
+  agentType: string;
   state: Record<string, object>;
 }
 

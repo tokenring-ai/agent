@@ -2,6 +2,7 @@ import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
+import getRandomItem from "@tokenring-ai/utility/string/getRandomItem";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {v4 as uuid} from "uuid";
 import Agent from "../Agent.js";
@@ -9,7 +10,16 @@ import {CommandFailedError} from "../AgentError.ts";
 import type {InputAttachment, InputReceived} from "../AgentEvents.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
 import type {TokenRingAgentCommand} from "../types.js";
+import {AfterAgentInputError, AfterAgentInputHandled, AfterAgentInputSuccess} from "../util/hooks.ts";
 import AgentLifecycleService from "./AgentLifecycleService.ts";
+
+const statusMessages = [
+  "Processing...",
+  "Planning...",
+  "Investigating...",
+  "Working...",
+  "Thinking..."
+]
 
 export default class AgentCommandService implements TokenRingService {
   readonly name = "AgentCommandService";
@@ -123,6 +133,7 @@ Type /help for a list of commands.`
     });
 
     for await (const state of agent.subscribeStateAsync(AgentEventState, agent.agentShutdownSignal)) {
+      if (state.latestExecutionState.paused) continue;
       if (state.latestExecutionState!.inputQueue.length === 0) continue;
 
       const item = state.latestExecutionState!.inputQueue[0];
@@ -132,7 +143,7 @@ Type /help for a list of commands.`
       agent.agentShutdownSignal.addEventListener('abort', handleAgentAbort);
 
       agent.mutateState(AgentEventState, (s) => {
-        s.updateExecutionState({currentlyExecuting: item.requestId});
+        s.updateExecutionState({currentlyExecuting: item.requestId });
         s.currentExecutionAbortController = itemAbortController;
       });
 
@@ -157,7 +168,7 @@ Type /help for a list of commands.`
 
     try {
       const message = await agentCommandService.executeAgentCommand(agent, item.message, item.attachments);
-      await agentLifecycleService?.executeHooks(agent, "afterAgentInputComplete", item.message);
+      await agentLifecycleService?.executeHooks(new AfterAgentInputSuccess(item), agent);
 
       agent.mutateState(AgentEventState, (s) => {
         s.emit({
@@ -171,6 +182,9 @@ Type /help for a list of commands.`
     } catch (err) {
       const status = signal.aborted ? "cancelled" : "error";
 
+      await agentLifecycleService?.executeHooks(new AfterAgentInputError(item, status, err as Error), agent);
+
+
       const message = err instanceof CommandFailedError ? err.message : formatLogMessages([err as Error]);
       agent.mutateState(AgentEventState, (s) => {
         s.emit({
@@ -182,5 +196,8 @@ Type /help for a list of commands.`
         });
       });
     }
+
+    await agentLifecycleService?.executeHooks(new AfterAgentInputHandled(item), agent);
+
   }
 }

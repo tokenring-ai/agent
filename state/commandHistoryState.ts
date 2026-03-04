@@ -1,6 +1,5 @@
-import type {ResetWhat} from "../AgentEvents.js";
-import {AgentStateSlice} from "../types.ts";
 import {z} from "zod";
+import {AgentStateSlice} from "../types.ts";
 
 const serializationSchema = z.object({
   commands: z.array(z.string()).default([])
@@ -15,10 +14,8 @@ export class CommandHistoryState implements AgentStateSlice<typeof serialization
     this.commands = commands ? [...commands] : [];
   }
 
-  reset(what: ResetWhat[]): void {
-    if (what.includes("history")) {
-      this.commands = [];
-    }
+  reset(): void {
+          this.commands = [];
   }
 
   serialize(): z.output<typeof serializationSchema> {

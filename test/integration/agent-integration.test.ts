@@ -2,14 +2,14 @@ import TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
-import {AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
+import {AgentConfigSchema} from "../../schema";
 import AgentCommandService from '../../services/AgentCommandService.ts';
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
 import AgentManager from '../../services/AgentManager.ts';
 import {AgentEventState} from "../../state/agentEventState";
 import {CommandHistoryState} from "../../state/commandHistoryState";
 import {CostTrackingState} from "../../state/costTrackingState";
-import type {HookConfig} from '../../types.js';
+import type {HookSubscription} from '../../types.js';
 
 const mockConfig = AgentConfigSchema.parse({
   name: 'Integration Test Agent',
@@ -107,7 +107,7 @@ describe('Agent Integration Tests', () => {
   });
 
   describe('Agent with Lifecycle Service Integration', () => {
-    let testHook: HookConfig;
+    let testHook: HookSubscription;
 
     beforeEach(() => {
       testHook = {
@@ -234,7 +234,7 @@ describe('Agent Integration Tests', () => {
   describe('Complex Multi-Service Scenarios', () => {
     it('should handle command execution with hooks', async () => {
       const hookCalled = vi.fn();
-      const testHook: HookConfig = {
+      const testHook: HookSubscription = {
         name: 'integration-hook',
         description: 'Integration test hook',
         afterAgentInputComplete: vi.fn().mockImplementation((agent: Agent, message: string) => {

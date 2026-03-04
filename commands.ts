@@ -17,9 +17,8 @@ import hooksList from "./commands/hooks/list.ts";
 import hooksReset from "./commands/hooks/reset.ts";
 import hooksSelect from "./commands/hooks/select.ts";
 import hooksSet from "./commands/hooks/set.ts";
-import reset from "./commands/reset.ts";
 import settings from "./commands/settings.ts";
 import work from "./commands/work.ts";
 import type {TokenRingAgentCommand} from "./types.ts";
 
-export default [reset, hooksGet, hooksSet, hooksSelect, hooksList, hooksEnable, hooksDisable, hooksReset, settings, work, help, cost, agentTypes, agentList, agentRun, agentShutdown, debugAppShutdown, debugChat, debugLogging, debugMarkdown, debugQuestions, debugServices] satisfies TokenRingAgentCommand[];
+export default [hooksGet, hooksSet, hooksSelect, hooksList, hooksEnable, hooksDisable, hooksReset, settings, work, help, cost, agentTypes, agentList, agentRun, agentShutdown, debugAppShutdown, debugChat, debugLogging, debugMarkdown, debugQuestions, debugServices] satisfies TokenRingAgentCommand[];

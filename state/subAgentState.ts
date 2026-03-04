@@ -1,7 +1,6 @@
-import type {ResetWhat} from "../AgentEvents.js";
+import {z} from "zod";
 import type {ParsedAgentConfig} from "../schema.ts";
 import {AgentStateSlice} from "../types.ts";
-import {z} from "zod";
 
 const serializationSchema = z.object({
   allowedSubAgents: z.array(z.string()).default([])
@@ -16,10 +15,8 @@ export class SubAgentState implements AgentStateSlice<typeof serializationSchema
     this.allowedSubAgents = [...initialConfig.allowedSubAgents];
   }
 
-  reset(what: ResetWhat[]): void {
-    if (what.includes("settings")) {
-      this.allowedSubAgents = [...this.initialConfig.allowedSubAgents];
-    }
+  reset(): void {
+          this.allowedSubAgents = [...this.initialConfig.allowedSubAgents];
   }
 
   serialize(): z.output<typeof serializationSchema> {

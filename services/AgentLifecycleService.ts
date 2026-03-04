@@ -2,13 +2,13 @@ import {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import Agent from "../Agent.js";
 import {HooksState} from "../state/hooksState.js";
-import type {HookConfig, HookType} from "../types.js";
+import type {Hook, HookSubscription} from "../types.js";
 
 export default class AgentLifecycleService implements TokenRingService {
   readonly name = "AgentLifecycleService";
   description = "A service which dispatches hooks when certain agent lifecycle event happen.";
 
-  private hooks = new KeyedRegistry<HookConfig>();
+  private hooks = new KeyedRegistry<HookSubscription>();
 
   registerHook = this.hooks.register;
   getAllHookEntries = this.hooks.entries;
@@ -18,7 +18,7 @@ export default class AgentLifecycleService implements TokenRingService {
     agent.initializeState(HooksState, agent.config);
   }
 
-  addHooks(pkgName: string, hooks: Record<string, HookConfig>) {
+  addHooks(pkgName: string, hooks: Record<string, HookSubscription>) {
     for (const hookName in hooks) {
       this.hooks.register(`${pkgName}/${hookName}`, hooks[hookName]);
     }
@@ -58,9 +58,16 @@ export default class AgentLifecycleService implements TokenRingService {
     });
   }
 
-  async executeHooks(agent: Agent, hookType: HookType, ...args: any[]): Promise<void> {
+  async executeHooks(data: Hook, agent: Agent): Promise<void> {
     for (const hookName of this.getEnabledHooks(agent)) {
-      await this.hooks.requireItemByName(hookName)[hookType]?.(agent, ...args);
+      const subscription = this.hooks.getItemByName(hookName);
+      if (subscription) {
+        for (const callback of subscription.callbacks) {
+          if (callback.hookConstructor === data.constructor) {
+            await callback.callback(data, agent);
+          }
+        }
+      }
     }
   }
 }

@@ -52,7 +52,6 @@ export default {
         idle: z.boolean(),
         busyWith: z.string().nullable(),
         waitingOn: z.array(QuestionRequestSchema),
-        statusLine: z.string().nullable()
       })
     },
     streamAgentExecutionState: {
@@ -64,7 +63,6 @@ export default {
         idle: z.boolean(),
         busyWith: z.string().nullable(),
         waitingOn: z.array(QuestionRequestSchema),
-        statusLine: z.string().nullable()
       })
     },
     listAgents: {
@@ -143,11 +141,21 @@ export default {
         success: z.boolean(),
       })
     },
-    resetAgent: {
+    pauseAgent: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        what: z.array(z.string()),
+        message: z.string(),
+      }),
+      result: z.object({
+        success: z.boolean(),
+      })
+    },
+    resumeAgent: {
+      type: "mutation",
+      input: z.object({
+        agentId: z.string(),
+        message: z.string(),
       }),
       result: z.object({
         success: z.boolean(),

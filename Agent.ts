@@ -4,12 +4,12 @@ import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import {
-  AgentEventEnvelope, type BareInputReceivedMessage,
+  AgentEventEnvelope,
+  type BareInputReceivedMessage,
   OutputArtifactSchema,
   type QuestionRequest,
   QuestionRequestSchema,
-  QuestionResponseSchema,
-  ResetWhat
+  QuestionResponseSchema
 } from "./AgentEvents.js";
 import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.js";
 import {AgentConfig, ParsedAgentConfig} from "./schema.ts";
@@ -64,7 +64,8 @@ export default class Agent {
     return {
       agentId: this.id,
       createdAt: Date.now(),
-      config: this.config,
+      sessionId: this.app.sessionId,
+      agentType: this.config.agentType,
       state: this.stateManager.serialize()
     };
   }
@@ -143,9 +144,16 @@ export default class Agent {
     });
   }
 
-  reset(what: ResetWhat[]) {
-    this.stateManager.forEach(item => item.reset?.(what))
-    this.emit({type: "reset", what, timestamp: Date.now()});
+  requestPause(message: string) {
+    this.mutateState(AgentEventState, (state) => {
+      state.emit({type: "pause", timestamp: Date.now(), message});
+    });
+  }
+
+  requestResume(message: string) {
+    this.mutateState(AgentEventState, (state) => {
+      state.emit({type: "resume", timestamp: Date.now(), message});
+    });
   }
 
   async askForApproval({message, label = "Approve ?", default: defaultValue, timeout: autoSubmitAfter}: {
@@ -247,10 +255,8 @@ export default class Agent {
     })
   }
 
-  setStatusLine(statusLine: string | null) {
-    this.mutateState(AgentEventState, (state) => {
-      state.updateExecutionState({statusLine: statusLine});
-    })
+  updateStatus(statusMessage: string) {
+    this.emit({ type: 'status', message: statusMessage, timestamp: Date.now()});
   }
 
   infoMessage = (...messages: string[]) =>

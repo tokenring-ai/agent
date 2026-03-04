@@ -3,7 +3,7 @@ import omit from "@tokenring-ai/utility/object/omit";
 import {createRPCEndpoint} from "@tokenring-ai/rpc/createRPCEndpoint";
 import {z} from "zod";
 import Agent from "../Agent.ts";
-import {AgentExecutionStateSchema, ResetWhat} from "../AgentEvents.ts";
+import {AgentExecutionStateSchema} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
 import {AgentEventState} from "../state/agentEventState.js";
 import {CommandHistoryState} from "../state/commandHistoryState.ts";
@@ -57,7 +57,6 @@ export default createRPCEndpoint(AgentRpcSchema, {
       idle: state.idle,
       busyWith: state.latestExecutionState.busyWith,
       waitingOn: state.latestExecutionState.waitingOn,
-      statusLine: state.latestExecutionState.statusLine,
     };
   },
 
@@ -72,7 +71,6 @@ export default createRPCEndpoint(AgentRpcSchema, {
         idle: state.idle,
         busyWith: state.latestExecutionState.busyWith,
         waitingOn: state.latestExecutionState.waitingOn,
-        statusLine: state.latestExecutionState.statusLine,
       };
       lastExecutionState = state.latestExecutionState;
     }
@@ -88,6 +86,8 @@ export default createRPCEndpoint(AgentRpcSchema, {
         idle: agentState.idle,
         statusMessage: agentState.latestExecutionState.waitingOn.length > 0
           ? "Waiting on user input..."
+          : agentState.latestExecutionState.paused
+            ? "Agent is paused"
           : agentState.idle
             ? "Agent is idle"
             : agentState.latestExecutionState.busyWith ?? "Agent is working...."
@@ -147,10 +147,17 @@ export default createRPCEndpoint(AgentRpcSchema, {
     return { success: true };
   },
 
-  resetAgent(args, app) {
+  pauseAgent(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    agent.reset(args.what as ResetWhat[]);
+    agent.requestPause(args.message);
+    return { success: true };
+  },
+
+  resumeAgent(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    agent.requestResume(args.message);
     return { success: true };
   },
 
