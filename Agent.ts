@@ -160,6 +160,13 @@ export default class Agent {
     });
   }
 
+  acknowledgePause(resumeFunction: () => void) {
+    this.mutateState(AgentEventState, (state) => {
+      if (state.resume) throw new Error("Agent has already acknowledged a pause");
+      state.resume = resumeFunction;
+    });
+  }
+
   async askForApproval({message, label = "Approve ?", default: defaultValue, timeout: autoSubmitAfter}: {
     message: string,
     label?: string,

@@ -22,6 +22,8 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
     currentlyExecuting: null
   };
 
+  resume: (() => void) | null = null;
+
   currentExecutionAbortController: AbortController | null = null;
 
   get idle(): boolean {
@@ -79,6 +81,8 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
       this.updateExecutionState({
         paused: false,
       });
+      this.resume?.();
+      this.resume = null;
     } else if (event.type === 'question.request' ) {
       this.updateExecutionState({
         waitingOn: [...this.latestExecutionState.waitingOn, event],
