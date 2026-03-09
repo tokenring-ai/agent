@@ -1,3 +1,4 @@
+import type {StateSnapshot} from "@tokenring-ai/app/StateManager";
 import {z} from "zod";
 import type {ParsedAgentConfig} from "../schema.ts";
 import {AgentStateSlice} from "../types.ts";
@@ -6,12 +7,10 @@ const serializationSchema = z.object({
   enabledHooks: z.array(z.string()).default([])
 }).prefault({});
 
-export class HooksState implements AgentStateSlice<typeof serializationSchema> {
-  readonly name = "HooksState";
-  serializationSchema = serializationSchema;
+export class HooksState extends AgentStateSlice<typeof serializationSchema> {
   enabledHooks: string[] = [];
-
   constructor(readonly initialConfig: ParsedAgentConfig) {
+    super("HooksState", serializationSchema);
     this.enabledHooks = [...initialConfig.enabledHooks];
   }
 

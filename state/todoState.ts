@@ -7,12 +7,11 @@ const serializationSchema = z.object({
   todos: z.array(TodoItemSchema).default([])
 }).prefault({});
 
-export class TodoState implements AgentStateSlice<typeof serializationSchema> {
-  readonly name = "TodoState";
-  serializationSchema = serializationSchema;
+export class TodoState extends AgentStateSlice<typeof serializationSchema> {
   todos: TodoItem[] = [];
 
   constructor(readonly initialConfig: ParsedAgentConfig) {
+    super("TodoState", serializationSchema);
     if (initialConfig.todos.initialItems) {
       this.todos = [...initialConfig.todos.initialItems];
     }

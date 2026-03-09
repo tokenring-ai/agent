@@ -1,7 +1,9 @@
-import type {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
+import {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
+import type {AnyZodObject} from "zod/v3";
 import Agent from "./Agent.js";
 import {InputAttachment} from "./AgentEvents.ts";
 import type {HookCallback} from "./util/hooks.ts";
+import z, {ZodTypeAny, type ZodAny, type ZodObject} from "zod";
 
 export type TokenRingBaseAgentCommand = {
   name: string;
@@ -36,24 +38,24 @@ export type HookSubscription = {
   callbacks: HookCallback<any>[];
 };
 
-export type AgentStateSlice<SerializationSchema> = SerializableStateSlice<SerializationSchema> & {
-  reset?: () => void;
-  show: () => string[];
-  transferStateFromParent?: (agent: Agent) => void;
+export abstract class AgentStateSlice<SerializationSchema extends ZodTypeAny> extends SerializableStateSlice<SerializationSchema> {
+  abstract show(): string[];
+  transferStateFromParent(agent: Agent) {}
 }
 
 export type AgentCreationContext = {
   items: string[];
 }
 
-export interface AgentCheckpointData {
-  agentId: string;
-  sessionId: string;
-  createdAt: number;
-  agentType: string;
-  state: Record<string, object>;
-}
+export const AgentCheckpointSchema = z.object({
+  agentId: z.string(),
+  sessionId: z.string(),
+  createdAt: z.number(),
+  agentType: z.string(),
+  state: z.record(z.string(), z.unknown()),
+});
 
+export type AgentCheckpointData = z.infer<typeof AgentCheckpointSchema>;
 export type ContextItemPosition =
   | "afterSystemMessage"
   | "afterPriorMessages"

@@ -1,5 +1,5 @@
 import {z} from "zod";
-import type {AgentStateSlice} from "../types.ts";
+import {AgentStateSlice} from "../types.ts";
 
 type Costs = Record<string, number>;
 
@@ -7,12 +7,11 @@ const serializationSchema = z.object({
   costs: z.record(z.string(), z.number()).default({})
 }).prefault({});
 
-export class CostTrackingState implements AgentStateSlice<typeof serializationSchema> {
-  readonly name = "CostTrackingState";
-  serializationSchema = serializationSchema;
+export class CostTrackingState extends AgentStateSlice<typeof serializationSchema> {
   costs: Costs;
 
   constructor(readonly initialCosts: Costs = {}) {
+    super("CostTrackingState",serializationSchema);
     this.costs = initialCosts;
   }
 

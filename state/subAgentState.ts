@@ -6,12 +6,11 @@ const serializationSchema = z.object({
   allowedSubAgents: z.array(z.string()).default([])
 }).prefault({});
 
-export class SubAgentState implements AgentStateSlice<typeof serializationSchema> {
-  readonly name = "SubAgentState";
-  serializationSchema = serializationSchema;
+export class SubAgentState extends AgentStateSlice<typeof serializationSchema> {
   allowedSubAgents: string[] = [];
 
   constructor(readonly initialConfig: ParsedAgentConfig) {
+    super("SubAgentState", serializationSchema);
     this.allowedSubAgents = [...initialConfig.allowedSubAgents];
   }
 

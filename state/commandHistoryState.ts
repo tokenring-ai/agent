@@ -5,12 +5,11 @@ const serializationSchema = z.object({
   commands: z.array(z.string()).default([])
 }).prefault({});
 
-export class CommandHistoryState implements AgentStateSlice<typeof serializationSchema> {
-  readonly name = "CommandHistoryState";
-  serializationSchema = serializationSchema;
+export class CommandHistoryState extends AgentStateSlice<typeof serializationSchema> {
   commands: string[] = [];
 
   constructor({commands}: { commands?: string[] }) {
+    super("CommandHistoryState", serializationSchema);
     this.commands = commands ? [...commands] : [];
   }
 

@@ -21,7 +21,7 @@ export default class AgentManager implements TokenRingService {
 
   async run(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
-      await setTimeout(this.cleanupCheckIntervalMs);
+      await setTimeout(this.cleanupCheckIntervalMs, null,  { signal });
       try {
         await this.checkAndDeleteIdleAgents();
       } catch (error) {
@@ -112,7 +112,7 @@ Runs the "${config.agentType}" agent with the provided message.
     commandService.addAgentCommands(agentCommand);
   }
 
-  async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig>) {
+  async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig> = {}) {
     const agentConfig = this.agentConfigRegistry.requireItemByName(checkpoint.agentType);
     return this.createAgent({
       ...agentConfig,
@@ -138,7 +138,7 @@ Runs the "${config.agentType}" agent with the provided message.
       ...config,
     });
 
-    for (const [name, item] of newAgent.stateManager.entries()) {
+    for (const item of newAgent.stateManager.slices()) {
       item?.transferStateFromParent?.(agent);
     }
 
@@ -148,9 +148,9 @@ Runs the "${config.agentType}" agent with the provided message.
     return newAgent;
   }
 
-  private async createAgent(options: ParsedAgentConfig, state: AgentCheckpointData["state"] | null = null) {
+  private async createAgent(options: ParsedAgentConfig, state: AgentCheckpointData["state"] = {}) {
     const shutdownController = new AbortController();
-    const agent = new Agent(this.app, options, state, shutdownController.signal);
+    const agent = new Agent(this.app, state, options, shutdownController.signal);
 
     this.agents.set(agent.id, { agent, shutdownController });
 

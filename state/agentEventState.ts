@@ -10,9 +10,7 @@ export type AgentEventCursor = {
   position: number,
 }
 
-export class AgentEventState implements AgentStateSlice<typeof serializationSchema> {
-  readonly name = "AgentEventState";
-  serializationSchema = serializationSchema;
+export class AgentEventState extends AgentStateSlice<typeof serializationSchema> {
   latestExecutionState: z.output<typeof AgentExecutionStateSchema> = {
     type: 'agent.execution',
     timestamp: Date.now(),
@@ -32,7 +30,9 @@ export class AgentEventState implements AgentStateSlice<typeof serializationSche
 
   events: AgentEventEnvelope[] = [this.latestExecutionState];
 
-  constructor({}: {}) {}
+  constructor({}: {}) {
+    super("AgentEventState",serializationSchema);
+  }
 
   updateExecutionState(state: Partial<z.output<typeof AgentExecutionStateSchema>>) {
     this.emit({

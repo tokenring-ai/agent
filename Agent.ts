@@ -27,19 +27,26 @@ export default class Agent {
   requireServiceByType;
   getServiceByType;
 
-  stateManager = new StateManager<AgentStateSlice<any>>();
-  initializeState = this.stateManager.initializeState.bind(this.stateManager);
-  mutateState = this.stateManager.mutateState.bind(this.stateManager);
-  getState = this.stateManager.getState.bind(this.stateManager);
-  subscribeState = this.stateManager.subscribe.bind(this.stateManager);
-  waitForState = this.stateManager.waitForState.bind(this.stateManager);
-  timedWaitForState = this.stateManager.timedWaitForState.bind(this.stateManager);
-  subscribeStateAsync = this.stateManager.subscribeAsync.bind(this.stateManager);
+  stateManager: StateManager<AgentStateSlice<any>>;
+  initializeState;
+  mutateState;
+  getState;
+  subscribeState;
+  waitForState;
+  subscribeStateAsync;
 
-  constructor(readonly app: TokenRingApp, readonly config: ParsedAgentConfig, readonly state: AgentCheckpointData["state"] | null, readonly agentShutdownSignal: AbortSignal) {
+  constructor(readonly app: TokenRingApp, readonly initialState: Record<string, unknown>, readonly config: ParsedAgentConfig, readonly agentShutdownSignal: AbortSignal) {
+    this.stateManager = new StateManager<AgentStateSlice<any>>(initialState);
     this.requireServiceByType = this.app.requireService;
     this.getServiceByType = this.app.getService;
     this.debugEnabled = config.debug;
+
+    this.initializeState = this.stateManager.initializeState.bind(this.stateManager);
+    this.mutateState = this.stateManager.mutateState.bind(this.stateManager);
+    this.getState = this.stateManager.getState.bind(this.stateManager);
+    this.subscribeState = this.stateManager.subscribe.bind(this.stateManager);
+    this.waitForState = this.stateManager.waitForState.bind(this.stateManager);
+    this.subscribeStateAsync = this.stateManager.subscribeAsync.bind(this.stateManager);
 
     this.initializeState(AgentEventState, {});
     this.initializeState(CommandHistoryState, {});
@@ -47,9 +54,6 @@ export default class Agent {
     this.initializeState(TodoState, config);
     this.initializeState(SubAgentState, config);
 
-    if (state) {
-      this.restoreState(state);
-    }
   }
 
   get headless() {
