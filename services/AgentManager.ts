@@ -69,6 +69,7 @@ export default class AgentManager implements TokenRingService {
           background: commandConfig.background,
           headless: agent.headless,
           input: {
+            from: `Parent agent command: /${commandName}`,
             message: `/work ${message}`
           },
           forwardChatOutput: commandConfig.forwardChatOutput,
@@ -142,9 +143,9 @@ Runs the "${config.agentType}" agent with the provided message.
       item?.transferStateFromParent?.(agent);
     }
 
-    agent.infoMessage(
+    /*agent.infoMessage(
       `Created new agent: ${newAgent.config.displayName} (${formatAgentId(newAgent.id)})`,
-    );
+    );*/
     return newAgent;
   }
 

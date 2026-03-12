@@ -22,6 +22,7 @@ export async function execute(
       agentType,
       headless: parentAgent.headless,
       input: {
+        from: "Parent agent tool: agent_run",
         message: `/work ${message}${context ? `\n\nImportant Context:\n${context}` : ''}`,
       },
     },

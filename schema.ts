@@ -52,6 +52,8 @@ export const AgentConfigSchema = z.object({
   idleTimeout: z.number().default(0), // In seconds
   maxRunTime: z.number().default(0), // In seconds
   subAgent: z.object({
+
+
     forwardChatOutput: z.boolean().default(false),
     forwardStatusMessages: z.boolean().default(true),
     forwardSystemOutput: z.boolean().default(false),

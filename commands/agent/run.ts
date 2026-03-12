@@ -24,6 +24,7 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
     background: isBg,
     headless: agent.headless,
     input: {
+      from: "Parent agent command: /agent run",
       message: `/work ${message}`,
     }
   }, agent, true);

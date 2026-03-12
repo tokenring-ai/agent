@@ -77,20 +77,12 @@ export default createRPCEndpoint(AgentRpcSchema, {
     return app.requireService(AgentManager).getAgents().map((agent: Agent) => {
       const agentState = agent.getState(AgentEventState);
 
-
       return {
         id: agent.id,
         displayName: agent.displayName,
         description: agent.config.description,
         idle: agentState.idle,
-        statusMessage:
-          agentState.status === 'starting' ? "Agent starting..."
-          : agentState.status === 'stopping' ? "Agent stopping..."
-          : agentState.status === 'stopped' ? "Agent stopped"
-          : agentState.inputQueue.length === 0 ? "Agent is idle" :
-            agentState.currentlyExecutingInputItem
-            ? agentState.currentlyExecutingInputItem.executionState.currentActivity
-            : "Agent is working"
+        currentActivity: agentState.currentActivity,
       }
     });
   },

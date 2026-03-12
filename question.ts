@@ -1,18 +1,37 @@
 import {z} from "zod";
 
 export const TreeLeafSchema: z.ZodType<TreeLeaf> = z.lazy(() =>
-  z.object({
-    name: z.string(),
-    value: z.string().optional(),
-    children: z.array(TreeLeafSchema).optional()
-  })
+  z.union([
+    z.object({
+      name: z.string(),
+      value: z.string(),
+    }),
+    z.object({
+      name: z.string(),
+      children: z.array(TreeLeafSchema)
+    })
+  ])
 );
 
 export type TreeLeaf = {
   name: string;
-  value?: string;
-  children?: Array<TreeLeaf>;
+  value: string;
+} | {
+  name: string;
+  children: Array<TreeLeaf>;
 };
+
+export function isTreeBranch(node: TreeLeaf): node is Extract<TreeLeaf, {children: Array<TreeLeaf>}> {
+  return "children" in node;
+}
+
+export function isTreeValueLeaf(node: TreeLeaf): node is Extract<TreeLeaf, {value: string}> {
+  return "value" in node;
+}
+
+export function getTreeNodeValue(node: TreeLeaf): string {
+  return isTreeValueLeaf(node) ? node.value : node.name;
+}
 
 export const TextQuestionSchema = z.object({
   type: z.literal('text'),

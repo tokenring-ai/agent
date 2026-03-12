@@ -8,9 +8,10 @@ import debugLogging from "./commands/debug/logging.ts";
 import debugMarkdown from "./commands/debug/markdown.ts";
 import debugQuestions from "./commands/debug/questions.ts";
 import debugServices from "./commands/debug/services.ts";
+import debugCheckpoint from "./commands/debug/checkpoint.ts";
 import help from "./commands/help.ts";
 import settings from "./commands/settings.ts";
 import work from "./commands/work.ts";
 import type {TokenRingAgentCommand} from "./types.ts";
 
-export default [settings, work, help, agentTypes, agentList, agentRun, agentShutdown, debugAppShutdown, debugChat, debugLogging, debugMarkdown, debugQuestions, debugServices] satisfies TokenRingAgentCommand[];
+export default [settings, work, help, agentTypes, agentList, agentRun, agentShutdown, debugAppShutdown, debugChat, debugLogging, debugMarkdown, debugQuestions, debugServices, debugCheckpoint] satisfies TokenRingAgentCommand[];

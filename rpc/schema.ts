@@ -74,7 +74,7 @@ export default {
         displayName: z.string(),
         description: z.string(),
         idle: z.boolean(),
-        statusMessage: z.string()
+        currentActivity: z.string()
       }))
     },
     getAgentTypes: {

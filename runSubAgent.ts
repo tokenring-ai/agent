@@ -1,10 +1,11 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import AgentManager from "@tokenring-ai/agent/services/AgentManager";
-import {AgentEventState} from "@tokenring-ai/agent/state/agentEventState";
+import {AgentEventState, agentMessages} from "@tokenring-ai/agent/state/agentEventState";
 import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {like} from "@tokenring-ai/utility/string/like";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
+import type {InputMessage, ParsedInteractionRequest} from "./AgentEvents.ts";
 import type {ParsedAgentConfig} from "./schema.ts";
 import {SubAgentState} from "./state/subAgentState.ts";
 
@@ -16,10 +17,34 @@ export type RunSubAgentOptions = Partial<ParsedAgentConfig["subAgent"]> & {
   /** Whether to run the agent in headless mode */
   headless: boolean;
   /** The command to send to the agent */
-  input: BareInputReceivedMessage;
+  input: InputMessage;
   /** Whether to disable sub-agent permission checks (default: false) */
   disablePermissionCheck?: boolean;
 };
+
+type PendingChildQuestion = {
+  requestId: string;
+  interaction: Extract<ParsedInteractionRequest, {type: "question"}>;
+};
+
+function getPendingChildQuestion(state: AgentEventState, requestId: string): PendingChildQuestion | null {
+  const currentItem = state.currentlyExecutingInputItem;
+  if (!currentItem || currentItem.request.requestId !== requestId) return null;
+
+  const interaction = currentItem.executionState.availableInteractions.find(
+    (
+      availableInteraction
+    ): availableInteraction is Extract<ParsedInteractionRequest, {type: "question"}> =>
+      availableInteraction.type === "question"
+  );
+
+  if (!interaction) return null;
+
+  return {
+    requestId: currentItem.request.requestId,
+    interaction
+  };
+}
 
 export interface RunSubAgentResult {
   /** Status of the agent execution */
@@ -72,6 +97,7 @@ export async function runSubAgent(
 ): Promise<RunSubAgentResult> {
   let {
     agentType,
+    background,
     headless,
     input,
     forwardChatOutput,
@@ -88,7 +114,6 @@ export async function runSubAgent(
   } = deepMerge(options, parentAgent.config.subAgent);
 
   const agentManager = parentAgent.requireServiceByType(AgentManager);
-  const parentEventCursor = parentAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
   if (! disablePermissionCheck) {
     const subAgentState = parentAgent.getState(SubAgentState);
@@ -98,16 +123,31 @@ export async function runSubAgent(
     }
   }
 
+  parentAgent.setCurrentActivity(`Running sub-agent: ${agentType}`);
   const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType, { headless });
 
   let timeoutExceeded = false;
 
-  const abortController = new AbortController();
+  const listenerAbortController = new AbortController();
+  const listenerSignal = listenerAbortController.signal;
 
   const timer = timeoutSeconds > 0 ? setTimeout(() => {
     timeoutExceeded = true;
-    abortController.abort();
+    childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
+    listenerAbortController.abort();
   }, timeoutSeconds * 1000) : null;
+
+  let removeParentAbortListener = () => {};
+  if (!background) {
+    const parentAbortSignal = parentAgent.getAbortSignal();
+    const onParentAbort = () => {
+      childAgent.abortCurrentOperation(String(parentAbortSignal.reason ?? "Parent agent aborted sub-agent."));
+      listenerAbortController.abort(parentAbortSignal.reason);
+    };
+
+    parentAbortSignal.addEventListener("abort", onParentAbort, {once: true});
+    removeParentAbortListener = () => parentAbortSignal.removeEventListener("abort", onParentAbort);
+  }
 
   try {
     await childAgent.waitForState(AgentEventState, (state) => state.idle);
@@ -115,50 +155,72 @@ export async function runSubAgent(
 
     const requestId = childAgent.handleInput(input);
 
-    if (options.background) {
-      childAgent.infoMessage(`${agentType} (background) > `, input.message.trim());
+    if (background) {
       return {
         status: "success",
-        response: "Agent started in background.",
+        response: `Agent ${agentType} started in background.`,
         childAgent: childAgent,
       };
     }
 
-    async function forwardParentEventsToChild() {
-      for await (const state of parentAgent.subscribeStateAsync(AgentEventState, abortController.signal)) {
-        for (const parentEvent of state.yieldEventsByCursor(parentEventCursor)) {
-          switch (parentEvent.type) {
-            case "question.request":
-            case "question.response":
-              if (forwardHumanRequests) {
-                childAgent.mutateState(AgentEventState, (state) => {
-                  if (state.events.find((childEvent) => childEvent.type == parentEvent.type && childEvent.requestId === parentEvent.requestId)) {
-                    return;
-                  }
-                })
-              }
-              break;
-            case "abort":
-            case "pause":
-            case "resume":
-              childAgent.mutateState(AgentEventState, (state) => {
-                state.events.push(parentEvent);
-              });
-              break;
-          }
-        }
-      }
-    }
-
-
     async function forwardChildEventsToParent(): Promise<{ status: "error" | "cancelled" | "success", response: string}> {
       const response = [];
-      for await (const state of childAgent.subscribeStateAsync(AgentEventState, abortController.signal)) {
+      const mirroredInteractionIds = new Set<string>();
+
+      const removeMirroredInteraction = (interactionId: string) => {
+        parentAgent.mutateState(AgentEventState, (parentState) => {
+          const currentItem = parentState.currentlyExecutingInputItem;
+          if (!currentItem) return;
+
+          currentItem.executionState.availableInteractions = currentItem.executionState.availableInteractions
+            .filter((interaction) => interaction.interactionId !== interactionId);
+          currentItem.interactionCallbacks.delete(interactionId);
+        });
+        mirroredInteractionIds.delete(interactionId);
+      };
+
+      const clearMirroredInteractions = () => {
+        for (const interactionId of [...mirroredInteractionIds]) {
+          removeMirroredInteraction(interactionId);
+        }
+      };
+
+      const mirrorInteractionToParent = (pendingQuestion: PendingChildQuestion) => {
+        parentAgent.mutateState(AgentEventState, (parentState) => {
+          const currentItem = parentState.currentlyExecutingInputItem;
+          if (!currentItem) {
+            throw new Error("Cannot forward a sub-agent interaction when the parent agent has no active input.");
+          }
+
+          if (!currentItem.executionState.availableInteractions.some(
+            (interaction) => interaction.interactionId === pendingQuestion.interaction.interactionId
+          )) {
+            currentItem.executionState.availableInteractions.push(pendingQuestion.interaction);
+          }
+
+          currentItem.interactionCallbacks.set(pendingQuestion.interaction.interactionId, (result) => {
+            const childState = childAgent.getState(AgentEventState);
+            const activeInteraction = getPendingChildQuestion(childState, pendingQuestion.requestId);
+            if (!activeInteraction || activeInteraction.interaction.interactionId !== pendingQuestion.interaction.interactionId) {
+              return;
+            }
+
+            childAgent.sendInteractionResponse({
+              requestId: pendingQuestion.requestId,
+              interactionId: pendingQuestion.interaction.interactionId,
+              result
+            });
+          });
+        });
+
+        mirroredInteractionIds.add(pendingQuestion.interaction.interactionId);
+      };
+
+      let lastActivity = agentMessages.noTasks
+
+      for await (const state of childAgent.subscribeStateAsync(AgentEventState, listenerSignal)) {
         for (const event of state.yieldEventsByCursor(eventCursor)) {
           switch (event.type) {
-            case "abort":
-              abortController.abort();
-              break;
             case "output.chat":
               if (forwardChatOutput) {
                 parentAgent.chatOutput(event.message);
@@ -175,39 +237,28 @@ export async function runSubAgent(
             case "output.info":
             case "output.warning":
               if (forwardSystemOutput) {
-                parentAgent.mutateState(AgentEventState, (state) => {
-                  state.events.push(event);
-                })
-              }
-              break;
-            case "status":
-              if (forwardStatusMessages) {
-                parentAgent.mutateState(AgentEventState, (state) => {
-                  state.events.push(event);
-                })
+                parentAgent.mutateState(AgentEventState, (eventState) => {
+                  eventState.events.push(event);
+                });
               }
               break;
             case "output.error":
-              parentAgent.mutateState(AgentEventState, (state) => {
-                state.events.push(event);
-              })
+              parentAgent.mutateState(AgentEventState, (eventState) => {
+                eventState.events.push(event);
+              });
               break;
             case 'input.received':
               if (forwardInputCommands) {
-                parentAgent.infoMessage(`${agentType} > ${event.message}`);
+                parentAgent.chatOutput(`
+### ${childAgent.config.displayName} (@${agentType})
+`);
               }
               break;
-
-            case "input.handled":
-              if (event.status === "success") {
-                parentAgent.infoMessage(`Success: ${event.message}`);
-              } else {
-                parentAgent.errorMessage(`Error: ${event.message}`);
-              }
-
+            case "agent.response":
               if (event.requestId === requestId) {
+                clearMirroredInteractions();
                 const truncatedResponse = trimMiddle(
-                  response.join(""),
+                  response.length > 0 ? response.join("") : event.message,
                   minContextLength,
                   maxResponseLength
                 );
@@ -218,31 +269,28 @@ export async function runSubAgent(
               }
               break;
 
-            case "question.request":
-            case "question.response":
-              if (forwardHumanRequests) {
-                parentAgent.mutateState(AgentEventState, (state) => {
-                  if (state.events.find((parentEvent) => parentEvent.type == event.type && parentEvent.requestId === event.requestId)) {
-                    return;
-                  }
-                  state.events.push(event);
-                })
+            case "agent.status":
+              if (forwardStatusMessages) {
+                if (lastActivity !== event.currentActivity) {
+                  lastActivity = event.currentActivity;
+                  parentAgent.chatOutput(`\n***${event.currentActivity}***\n`);
+                }
               }
               break;
             case "agent.created":
-              parentAgent.infoMessage(`${agentType} > Agent Created: ${event.message}`);
+              //parentAgent.infoMessage(`${agentType} > Agent Created: ${event.message}`);
               break;
             case "agent.stopped":
-              parentAgent.infoMessage(`${agentType} > Agent Stopped: ${event.message}`);
+              //parentAgent.infoMessage(`${agentType} > Agent Stopped: ${event.message}`);
               break;
             case "output.artifact":
               if (forwardArtifacts) {
                 parentAgent.artifactOutput(event);
               }
               break;
-            case "agent.execution":
-            case "pause":
-            case "resume":
+            case "cancel":
+            case "input.execution":
+            case "input.interaction":
               /* ignored */
               break;
             default:
@@ -251,20 +299,40 @@ export async function runSubAgent(
               break;
           }
         }
+
+        const pendingQuestion = getPendingChildQuestion(state, requestId);
+        const activeInteractionIds = new Set(
+          pendingQuestion ? [pendingQuestion.interaction.interactionId] : []
+        );
+
+        for (const interactionId of mirroredInteractionIds) {
+          if (!activeInteractionIds.has(interactionId)) {
+            removeMirroredInteraction(interactionId);
+          }
+        }
+
+        if (!pendingQuestion) continue;
+
+        if (!forwardHumanRequests) {
+          childAgent.abortCurrentOperation("Sub-agent requested user interaction, but interaction forwarding is disabled.");
+          continue;
+        }
+
+        if (!mirroredInteractionIds.has(pendingQuestion.interaction.interactionId)) {
+          mirrorInteractionToParent(pendingQuestion);
+        }
       }
 
+      clearMirroredInteractions();
       return {
         status: "cancelled",
         response: "Child agent was aborted"
       };
     }
 
-    const childResult = await Promise.race([
-      forwardParentEventsToChild(),
-      forwardChildEventsToParent(),
-    ]);
+    const childResult = await forwardChildEventsToParent();
 
-    abortController.abort();
+    listenerAbortController.abort();
 
     if (! childResult) {
       if (timeoutExceeded) {
@@ -292,8 +360,10 @@ export async function runSubAgent(
     };
   } finally {
     if (timer) clearTimeout(timer);
+    removeParentAbortListener();
+    listenerAbortController.abort();
     // Clean up the agent if auto-cleanup is enabled
-    if (autoCleanup) {
+    if (autoCleanup && !background) {
       await agentManager.deleteAgent(childAgent.id, "Parent agent triggered auto-cleanup of sub-agent.");
     }
   }

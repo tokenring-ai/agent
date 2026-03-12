@@ -112,12 +112,6 @@ export const InteractionResponseSchema = z.object({
   result: z.any(),
 });
 
-export const CancelInteractionSchema = z.object({
-  type: z.literal("cancel"),
-  interactionId: z.string(),
-  timestamp: z.number(),
-});
-
 export const FollowupInteractionSchema = z.object({
   type: z.literal("followup"),
   interactionId: z.string(),
@@ -136,7 +130,6 @@ export const QuestionInteractionSchema = z.object({
 })
 
 export const InteractionSchema = z.discriminatedUnion('type', [
-  CancelInteractionSchema,
   FollowupInteractionSchema,
   QuestionInteractionSchema,
 ]);
@@ -211,9 +204,10 @@ export type InputReceived = z.input<typeof InputReceivedSchema>;
 
 export const AgentStatusSchema = z.object({
   type: z.literal("agent.status"),
-  status: z.enum(["starting", "running", "stopping", "stopped"]),
+  status: z.enum(["starting", "running", "shutdown"]),
   timestamp: z.number(),
   inputExecutionQueue: z.array(z.string()),
+  currentActivity: z.string()
 });
 
 

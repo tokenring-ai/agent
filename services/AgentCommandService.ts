@@ -15,7 +15,7 @@ import {v4 as uuid} from "uuid";
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
 import type {InputAttachment, ParsedAgentCancelledResponse, ParsedAgentErrorResponse, ParsedAgentResponse, ParsedAgentSuccessResponse} from "../AgentEvents.ts";
-import {AgentEventState, type InputQueueItem} from "../state/agentEventState.ts";
+import {AgentEventState, agentMessages, type InputQueueItem} from "../state/agentEventState.ts";
 import type {TokenRingAgentCommand} from "../types.js";
 
 export default class AgentCommandService implements TokenRingService {
@@ -124,7 +124,7 @@ Type /help for a list of commands.`
 
     agent.mutateState(AgentEventState, (state) => {
       state.status = "running"
-      state.pushAgentStatus();
+      state.currentActivity = agentMessages.noTasks;
 
       if (agent.config.initialCommands.length > 0) {
         for (const initialCommand of agent.config.initialCommands) {
@@ -139,6 +139,8 @@ Type /help for a list of commands.`
           })
         }
       }
+
+      state.pushAgentStatus();
     });
 
     for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
@@ -149,22 +151,22 @@ Type /help for a list of commands.`
 
       agent.mutateState(AgentEventState, (s) => {
         item.executionState.status = "running";
-        state.currentlyExecutingInputItem = item;
-        state.pushAgentStatus();
+        s.currentlyExecutingInputItem = item;
+        s.pushInputExecution(item);
       });
 
       try {
         await this.processAgentInput(agent, item);
       } finally {
         agent.mutateState(AgentEventState, (eventState) => {
-          eventState.currentlyExecutingInputItem = null;
-          eventState.inputQueue = eventState.inputQueue.filter(i => i.request.requestId !== item.request.requestId);
-          state.pushAgentStatus();
+          item.executionState.status = "finished";
+          eventState.pushInputExecution(item);
         });
       }
     }
     agent.mutateState(AgentEventState, (state) => {
-      state.status = "stopped";
+      state.status = "shutdown";
+      state.currentActivity = agentMessages.agentShutdown
       state.pushAgentStatus();
       signal.removeEventListener('abort', handleAbort);
     })

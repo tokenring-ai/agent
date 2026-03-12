@@ -23,7 +23,7 @@ import {TodoState} from "./state/todoState.ts";
 import {AgentCheckpointData, AgentStateSlice} from "./types.js";
 
 export default class Agent {
-  readonly id: string = uuid();
+  readonly id: string = generateHumanId();
   debugEnabled = false;
   requireServiceByType;
   getServiceByType;
@@ -201,8 +201,8 @@ export default class Agent {
   }
 
   async waitForInteraction(interaction: Omit<z.input<typeof InteractionSchema>, "requestId" | "timestamp" | "interactionId">): Promise<unknown> {
-    let requestId = uuid();
-    let interactionId = uuid();
+    const requestId = uuid();
+    const interactionId = uuid();
     const event = InteractionSchema.parse({
       ...interaction,
       requestId,
@@ -213,41 +213,49 @@ export default class Agent {
     const resultPromise = new Promise((resolve, reject) => {
       this.mutateState(AgentEventState, (state) => {
         if (state.currentlyExecutingInputItem) {
-          const availableInteractions = state.currentlyExecutingInputItem.executionState.availableInteractions ??= [];
+          const inputItem = state.currentlyExecutingInputItem;
+          const availableInteractions = inputItem.executionState.availableInteractions ??= [];
           availableInteractions.push(event);
 
-          state.currentlyExecutingInputItem.interactionCallbacks.set(interactionId, resolve);
-          const signal = state.currentlyExecutingInputItem.abortController.signal;
-          signal.addEventListener('abort', () => {
+          inputItem.interactionCallbacks.set(interactionId, resolve);
+          state.pushInputExecution(inputItem);
+
+          const signal = inputItem.abortController.signal;
+          signal.addEventListener("abort", () => {
             reject(signal.reason);
-          })
+          }, {once: true});
         } else {
           throw new Error("Cannot initiate and interaction with the user when no currently executing input item is available");
         }
       });
     });
 
-    let result: unknown;
-    if ("autoSubmitAt" in event && event.autoSubmitAt) {
-      const delayMs = Math.max(0, event.autoSubmitAt - Date.now());
+    try {
+      if ("autoSubmitAt" in event && event.autoSubmitAt) {
+        const delayMs = Math.max(0, event.autoSubmitAt - Date.now());
 
-      result = await Promise.race([
-        resultPromise,
-        setTimeout(delayMs).then(() => getDefaultQuestionValue(event.question))
-      ]);
-    } else {
-      result = await resultPromise;
-    }
-
-    this.mutateState(AgentEventState, (state) => {
-      if (state.currentlyExecutingInputItem) {
-        state.currentlyExecutingInputItem.interactionCallbacks.delete(interactionId);
-      } else {
-        throw new Error("Cannot resolve question interaction when no currently executing input item is available");
+        return await Promise.race([
+          resultPromise,
+          setTimeout(delayMs).then(() => getDefaultQuestionValue(event.question))
+        ]);
       }
-    });
 
-    return result;
+      return await resultPromise;
+    } finally {
+      this.mutateState(AgentEventState, (state) => {
+        const inputItem = state.currentlyExecutingInputItem;
+        if (!inputItem) return;
+
+        inputItem.interactionCallbacks.delete(interactionId);
+        const previousLength = inputItem.executionState.availableInteractions.length;
+        inputItem.executionState.availableInteractions = inputItem.executionState.availableInteractions
+          .filter((availableInteraction) => availableInteraction.interactionId !== interactionId);
+
+        if (inputItem.executionState.availableInteractions.length !== previousLength) {
+          state.pushInputExecution(inputItem);
+        }
+      });
+    }
   }
 
   async busyWithActivity<T>(message: string, awaitable: Promise<T> | (() => Promise<T>)): Promise<T> {
@@ -258,6 +266,7 @@ export default class Agent {
       if (state.currentlyExecutingInputItem) {
         prevActivity = state.currentlyExecutingInputItem.executionState.currentActivity;
         state.currentlyExecutingInputItem.executionState.currentActivity = message;
+        state.pushInputExecution(state.currentlyExecutingInputItem);
         return state.currentlyExecutingInputItem;
       } else {
         throw new Error("busyWhile was called outside of a currently executing task in the Agent event loop, which is not allowed.");
@@ -270,6 +279,7 @@ export default class Agent {
       this.mutateState(AgentEventState, (state) => {
         if (state.currentlyExecutingInputItem === currentItem) {
           currentItem.executionState.currentActivity = prevActivity;
+          state.pushInputExecution(currentItem);
         } else {
           throw new Error("The currently executing input item mutated while busyWhile was running in the Agent event loop, which is not allowed.");
         }
@@ -281,6 +291,7 @@ export default class Agent {
     this.mutateState(AgentEventState, (state) => {
       if (state.currentlyExecutingInputItem) {
         state.currentlyExecutingInputItem.executionState.currentActivity = message;
+        state.pushInputExecution(state.currentlyExecutingInputItem);
       } else {
         throw new Error("setBusyWith was called outside of a currently executing task in the Agent event loop, which is not allowed.");
       }
