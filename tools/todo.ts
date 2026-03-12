@@ -44,7 +44,7 @@ export async function execute(
       updatedTodos.find((t) => t.status === 'pending');
 
     if (currentTask) {
-      agent.updateStatus(currentTask.content);
+      agent.setCurrentActivity(currentTask.content);
     }
   }
 

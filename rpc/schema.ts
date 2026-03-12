@@ -1,7 +1,7 @@
-import omit from "@tokenring-ai/utility/object/omit";
 import {RPCSchema} from "@tokenring-ai/rpc/types";
+import omit from "@tokenring-ai/utility/object/omit";
 import {z} from "zod";
-import {AgentEventEnvelopeSchema, InputAttachmentSchema, QuestionRequestSchema, QuestionResponseSchema} from "../AgentEvents.ts";
+import {AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema,} from "../AgentEvents.ts";
 import {AgentConfigSchema} from "../schema.ts";
 
 export default {
@@ -43,6 +43,7 @@ export default {
         position: z.number()
       })
     },
+    /*
     getAgentExecutionState: {
       type: "query",
       input: z.object({
@@ -51,7 +52,7 @@ export default {
       result: z.object({
         idle: z.boolean(),
         busyWith: z.string().nullable(),
-        waitingOn: z.array(QuestionRequestSchema),
+        waitingOn: z.array(InteractionSchema),
       })
     },
     streamAgentExecutionState: {
@@ -62,9 +63,9 @@ export default {
       result: z.object({
         idle: z.boolean(),
         busyWith: z.string().nullable(),
-        waitingOn: z.array(QuestionRequestSchema),
+        waitingOn: z.array(InteractionSchema),
       })
-    },
+    },*/
     listAgents: {
       type: "query",
       input: z.object({}),
@@ -113,45 +114,23 @@ export default {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        message: z.string(),
-        attachments: z.array(InputAttachmentSchema).optional(),
+        input: InputMessageSchema,
       }),
       result: z.object({
         requestId: z.string(),
       })
     },
-    sendQuestionResponse: {
+    sendInteractionResponse: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        requestId: z.string(),
-        response: QuestionResponseSchema
+        response: InteractionResponseSchema
       }),
       result: z.object({
         success: z.boolean(),
       })
     },
-    abortAgent: {
-      type: "mutation",
-      input: z.object({
-        agentId: z.string(),
-        message: z.string(),
-      }),
-      result: z.object({
-        success: z.boolean(),
-      })
-    },
-    pauseAgent: {
-      type: "mutation",
-      input: z.object({
-        agentId: z.string(),
-        message: z.string(),
-      }),
-      result: z.object({
-        success: z.boolean(),
-      })
-    },
-    resumeAgent: {
+    abortCurrentOperation: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),

@@ -52,7 +52,8 @@ export const OutputErrorSchema = z.object({
   message: z.string(),
 });
 
-export const InputAttachmentSchema = z.object({
+export const AttachmentSchema = z.object({
+  type: z.literal("attachment"),
   name: z.string(),
   encoding: z.enum(["text","base64","href"]),
   mimeType: z.string(),
@@ -60,19 +61,15 @@ export const InputAttachmentSchema = z.object({
   timestamp: z.number(),
 })
 
-export type InputAttachment = z.input<typeof InputAttachmentSchema>;
-
-export const InputReceivedSchema = z.object({
-  type: z.literal("input.received"),
-  timestamp: z.number(),
+export const InputMessageSchema = z.object({
+  from: z.string(),
   message: z.string(),
-  attachments: z.array(InputAttachmentSchema).optional(),
-  requestId: z.string(),
-});
+  attachments: z.array(AttachmentSchema).optional(),
+})
 
-export type InputReceived = z.input<typeof InputReceivedSchema>;
-export type BareInputReceivedMessage = Omit<InputReceived, "timestamp" | "type" | "requestId">;
+export type InputMessage = z.input<typeof InputMessageSchema>;
 
+/*
 export const InputHandledSchema = z.object({
   type: z.literal("input.handled"),
   timestamp: z.number(),
@@ -103,47 +100,137 @@ export const StatusSchema = z.object({
   type: z.literal("status"),
   timestamp: z.number(),
   message: z.string()
-})
+})*/
 
 /* A question request is a request that immediately requires an answer from the user for a single form field
 * This is used for functionality such as when the user needs to immediately select a model or provider */
-export const QuestionResponseSchema = z.object({
-  type: z.literal("question.response"),
+export const InteractionResponseSchema = z.object({
+  type: z.literal("input.interaction"),
   timestamp: z.number(),
   requestId: z.string(),
+  interactionId: z.string(),
   result: z.any(),
 });
 
-export const QuestionRequestSchema = z.object({
-  type: z.literal("question.request"),
-  immediate: z.boolean().default(true),
+export const CancelInteractionSchema = z.object({
+  type: z.literal("cancel"),
+  interactionId: z.string(),
   timestamp: z.number(),
-  requestId: z.string(),
+});
+
+export const FollowupInteractionSchema = z.object({
+  type: z.literal("followup"),
+  interactionId: z.string(),
+  timestamp: z.number(),
+  message: z.string(),
+});
+
+export const QuestionInteractionSchema = z.object({
+  type: z.literal("question"),
+  interactionId: z.string(),
+  timestamp: z.number(),
   message: z.string(),
   question: QuestionSchema,
-  autoSubmitAfter: z.number().default(0)
-});
+  optional: z.boolean().default(false),
+  autoSubmitAt: z.number().optional()
+})
 
-export const AgentExecutionStateSchema = z.object({
-  type: z.literal("agent.execution"),
-  running: z.boolean(),
-  paused: z.boolean(),
+export const InteractionSchema = z.discriminatedUnion('type', [
+  CancelInteractionSchema,
+  FollowupInteractionSchema,
+  QuestionInteractionSchema,
+]);
+
+export type InputAttachment = z.input<typeof AttachmentSchema>;
+
+export const InputReceivedSchema = z.object({
+  type: z.literal("input.received"),
   timestamp: z.number(),
-  busyWith: z.string().nullable(),
-  waitingOn: z.array(QuestionRequestSchema),
-  inputQueue: z.array(InputReceivedSchema),
-  currentlyExecuting: z.string().nullable()
+  input: InputMessageSchema,
+  requestId: z.string(),
 });
 
-export type ParsedAgentExecutionState = z.output<typeof AgentExecutionStateSchema>;
-export type QuestionRequest = z.input<typeof QuestionRequestSchema>;
-export type ParsedQuestionRequest = z.output<typeof QuestionRequestSchema>
-export type QuestionResponse = z.output<typeof QuestionResponseSchema>;
+export type ParsedInputReceived = z.output<typeof InputReceivedSchema>;
+
+export const AgentCancelledResponseSchema = z.object({
+  type: z.literal("agent.response"),
+  timestamp: z.number(),
+  requestId: z.string(),
+  status: z.literal("cancelled"),
+  message: z.string(),
+});
+
+export type ParsedAgentCancelledResponse = z.output<typeof AgentCancelledResponseSchema>;
+
+export const AgentErrorResponseSchema = z.object({
+  type: z.literal("agent.response"),
+  timestamp: z.number(),
+  requestId: z.string(),
+  status: z.literal("error"),
+  message: z.string(),
+});
+
+export type ParsedAgentErrorResponse = z.output<typeof AgentErrorResponseSchema>;
+
+export const AgentSuccessResponseSchema = z.object({
+  type: z.literal("agent.response"),
+  timestamp: z.number(),
+  requestId: z.string(),
+  status: z.literal("success"),
+  message: z.string(),
+  attachments: z.array(AttachmentSchema).optional(),
+});
+
+export type ParsedAgentSuccessResponse = z.output<typeof AgentSuccessResponseSchema>;
+
+export const InputExecutionStateSchema = z.object({
+  type: z.literal("input.execution"),
+  timestamp: z.number(),
+  requestId: z.string(),
+  status: z.enum(['queued', "running", "finished"]),
+  currentActivity: z.string().optional(),
+  availableInteractions: z.array(InteractionSchema).optional(),
+});
+
+export const AgentResponseSchema = z.discriminatedUnion("status", [
+  AgentCancelledResponseSchema,
+  AgentErrorResponseSchema,
+  AgentSuccessResponseSchema
+]);
+
+export type ParsedAgentResponse = z.output<typeof AgentResponseSchema>;
+
+
+export const InputCancelSchema = z.object({
+  type: z.literal("cancel"),
+  timestamp: z.number(),
+  requestId: z.string(),
+})
+
+export type InputReceived = z.input<typeof InputReceivedSchema>;
+
+export const AgentStatusSchema = z.object({
+  type: z.literal("agent.status"),
+  status: z.enum(["starting", "running", "stopping", "stopped"]),
+  timestamp: z.number(),
+  inputExecutionQueue: z.array(z.string()),
+});
+
+
+export type ParsedAgentStatus = z.output<typeof AgentStatusSchema>;
+export type InteractionRequest = z.input<typeof InteractionSchema>;
+export type ParsedInteractionRequest = z.output<typeof InteractionSchema>
+
+export type InteractionResponse = z.input<typeof InteractionResponseSchema>;
+export type ParsedInteractionResponse = z.output<typeof InteractionResponseSchema>;
+
+export type QuestionResponse = z.output<typeof QuestionInteractionSchema>;
 
 export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   AgentCreatedSchema,
   AgentStoppedSchema,
-  AgentExecutionStateSchema,
+  AgentStatusSchema,
+  AgentResponseSchema,
   OutputArtifactSchema,
   OutputChatSchema,
   OutputReasoningSchema,
@@ -151,13 +238,9 @@ export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   OutputWarningSchema,
   OutputErrorSchema,
   InputReceivedSchema,
-  InputHandledSchema,
-  QuestionRequestSchema,
-  QuestionResponseSchema,
-  PauseSchema,
-  ResumeSchema,
-  AbortSchema,
-  StatusSchema,
+  InputCancelSchema,
+  InputExecutionStateSchema,
+  InteractionResponseSchema,
 ]);
 
 export type AgentEventEnvelope = z.output<typeof AgentEventEnvelopeSchema>;

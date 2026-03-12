@@ -1,9 +1,7 @@
 import {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
-import type {AnyZodObject} from "zod/v3";
+import z, {ZodTypeAny} from "zod";
 import Agent from "./Agent.js";
 import {InputAttachment} from "./AgentEvents.ts";
-import type {HookCallback} from "./util/hooks.ts";
-import z, {ZodTypeAny, type ZodAny, type ZodObject} from "zod";
 
 export type TokenRingBaseAgentCommand = {
   name: string;
@@ -27,19 +25,9 @@ export type TokenRingAgentCommand = TokenRingBaseAgentCommand & (
   }
 );
 
-export type Hook = {
-  type: "hook";
-};
-
-export type HookSubscription = {
-  name: string;
-  displayName: string;
-  description: string;
-  callbacks: HookCallback<any>[];
-};
-
 export abstract class AgentStateSlice<SerializationSchema extends ZodTypeAny> extends SerializableStateSlice<SerializationSchema> {
   abstract show(): string[];
+
   transferStateFromParent(agent: Agent) {}
 }
 
@@ -60,6 +48,7 @@ export type ContextItemPosition =
   | "afterSystemMessage"
   | "afterPriorMessages"
   | "afterCurrentMessage";
+
 export type ContextItem = {
   role: "system" | "user";
   position: ContextItemPosition;

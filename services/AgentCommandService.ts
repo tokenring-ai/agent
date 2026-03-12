@@ -1,25 +1,22 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
+import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
+import {
+  AfterAgentInputCancelled,
+  AfterAgentInputError,
+  AfterAgentInputHandled,
+  AfterAgentInputSuccess,
+  BeforeAgentInput
+} from "@tokenring-ai/lifecycle/util/hooks";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
-import getRandomItem from "@tokenring-ai/utility/string/getRandomItem";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {v4 as uuid} from "uuid";
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
-import type {InputAttachment, InputReceived} from "../AgentEvents.ts";
-import {AgentEventState} from "../state/agentEventState.ts";
+import type {InputAttachment, ParsedAgentCancelledResponse, ParsedAgentErrorResponse, ParsedAgentResponse, ParsedAgentSuccessResponse} from "../AgentEvents.ts";
+import {AgentEventState, type InputQueueItem} from "../state/agentEventState.ts";
 import type {TokenRingAgentCommand} from "../types.js";
-import {AfterAgentInputError, AfterAgentInputHandled, AfterAgentInputSuccess} from "../util/hooks.ts";
-import AgentLifecycleService from "./AgentLifecycleService.ts";
-
-const statusMessages = [
-  "Processing...",
-  "Planning...",
-  "Investigating...",
-  "Working...",
-  "Thinking..."
-]
 
 export default class AgentCommandService implements TokenRingService {
   readonly name = "AgentCommandService";
@@ -85,7 +82,7 @@ export default class AgentCommandService implements TokenRingService {
       }
 
       if (match.item.allowAttachments) {
-        const result = await match.item.execute({ input: match.remainder, attachments }, agent);
+        const result = await match.item.execute({input: match.remainder, attachments}, agent);
         return result ? result.trim() : "Command completed successfully";
       }
 
@@ -115,89 +112,121 @@ Type /help for a list of commands.`
   }
 
   async runAgentLoop(agent: Agent, signal: AbortSignal): Promise<void> {
-    signal.addEventListener('abort', () => agent.agentShutdownSignal);
+    const handleAbort = () => {
+      agent.getState(AgentEventState).inputQueue.forEach(item => item.abortController?.abort());
+    };
+
+    signal.addEventListener('abort', handleAbort);
 
     await agent.waitForState(AgentEventState, state => state.events.some(
       event => event.type === "agent.created"
     ))
 
     agent.mutateState(AgentEventState, (state) => {
-      state.updateExecutionState({
-        running: true,
-      });
+      state.status = "running"
+      state.pushAgentStatus();
+
       if (agent.config.initialCommands.length > 0) {
-        for (const message of agent.config.initialCommands) {
-          state.events.push({type: "input.received", message: message.trim(), requestId: uuid(), timestamp: Date.now()});
+        for (const initialCommand of agent.config.initialCommands) {
+          state.emit({
+            type: "input.received",
+            requestId: uuid(),
+            input: {
+              from: "Agent startup commands",
+              message: initialCommand
+            },
+            timestamp: Date.now()
+          })
         }
       }
     });
 
-    for await (const state of agent.subscribeStateAsync(AgentEventState, agent.agentShutdownSignal)) {
-      if (state.latestExecutionState.paused) continue;
-      if (state.latestExecutionState!.inputQueue.length === 0) continue;
+    for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
+      if (state.currentlyExecutingInputItem) continue;
+      if (state.inputQueue.length === 0) continue;
 
-      const item = state.latestExecutionState!.inputQueue[0];
-
-      const itemAbortController = new AbortController();
-      const handleAgentAbort = () => itemAbortController.abort();
-      agent.agentShutdownSignal.addEventListener('abort', handleAgentAbort);
+      const item = state.inputQueue[0];
 
       agent.mutateState(AgentEventState, (s) => {
-        s.updateExecutionState({currentlyExecuting: item.requestId });
-        s.currentExecutionAbortController = itemAbortController;
+        item.executionState.status = "running";
+        state.currentlyExecutingInputItem = item;
+        state.pushAgentStatus();
       });
 
       try {
-        await this.processAgentInput(agent, item, itemAbortController.signal);
+        await this.processAgentInput(agent, item);
       } finally {
-        agent.agentShutdownSignal.removeEventListener('abort', handleAgentAbort);
         agent.mutateState(AgentEventState, (eventState) => {
-          eventState.currentExecutionAbortController = null;
-          eventState.updateExecutionState({
-            currentlyExecuting: null,
-            inputQueue: [...eventState.latestExecutionState!.inputQueue.filter(i => i.requestId !== item.requestId)],
-          })
+          eventState.currentlyExecutingInputItem = null;
+          eventState.inputQueue = eventState.inputQueue.filter(i => i.request.requestId !== item.request.requestId);
+          state.pushAgentStatus();
         });
       }
     }
+    agent.mutateState(AgentEventState, (state) => {
+      state.status = "stopped";
+      state.pushAgentStatus();
+      signal.removeEventListener('abort', handleAbort);
+    })
   }
 
-  private async processAgentInput(agent: Agent, item: InputReceived, signal: AbortSignal) {
+  private async processAgentInput(agent: Agent, item: InputQueueItem) {
     const agentCommandService = agent.requireServiceByType(AgentCommandService);
     const agentLifecycleService = agent.getServiceByType(AgentLifecycleService);
 
+    const signal = item.abortController.signal;
+    const {input, requestId} = item.request;
+
+    let response: ParsedAgentResponse;
+
     try {
-      const message = await agentCommandService.executeAgentCommand(agent, item.message, item.attachments);
-      await agentLifecycleService?.executeHooks(new AfterAgentInputSuccess(item), agent);
+      await agentLifecycleService?.executeHooks(new BeforeAgentInput(item.request), agent);
 
-      agent.mutateState(AgentEventState, (s) => {
-        s.emit({
-          type: "input.handled",
-          requestId: item.requestId,
-          status: "success",
-          message: message.trim(),
-          timestamp: Date.now(),
-        });
-      });
+      const message = await agentCommandService.executeAgentCommand(agent, input.message, input.attachments);
+
+      response = {
+        type: 'agent.response',
+        timestamp: Date.now(),
+        requestId,
+        status: 'success',
+        message: message.trim(),
+      } satisfies ParsedAgentSuccessResponse
+
+      await agentLifecycleService?.executeHooks(new AfterAgentInputSuccess(item.request, response), agent);
     } catch (err) {
-      const status = signal.aborted ? "cancelled" : "error";
-
-      await agentLifecycleService?.executeHooks(new AfterAgentInputError(item, status, err as Error), agent);
-
-
-      const message = err instanceof CommandFailedError ? err.message : formatLogMessages([err as Error]);
-      agent.mutateState(AgentEventState, (s) => {
-        s.emit({
-          type: "input.handled",
-          requestId: item.requestId,
-          status,
-          message: message.trim(),
+      if (signal.aborted) {
+        response = {
+          type: 'agent.response',
           timestamp: Date.now(),
-        });
-      });
+          requestId,
+          status: 'cancelled',
+          message: 'Command execution cancelled',
+        } satisfies ParsedAgentCancelledResponse;
+
+        await agentLifecycleService?.executeHooks(new AfterAgentInputCancelled(item.request, response), agent);
+      } else {
+        const message = err instanceof CommandFailedError ? err.message : formatLogMessages([err as Error]);
+
+        response = {
+          type: 'agent.response',
+          timestamp: Date.now(),
+          requestId,
+          status: 'error',
+          message,
+        } satisfies ParsedAgentErrorResponse;
+
+        await agentLifecycleService?.executeHooks(new AfterAgentInputError(item.request, response), agent);
+      }
     }
 
-    await agentLifecycleService?.executeHooks(new AfterAgentInputHandled(item), agent);
+    agent.mutateState(AgentEventState, (s) => {
+      s.emit(response);
+    })
+
+    // Abort to cleanup any leftover tasks
+    item.abortController.abort();
+
+    await agentLifecycleService?.executeHooks(new AfterAgentInputHandled(item.request, response), agent);
 
   }
 }

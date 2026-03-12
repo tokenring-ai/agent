@@ -5,7 +5,6 @@ import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {like} from "@tokenring-ai/utility/string/like";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
-import type {BareInputReceivedMessage} from "./AgentEvents.ts";
 import type {ParsedAgentConfig} from "./schema.ts";
 import {SubAgentState} from "./state/subAgentState.ts";
 

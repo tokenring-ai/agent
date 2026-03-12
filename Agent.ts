@@ -1,22 +1,23 @@
 import TokenRingApp from "@tokenring-ai/app";
 import StateManager from "@tokenring-ai/app/StateManager";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
+import {generateHumanId} from "@tokenring-ai/utility/string/generateHumanId";
+import {setTimeout} from "timers/promises";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import {
   AgentEventEnvelope,
-  type BareInputReceivedMessage,
+  type InputMessage,
+  type InteractionResponse,
+  InteractionSchema,
   OutputArtifactSchema,
-  type QuestionRequest,
-  QuestionRequestSchema,
-  QuestionResponseSchema
+  QuestionInteractionSchema,
 } from "./AgentEvents.js";
 import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.js";
 import {AgentConfig, ParsedAgentConfig} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.js";
 import {AgentEventState} from "./state/agentEventState.ts";
 import {CommandHistoryState} from "./state/commandHistoryState.js";
-import {CostTrackingState} from "./state/costTrackingState.ts";
 import {SubAgentState} from "./state/subAgentState.ts";
 import {TodoState} from "./state/todoState.ts";
 import {AgentCheckpointData, AgentStateSlice} from "./types.js";
@@ -50,10 +51,8 @@ export default class Agent {
 
     this.initializeState(AgentEventState, {});
     this.initializeState(CommandHistoryState, {});
-    this.initializeState(CostTrackingState, {});
     this.initializeState(TodoState, config);
     this.initializeState(SubAgentState, config);
-
   }
 
   get headless() {
@@ -94,22 +93,21 @@ export default class Agent {
     }
   }
 
-  addCost(category: string, amount: number) {
-    this.mutateState(CostTrackingState, (state) => {
-      state.costs[category] = (state.costs[category] ?? 0) + amount;
-    });
-  }
-
   /**
    * Handle input from the user.
    * @param input
    * @returns A unique request ID for the input. This can be used to track the status of the request, e.g. to cancel it.
    */
-  handleInput(input: BareInputReceivedMessage): string {
-    const requestId = uuid();
+  handleInput(input: InputMessage): string {
+    const requestId = generateHumanId();
 
     this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "input.received", requestId, timestamp: Date.now(), ...input});
+      state.emit({
+        type: "input.received",
+        requestId,
+        timestamp: Date.now(),
+        input
+      });
     });
 
     this.mutateState(CommandHistoryState, (state) => {
@@ -142,28 +140,13 @@ export default class Agent {
     return firstActivityTime ? Date.now() - firstActivityTime : 0
   }
 
-  requestAbort(message: string) {
-    this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "abort", timestamp: Date.now(), message});
-    });
-  }
-
-  requestPause(message: string) {
-    this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "pause", timestamp: Date.now(), message});
-    });
-  }
-
-  requestResume(message: string) {
-    this.mutateState(AgentEventState, (state) => {
-      state.emit({type: "resume", timestamp: Date.now(), message});
-    });
-  }
-
-  acknowledgePause(resumeFunction: () => void) {
-    this.mutateState(AgentEventState, (state) => {
-      if (state.resume) throw new Error("Agent has already acknowledged a pause");
-      state.resume = resumeFunction;
+  abortCurrentOperation(reason: string): boolean {
+    return this.mutateState(AgentEventState, (state) => {
+      if (state.currentlyExecutingInputItem) {
+        state.currentlyExecutingInputItem.abortController.abort(reason);
+        return true;
+      }
+      return false;
     });
   }
 
@@ -207,67 +190,101 @@ export default class Agent {
     });
   }
 
-  async askQuestion<T extends Omit<QuestionRequest, "type" | "requestId" | "timestamp">>(question: T): Promise<ResultTypeForQuestion<T["question"]> | null> {
+  async askQuestion<T extends Omit<z.input<typeof QuestionInteractionSchema>, "type" | "requestId" | "timestamp" | "interactionId">>(question: T): Promise<ResultTypeForQuestion<T["question"]> | null> {
     if (this.config.headless) {
       throw new Error("Cannot ask human for feedback when agent is running in headless mode");
     }
-
-    let requestId = uuid();
-    const event = QuestionRequestSchema.parse({type: 'question.request', requestId, timestamp: Date.now(), ...question});
-
-    const eventCursor = this.mutateState(AgentEventState, (state) => {
-      state.emit(event);
-      return state.getEventCursorFromCurrentPosition();
-    });
-
-    if (event.autoSubmitAfter > 0) {
-      const autoSubmitAfterMs = event.autoSubmitAfter * 1000;
-      setTimeout(() => {
-        this.mutateState(AgentEventState, (s) => {
-          for (const e of s.events) {
-            if ((e.type === 'question.response') && e.requestId === requestId) return;
-          }
-
-          s.emit({type: 'question.response', requestId, result: getDefaultQuestionValue(event.question), timestamp: Date.now()});
-        });
-      }, autoSubmitAfterMs);
-    }
-
-    for await (const state of this.subscribeStateAsync(AgentEventState, this.agentShutdownSignal)) {
-      for (const event of state.yieldEventsByCursor(eventCursor)) {
-        if (event.type === "question.response" && event.requestId === requestId) {
-          return event.result;
-        }
-      }
-    }
-    throw new Error("Agent shutdown while waiting for question response");
+    return (await this.waitForInteraction({
+      type: 'question',
+      ...question,
+    }) ?? null) as ResultTypeForQuestion<T["question"]> | null;
   }
 
-  async busyWhile<T>(message: string, awaitable: Promise<T> | (() => Promise<T>)): Promise<T> {
+  async waitForInteraction(interaction: Omit<z.input<typeof InteractionSchema>, "requestId" | "timestamp" | "interactionId">): Promise<unknown> {
+    let requestId = uuid();
+    let interactionId = uuid();
+    const event = InteractionSchema.parse({
+      ...interaction,
+      requestId,
+      interactionId,
+      timestamp: Date.now(),
+    } as z.input<typeof InteractionSchema>);
+
+    const resultPromise = new Promise((resolve, reject) => {
+      this.mutateState(AgentEventState, (state) => {
+        if (state.currentlyExecutingInputItem) {
+          const availableInteractions = state.currentlyExecutingInputItem.executionState.availableInteractions ??= [];
+          availableInteractions.push(event);
+
+          state.currentlyExecutingInputItem.interactionCallbacks.set(interactionId, resolve);
+          const signal = state.currentlyExecutingInputItem.abortController.signal;
+          signal.addEventListener('abort', () => {
+            reject(signal.reason);
+          })
+        } else {
+          throw new Error("Cannot initiate and interaction with the user when no currently executing input item is available");
+        }
+      });
+    });
+
+    let result: unknown;
+    if ("autoSubmitAt" in event && event.autoSubmitAt) {
+      const delayMs = Math.max(0, event.autoSubmitAt - Date.now());
+
+      result = await Promise.race([
+        resultPromise,
+        setTimeout(delayMs).then(() => getDefaultQuestionValue(event.question))
+      ]);
+    } else {
+      result = await resultPromise;
+    }
+
+    this.mutateState(AgentEventState, (state) => {
+      if (state.currentlyExecutingInputItem) {
+        state.currentlyExecutingInputItem.interactionCallbacks.delete(interactionId);
+      } else {
+        throw new Error("Cannot resolve question interaction when no currently executing input item is available");
+      }
+    });
+
+    return result;
+  }
+
+  async busyWithActivity<T>(message: string, awaitable: Promise<T> | (() => Promise<T>)): Promise<T> {
     if (typeof awaitable === "function") awaitable = awaitable();
 
-    let prevBusyWith: string | null;
-    this.mutateState(AgentEventState, (state) => {
-      prevBusyWith = state.latestExecutionState.busyWith;
-      state.updateExecutionState({busyWith: prevBusyWith ? `${prevBusyWith} & ${message}` : message});
-    })
+    let prevActivity: string;
+    const currentItem = this.mutateState(AgentEventState, (state) => {
+      if (state.currentlyExecutingInputItem) {
+        prevActivity = state.currentlyExecutingInputItem.executionState.currentActivity;
+        state.currentlyExecutingInputItem.executionState.currentActivity = message;
+        return state.currentlyExecutingInputItem;
+      } else {
+        throw new Error("busyWhile was called outside of a currently executing task in the Agent event loop, which is not allowed.");
+      }
+    });
+
     try {
       return await awaitable;
     } finally {
       this.mutateState(AgentEventState, (state) => {
-        state.updateExecutionState({busyWith: prevBusyWith});
+        if (state.currentlyExecutingInputItem === currentItem) {
+          currentItem.executionState.currentActivity = prevActivity;
+        } else {
+          throw new Error("The currently executing input item mutated while busyWhile was running in the Agent event loop, which is not allowed.");
+        }
       })
     }
   }
 
-  setBusyWith(message: string | null) {
+  setCurrentActivity(message: string) {
     this.mutateState(AgentEventState, (state) => {
-      state.updateExecutionState({busyWith: message});
+      if (state.currentlyExecutingInputItem) {
+        state.currentlyExecutingInputItem.executionState.currentActivity = message;
+      } else {
+        throw new Error("setBusyWith was called outside of a currently executing task in the Agent event loop, which is not allowed.");
+      }
     })
-  }
-
-  updateStatus(statusMessage: string) {
-    this.emit({ type: 'status', message: statusMessage, timestamp: Date.now()});
   }
 
   infoMessage = (...messages: string[]) =>
@@ -289,13 +306,17 @@ export default class Agent {
     this.emit({type: 'output.artifact', name, encoding, mimeType, body, timestamp: Date.now()});
   }
 
-  sendQuestionResponse = (requestId: string, response: Omit<z.infer<typeof QuestionResponseSchema>, "type" | "requestId" | "timestamp">) => {
-    this.emit({type: "question.response", requestId, ...response, timestamp: Date.now()});
+  sendInteractionResponse = (response: Omit<InteractionResponse, "type" | "timestamp">) => {
+    this.emit({type: "input.interaction", ...response, timestamp: Date.now()});
   };
 
   getAbortSignal() {
     const state = this.getState(AgentEventState);
-    return state.currentExecutionAbortController?.signal || this.agentShutdownSignal;
+    if (state.currentlyExecutingInputItem) {
+      return state.currentlyExecutingInputItem.abortController.signal;
+    } else {
+      throw new Error("Cannot get abort signal when no currently executing input item is available");
+    }
   }
 
   runBackgroundTask(task: (signal: AbortSignal) => Promise<void>) {

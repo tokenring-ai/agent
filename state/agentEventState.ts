@@ -1,5 +1,13 @@
+import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import {z} from "zod";
-import {AgentEventEnvelope, AgentEventEnvelopeSchema, AgentExecutionStateSchema} from "../AgentEvents.js";
+import {
+  AgentEventEnvelope,
+  AgentEventEnvelopeSchema,
+  InputExecutionStateSchema,
+  InputReceivedSchema,
+  type ParsedAgentStatus,
+  type ParsedInputReceived
+} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
 
 const serializationSchema = z.object({
@@ -10,87 +18,87 @@ export type AgentEventCursor = {
   position: number,
 }
 
+export type InputQueueItem = {
+  request: ParsedInputReceived,
+  executionState: Required<Omit<z.output<typeof InputExecutionStateSchema>, "type" | "timestamp" | "requestId">>,
+  interactionCallbacks: Map<string, (data: any) => void>,
+  abortController: AbortController;
+}
+
 export class AgentEventState extends AgentStateSlice<typeof serializationSchema> {
-  latestExecutionState: z.output<typeof AgentExecutionStateSchema> = {
-    type: 'agent.execution',
-    timestamp: Date.now(),
-    running: false,
-    paused: false,
-    busyWith: null,
-    waitingOn: [],
-    inputQueue: [],
-    currentlyExecuting: null
-  };
-
-  resume: (() => void) | null = null;
-
-  currentExecutionAbortController: AbortController | null = null;
+  status: ParsedAgentStatus["status"] = "starting";
+  inputQueue: InputQueueItem[] = [];
+  currentlyExecutingInputItem: InputQueueItem | null = null;
 
   get idle(): boolean {
-    return this.latestExecutionState.running && this.latestExecutionState.inputQueue.length === 0;
+    return this.inputQueue.length === 0;
   }
 
-  events: AgentEventEnvelope[] = [this.latestExecutionState];
+  events: AgentEventEnvelope[] = [];
 
   constructor({}: {}) {
-    super("AgentEventState",serializationSchema);
+    super("AgentEventState", serializationSchema);
   }
 
-  updateExecutionState(state: Partial<z.output<typeof AgentExecutionStateSchema>>) {
-    this.emit({
-      ...this.latestExecutionState,
-      ...state,
-      timestamp: Date.now()
+  pushAgentStatus(): void {
+    this.events.push({
+      type: "agent.status",
+      timestamp: Date.now(),
+      inputExecutionQueue: this.inputQueue.map(item => item.request.requestId),
+      status: this.status
     });
-  }
+  };
 
   emit(event: AgentEventEnvelope): void {
-    this.events.push(event);
-    if (event.type === "agent.execution") {
-      this.latestExecutionState = event;
-    } else if (event.type === "input.received") {
-      this.updateExecutionState({
-        inputQueue: [...this.latestExecutionState.inputQueue, event],
-      });
-    } else if (event.type === "abort") {
-      const requestId = this.latestExecutionState.currentlyExecuting
-
-      for (const item of this.latestExecutionState.inputQueue) {
-        if (item.requestId === requestId) continue;
-        this.emit({
-          type: "input.handled",
-          requestId: item.requestId,
-          status: "cancelled",
-          message: "Aborted",
-          timestamp: Date.now(),
+    switch (event.type) {
+      case "input.execution": {
+        this.events.push(event);
+        if (event.status === "finished") {
+          this.inputQueue = this.inputQueue.filter(item => item.request.requestId !== event.requestId);
+          if (this.currentlyExecutingInputItem?.request.requestId === event.requestId) {
+            this.currentlyExecutingInputItem = null;
+          }
+        } else {
+          const inputQueueItem = this.inputQueue.find(item => item.request.requestId === event.requestId);
+          if (inputQueueItem) {
+            Object.assign(inputQueueItem.executionState, event);
+          } else {
+            throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
+          }
+        }
+        this.pushAgentStatus();
+      } break;
+      case "input.received": {
+        this.events.push(event);
+        this.inputQueue.push({
+          request: event,
+          interactionCallbacks: new Map(),
+          executionState: {
+            status: "queued",
+            currentActivity: "Task is queued",
+            availableInteractions: []
+          },
+          abortController: new AbortController(),
         });
-      }
-
-      this.updateExecutionState({
-        inputQueue: this.latestExecutionState.inputQueue.filter(i => i.requestId !== requestId)
-      });
-
-      if (this.currentExecutionAbortController) {
-        this.currentExecutionAbortController.abort(event.message);
-      }
-    } else if (event.type === "pause") {
-      this.updateExecutionState({
-        paused: true,
-      });
-    } else if (event.type === "resume") {
-      this.updateExecutionState({
-        paused: false,
-      });
-      this.resume?.();
-      this.resume = null;
-    } else if (event.type === 'question.request' ) {
-      this.updateExecutionState({
-        waitingOn: [...this.latestExecutionState.waitingOn, event],
-      });
-    } else if (event.type === "question.response") {
-      this.updateExecutionState({
-        waitingOn: this.latestExecutionState.waitingOn.filter(item => item.requestId !== event.requestId),
-      });
+        this.pushAgentStatus();
+      } break;
+      case 'input.interaction': {
+        const inputQueueItem = this.inputQueue.find(item => item.request.requestId === event.requestId);
+        if (inputQueueItem) {
+          const callback = inputQueueItem.interactionCallbacks.get(event.interactionId);
+          if (callback) {
+            this.events.push(event);
+            callback("data" in event ? event.data : undefined);
+          } else {
+            throw new Error(`No callback registered for interaction ${event.interactionId}`);
+          }
+        } else {
+          throw new Error("Input interaction received outside of a currently executing task in the Agent event loop, and will be discarded");
+        }
+      } break;
+      default:
+        this.events.push(event);
+        break;
     }
   }
 
@@ -101,7 +109,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
   }
 
   deserialize(data: z.output<typeof serializationSchema>): void {
-     // When restoring the event state, we need to clean up the events to put the agent back into a usable state
+    // When restoring the event state, we need to clean up the events to put the agent back into a usable state
     const events: AgentEventEnvelope[] = data.events || [];
     const receivedEvents = new Set<string>();
     for (const event of events) {
@@ -110,14 +118,13 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
 
     for (const event of events) {
       switch (event.type) {
-        case "agent.execution":
+        case "agent.status":
         case "agent.created":
         case "agent.stopped":
-        case "pause":
-        case "resume":
-        case "abort":
+        case "cancel":
+        case "input.execution":
           break
-        case "input.handled":
+        case "agent.response":
           receivedEvents.delete(event.requestId);
           this.events.push({...event, timestamp: Date.now()})
           break;
@@ -125,15 +132,13 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
           receivedEvents.add(event.requestId);
           this.events.push({...event, timestamp: Date.now()})
           break;
-        case "status":
         case "output.info":
         case "output.warning":
         case "output.error":
         case "output.chat":
         case "output.reasoning":
         case "output.artifact":
-        case "question.request":
-        case "question.response":
+        case "input.interaction":
           this.events.push({...event, timestamp: Date.now()})
           break;
         default:
@@ -145,10 +150,10 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
 
     for (const requestId of receivedEvents.values()) {
       this.emit({
-        type: "input.handled",
+        type: "agent.response",
         requestId: requestId,
-        status: "cancelled",
-        message: "Command was in a mid-execution state during checkpoint restore.",
+        status: 'cancelled',
+        message: "Command was in a mid-execution state during checkpoint restore and was cancelled.",
         timestamp: Date.now(),
       });
     }
@@ -160,13 +165,13 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
     ];
   }
 
-  getEventCursorFromCurrentPosition() : AgentEventCursor {
+  getEventCursorFromCurrentPosition(): AgentEventCursor {
     return {
       position: this.events.length
     }
   }
 
-  * yieldEventsByCursor(cursor: AgentEventCursor) : Generator<AgentEventEnvelope> {
+  * yieldEventsByCursor(cursor: AgentEventCursor): Generator<AgentEventEnvelope> {
     for (; cursor.position < this.events.length; cursor.position++) {
       yield this.events[cursor.position];
     }

@@ -1,9 +1,7 @@
 import TokenRingApp from "@tokenring-ai/app";
 import omit from "@tokenring-ai/utility/object/omit";
 import {createRPCEndpoint} from "@tokenring-ai/rpc/createRPCEndpoint";
-import {z} from "zod";
 import Agent from "../Agent.ts";
-import {AgentExecutionStateSchema} from "../AgentEvents.ts";
 import AgentManager from "../services/AgentManager.js";
 import {AgentEventState} from "../state/agentEventState.js";
 import {CommandHistoryState} from "../state/commandHistoryState.ts";
@@ -48,7 +46,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
       };
     }
   },
-
+/*
   getAgentExecutionState(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
@@ -74,23 +72,25 @@ export default createRPCEndpoint(AgentRpcSchema, {
       };
       lastExecutionState = state.latestExecutionState;
     }
-  },
+  },*/
   listAgents(_args, app) {
     return app.requireService(AgentManager).getAgents().map((agent: Agent) => {
       const agentState = agent.getState(AgentEventState);
+
 
       return {
         id: agent.id,
         displayName: agent.displayName,
         description: agent.config.description,
         idle: agentState.idle,
-        statusMessage: agentState.latestExecutionState.waitingOn.length > 0
-          ? "Waiting on user input..."
-          : agentState.latestExecutionState.paused
-            ? "Agent is paused"
-          : agentState.idle
-            ? "Agent is idle"
-            : agentState.latestExecutionState.busyWith ?? "Agent is working...."
+        statusMessage:
+          agentState.status === 'starting' ? "Agent starting..."
+          : agentState.status === 'stopping' ? "Agent stopping..."
+          : agentState.status === 'stopped' ? "Agent stopped"
+          : agentState.inputQueue.length === 0 ? "Agent is idle" :
+            agentState.currentlyExecutingInputItem
+            ? agentState.currentlyExecutingInputItem.executionState.currentActivity
+            : "Agent is working"
       }
     });
   },
@@ -126,38 +126,21 @@ export default createRPCEndpoint(AgentRpcSchema, {
   sendInput(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    const requestId = agent.handleInput({ 
-      message: args.message, 
-      attachments: args.attachments 
-    });
+    const requestId = agent.handleInput(args.input)
     return { requestId };
   },
 
-  sendQuestionResponse(args, app) {
+  sendInteractionResponse(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    agent.sendQuestionResponse(args.requestId, { result: args.response.result });
+    agent.sendInteractionResponse(args.response);
     return { success: true };
   },
 
-  abortAgent(args, app) {
+  abortCurrentOperation(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    agent.requestAbort(args.message);
-    return { success: true };
-  },
-
-  pauseAgent(args, app) {
-    const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-    agent.requestPause(args.message);
-    return { success: true };
-  },
-
-  resumeAgent(args, app) {
-    const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-    agent.requestResume(args.message);
+    agent.abortCurrentOperation(args.message);
     return { success: true };
   },
 

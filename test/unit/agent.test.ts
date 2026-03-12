@@ -6,7 +6,7 @@ import {AgentEventState} from '../../state/agentEventState.ts';
 import {AgentExecutionState} from "../../state/agentExecutionState";
 import {CommandHistoryState} from '../../state/commandHistoryState.js';
 import {CostTrackingState} from '../../state/costTrackingState.ts';
-import {HooksState} from '../../state/hooksState.js';
+import {LifecycleState} from '../../state/hooksState.js';
 import createTestingAgent from "../createTestingAgent";
 
 const app = createTestingApp();
@@ -208,7 +208,7 @@ describe('Agent', () => {
 
     it('should handle busyWhile correctly', async () => {
       const promise = Promise.resolve('result');
-      const result = await agent.busyWhile('Loading...', promise);
+      const result = await agent.busyWithActivity('Loading...', promise);
       
       expect(result).toBe('result');
       const eventState = agent.getState(AgentExecutionState);

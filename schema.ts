@@ -45,7 +45,6 @@ export const AgentConfigSchema = z.object({
   initialCommands: z.array(z.string()).default([]),
   createMessage: z.string().default("Agent Created"),
   headless: z.boolean().default(false),
-  //type: z.enum(["interactive", "background"]),
   callable: z.boolean().default(true),
   /** Register this agent as a callable command */
   command: AgentCommandConfigSchema.optional(),
@@ -65,7 +64,6 @@ export const AgentConfigSchema = z.object({
     minContextLength: z.number().default(1000),
   }).prefault({}),
   allowedSubAgents: z.array(z.string()).default([]),
-  enabledHooks: z.array(z.string()).default([]),
   todos: z.object({
     copyToChild: z.boolean().default(true),
     initialItems: z.array(TodoItemSchema).default([]),

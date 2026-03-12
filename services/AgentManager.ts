@@ -183,7 +183,7 @@ Runs the "${config.agentType}" agent with the provided message.
     if (!agentEntry) throw new Error(`Agent ${agentId} not found`);
 
     const { agent, shutdownController } = agentEntry;
-    agent.requestAbort(reason);
+    agent.abortCurrentOperation(reason);
     shutdownController.abort(reason);
 
     agent.mutateState(AgentEventState, (state) => {

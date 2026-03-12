@@ -8,7 +8,6 @@ import packageJSON from "./package.json" with {type: "json"};
 import agentRPC from "./rpc/agent.ts";
 import {AgentPackageConfigSchema} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.js";
-import AgentLifecycleService from "./services/AgentLifecycleService.js";
 import AgentManager from "./services/AgentManager.js";
 import tools from "./tools.ts";
 
@@ -39,8 +38,6 @@ export default {
       agentManager.addAgentConfigs(...config.agents.user);
     }
     app.addServices(agentManager);
-
-    app.addServices(new AgentLifecycleService());
 
     app.waitForService(RpcService, rpcService => {
       rpcService.registerEndpoint(agentRPC);

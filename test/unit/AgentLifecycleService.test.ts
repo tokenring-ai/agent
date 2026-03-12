@@ -2,7 +2,7 @@ import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from "../../Agent";
 import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
-import {HooksState} from '../../state/hooksState.js';
+import {LifecycleState} from '../../state/hooksState.js';
 import type {HookSubscription, HookType} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
@@ -99,7 +99,7 @@ describe('AgentLifecycleService', () => {
       vi.spyOn(mockAgent, 'mutateState');
       service.setEnabledHooks(['test', 'another'], mockAgent);
       
-      expect(mockAgent.mutateState).toHaveBeenCalledWith(HooksState, expect.any(Function));
+      expect(mockAgent.mutateState).toHaveBeenCalledWith(LifecycleState, expect.any(Function));
     });
 
     it('should enable additional hooks', () => {
