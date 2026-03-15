@@ -14,18 +14,13 @@ complete agent framework that integrates seamlessly with the TokenRing ecosystem
 - **Command System**: Slash command interface with extensible commands and automatic command registration
 - **Agent Command Registration**: Register agents as callable commands for easy invocation
 - **Tool Integration**: Tool execution with context and parameter validation
-- **Hook System**: Lifecycle hooks for extensibility and plugin integration
 - **Human Interface**: Request/response system for human interaction with multiple question types
 - **Sub-Agent Support**: Create and manage child agents with configurable output forwarding
-- **Cost Tracking**: Monitor and track resource usage by category
 - **RPC Integration**: JSON-RPC endpoints for remote agent management
 - **Plugin Integration**: Automatic integration with TokenRing applications
-- **Form Support**: Complex form-based human input requests
 - **Idle/Max Runtime Management**: Automatic cleanup of idle or long-running agents
 - **Minimum Agent Count**: Maintain minimum number of agents per type
-- **Artifact Output**: Support for outputting artifacts (files, documents, etc.)
 - **Todo Management**: Built-in todo list with sub-agent state transfer
-- **Pause/Resume**: Pause and resume agent execution
 - **Abort Handling**: Graceful abort handling with cleanup
 
 ## Installation
@@ -39,6 +34,7 @@ bun install @tokenring-ai/agent
 - `@tokenring-ai/chat` - Chat service integration
 - `@tokenring-ai/utility` - Shared utilities
 - `@tokenring-ai/app` - Base application framework
+- `@tokenring-ai/lifecycle` - Lifecycle hooks integration
 - `@tokenring-ai/rpc` - RPC service integration
 - `eventemitter3` - Event handling
 - `uuid` - Unique ID generation
@@ -74,20 +70,19 @@ const config: ParsedAgentConfig = {
   minimumRunning: 0,
   subAgent: {},
   allowedSubAgents: [],
-  enabledHooks: [],
   todos: {},
   createMessage: "Agent Created"
 };
 
 const shutdownController = new AbortController();
-const agent = new Agent(app, config, null, shutdownController.signal);
+const agent = new Agent(app, {}, config, shutdownController.signal);
 ```
 
 **Key Properties:**
 
 | Property              | Type                | Description                    |
 |-----------------------|---------------------|--------------------------------|
-| `id`                  | `string`            | Unique agent identifier (UUID) |
+| `id`                  | `string`            | Unique agent identifier (human-readable ID) |
 | `displayName`         | `string`            | Agent display name             |
 | `config`              | `ParsedAgentConfig` | Parsed agent configuration     |
 | `debugEnabled`        | `boolean`           | Debug logging toggle           |
@@ -105,7 +100,6 @@ const agent = new Agent(app, config, null, shutdownController.signal);
 | `mutateState<T>(ClassType, callback)`                 | Modify state slice with callback             |
 | `subscribeState<T>(ClassType, callback)`              | Subscribe to state changes                   |
 | `waitForState<T>(ClassType, predicate)`               | Wait for state condition                     |
-| `timedWaitForState<T>(ClassType, predicate, timeout)` | Wait for state with timeout                  |
 | `subscribeStateAsync<T>(ClassType)`                   | Subscribe asynchronously with async iterator |
 | `generateCheckpoint()`                                | Create state checkpoint for restoration      |
 | `restoreState(state)`                                 | Restore from checkpoint state                |
@@ -116,9 +110,9 @@ const agent = new Agent(app, config, null, shutdownController.signal);
 |---------------------------------------|-----------------------------------------------------------|
 | `handleInput({message, attachments})` | Process user input with event emission, returns requestId |
 | `runCommand(command)`                 | Execute agent commands                                    |
-| `busyWhile<T>(message, awaitable)`    | Execute with busy state indicator                         |
-| `setBusyWith(message)`                | Set busy status indicator                                 |
-| `updateStatus(statusMessage)`         | Update status message                                     |
+| `busyWithActivity<T>(message, awaitable)` | Execute with busy state indicator                   |
+| `setCurrentActivity(message)`         | Set current activity indicator                            |
+| `getAbortSignal()`                    | Get current abort signal (when executing)                 |
 
 **Event Emission:**
 
@@ -129,27 +123,23 @@ const agent = new Agent(app, config, null, shutdownController.signal);
 | `infoMessage(...messages)`                         | Emit informational messages           |
 | `warningMessage(...messages)`                      | Emit warning messages                 |
 | `errorMessage(...messages)`                        | Emit error messages                   |
-| `debugMessage(...messages)`                        | Emit debug messages (if debugEnabled) |
 | `artifactOutput({name, encoding, mimeType, body})` | Emit output artifact                  |
-| `updateStatus(message)`                            | Emit status update event              |
 
 **Human Interface:**
 
 | Method                                               | Description                                                   |
 |------------------------------------------------------|---------------------------------------------------------------|
-| `askForApproval({message, label, default, timeout})` | Request approval (Yes/No), returns `Promise<boolean \| null>` |
+| `askForApproval({message, label, default, autoSubmitAfter})` | Request approval (Yes/No), returns `Promise<boolean \| null>` |
 | `askForText({message, label, masked})`               | Request text input, returns `Promise<string \| null>`         |
 | `askQuestion<T>(question)`                           | Request human input with various question types               |
-| `sendQuestionResponse(requestId, response)`          | Send human response to question                               |
+| `sendInteractionResponse(response)`                  | Send human response to interaction                            |
+| `waitForInteraction(interaction)`                    | Wait for user interaction                                     |
 
 **Lifecycle Management:**
 
 | Method                                | Description                                  |
 |---------------------------------------|----------------------------------------------|
-| `requestAbort(message)`               | Request abort with message                   |
-| `requestPause(message)`               | Request pause with message                   |
-| `requestResume(message)`              | Request resume with message                  |
-| `getAbortSignal()`                    | Get current abort signal                     |
+| `abortCurrentOperation(reason)`       | Abort current operation with reason          |
 | `getIdleDuration()`                   | Get time since last activity in milliseconds |
 | `getRunDuration()`                    | Get total run duration in milliseconds       |
 | `runBackgroundTask(task)`             | Run a background task with error handling    |
@@ -186,7 +176,6 @@ agentManager.addAgentConfigs({
   minimumRunning: 0,
   subAgent: {},
   allowedSubAgents: [],
-  enabledHooks: [],
   todos: {},
   createMessage: "Agent Created"
 });
@@ -287,54 +276,6 @@ commandService.addAgentCommands({
 | `getCommand(name)`                                 | Get specific command by name  |
 | `executeAgentCommand(agent, message, attachments)` | Execute command               |
 
-### AgentLifecycleService Service
-
-Service for managing hooks and lifecycle events:
-
-```typescript
-import AgentLifecycleService from "@tokenring-ai/agent/services/AgentLifecycleService";
-
-const lifecycleService = new AgentLifecycleService();
-
-// Hooks are automatically registered via plugin
-lifecycleService.enableHooks(["myPlugin/afterChatCompletion"], agent);
-
-// Register custom hooks
-lifecycleService.addHooks("myPlugin", {
-  afterChatCompletion: {
-    name: "myPlugin/afterChatCompletion",
-    displayName: "My Hook",
-    description: "Custom after chat completion hook",
-    callbacks: [
-      async (data, agent) => {
-        console.log("Chat completed:", data);
-      }
-    ]
-  }
-});
-```
-
-**Hook Management:**
-
-| Method                              | Description                             |
-|-------------------------------------|-----------------------------------------|
-| `registerHook(name, config)`        | Register individual hook                |
-| `addHooks(pkgName, hooks)`          | Register hooks with package namespacing |
-| `getAllHookNames()`                 | Get all registered hook names           |
-| `getAllHookEntries()`               | Get all registered hook entries         |
-| `getEnabledHooks(agent)`            | Get enabled hooks for agent             |
-| `setEnabledHooks(hookNames, agent)` | Set enabled hooks                       |
-| `enableHooks(hookNames, agent)`     | Enable specific hooks                   |
-| `disableHooks(hookNames, agent)`    | Disable hooks                           |
-| `executeHooks(data, agent)`         | Execute hooks for lifecycle event       |
-
-**Hook Types:**
-
-- `beforeChatCompletion`: Called before chat completion
-- `afterChatCompletion`: Called after chat completion
-- `afterAgentInputComplete`: Called after agent input is fully processed
-- `afterTesting`: Called after testing (if implemented)
-
 ## Usage Examples
 
 ### Basic Agent Creation and Usage
@@ -363,7 +304,6 @@ agentManager.addAgentConfigs({
   minimumRunning: 0,
   subAgent: {},
   allowedSubAgents: [],
-  enabledHooks: [],
   todos: {},
   createMessage: "Agent Created"
 });
@@ -375,7 +315,7 @@ const agent = await agentManager.spawnAgent({
 });
 
 // Handle user input
-const requestId = agent.handleInput({message: "Hello! How can you help me?"});
+const requestId = agent.handleInput({from: "user", message: "Hello! How can you help me?"});
 
 // Listen to events
 for await (const state of agent.subscribeStateAsync(AgentEventState, agent.agentShutdownSignal)) {
@@ -466,10 +406,8 @@ agentManager.addAgentConfigs({
 ```typescript
 import {AgentEventState} from "@tokenring-ai/agent/state/agentEventState";
 import {CommandHistoryState} from "@tokenring-ai/agent/state/commandHistoryState";
-import {CostTrackingState} from "@tokenring-ai/agent/state/costTrackingState";
 import {TodoState} from "@tokenring-ai/agent/state/todoState";
 import {SubAgentState} from "@tokenring-ai/agent/state/subAgentState";
-import {HooksState} from "@tokenring-ai/agent/state/hooksState";
 
 // State slices are automatically initialized by Agent
 // Access them via getState/mutateState:
@@ -482,10 +420,6 @@ console.log("Events:", eventState.events);
 agent.mutateState(CommandHistoryState, (state) => {
   state.commands.push("new command");
 });
-
-// Add cost tracking
-agent.addCost("api_calls", 1);
-agent.addCost("tokens", 1500);
 
 // View todo state
 const todoState = agent.getState(TodoState);
@@ -508,7 +442,7 @@ const subAgent = await agentManager.spawnSubAgent(agent, "backgroundWorker", {
 });
 
 // Send message to sub-agent
-await subAgent.handleInput({message: "Process this data"});
+await subAgent.handleInput({from: "parent", message: "Process this data"});
 
 // Sub-agent state is automatically copied from parent (if configured)
 await agentManager.deleteAgent(subAgent.id, "Cleanup");
@@ -524,6 +458,7 @@ const result = await runSubAgent({
   agentType: "code-assistant",
   headless: true,
   input: {
+    from: "parent",
     message: "/work Analyze this code: function test() { return true; }"
   },
   background: false,
@@ -547,7 +482,7 @@ console.log("Result:", result.status, result.response);
 |--------------------------|----------------------------|---------|------------------------------------------|
 | `agentType`              | `string`                   | -       | The type of agent to create              |
 | `headless`               | `boolean`                  | -       | Whether to run in headless mode          |
-| `input`                  | `BareInputReceivedMessage` | -       | The command to send to the agent         |
+| `input`                  | `InputMessage`             | -       | The command to send to the agent         |
 | `background`             | `boolean`                  | false   | Run in background and return immediately |
 | `forwardChatOutput`      | `boolean`                  | true    | Forward chat output to parent            |
 | `forwardSystemOutput`    | `boolean`                  | true    | Forward system output to parent          |
@@ -570,81 +505,6 @@ interface RunSubAgentResult {
 }
 ```
 
-### Tool Execution
-
-The agent package provides several built-in tools:
-
-**runAgent Tool:**
-
-```typescript
-// Built-in tool: runAgent
-const result = await agent.runAgent({
-  agentType: "dataProcessor",
-  message: "Analyze this dataset",
-  context: "File: data.csv\nColumns: name,age,income"
-});
-
-console.log("Tool result:", result);
-```
-
-**todo Tool:**
-
-```typescript
-// Update todo list
-const result = await agent.todo({
-  todos: [
-    {
-      id: "task-1",
-      content: "Analyze codebase",
-      status: "in_progress"
-    },
-    {
-      id: "task-2",
-      content: "Write tests",
-      status: "pending"
-    }
-  ]
-});
-
-console.log("Todo result:", result);
-```
-
-**getCurrentDatetime Tool:**
-
-```typescript
-// Get current date/time
-const result = await agent.getCurrentDatetime({});
-
-console.log("Current datetime:", result);
-```
-
-### Hook System
-
-```typescript
-import AgentLifecycleService from "@tokenring-ai/agent/services/AgentLifecycleService";
-
-const lifecycleService = new AgentLifecycleService();
-
-// Register hook
-lifecycleService.addHooks("myPlugin", {
-  afterChatCompletion: {
-    name: "myPlugin/afterChatCompletion",
-    displayName: "My Hook",
-    description: "Custom after chat completion hook",
-    callbacks: [
-      async (data, agent) => {
-        console.log("Chat completed:", data);
-      }
-    ]
-  }
-});
-
-// Enable hook for agent
-lifecycleService.enableHooks(["myPlugin/afterChatCompletion"], agent);
-
-// Hooks automatically execute on lifecycle events
-```
-
 ### Human Interface Requests
 
 ```typescript
@@ -653,7 +513,7 @@ const approved = await agent.askForApproval({
   message: "Are you sure you want to proceed?",
   label: "Approve?",
   default: false,
-  timeout: 30
+  autoSubmitAfter: 30000 // Auto-approve after 30 seconds
 });
 
 // Text input
@@ -733,7 +593,11 @@ const formData = await agent.askQuestion({
 });
 
 // Handle human response
-agent.sendQuestionResponse(requestId, {result: selection});
+agent.sendInteractionResponse({
+  requestId,
+  interactionId,
+  result: selection
+});
 ```
 
 ### Output Artifacts
@@ -758,153 +622,17 @@ agent.artifactOutput({
 });
 ```
 
-### Cost Tracking
-
-```typescript
-// Add cost tracking
-agent.addCost("api_calls", 1);
-agent.addCost("tokens", 1500);
-
-// View cost information
-await agent.runCommand("/cost");
-```
-
 ### Status Line Management
 
 ```typescript
-// Set busy status
-agent.setBusyWith("Processing request...");
+// Set current activity
+agent.setCurrentActivity("Processing request...");
 
-// Set status line
-agent.updateStatus("Ready for input");
-
-// Clear status indicators
-agent.setBusyWith(null);
-```
-
-### Agent Commands
-
-The agent package includes several built-in commands:
-
-#### `/agent` - Agent Management
-
-```bash
-# List available agent types
-/agent types
-
-# List running agents
-/agent list
-
-# Run an agent
-/agent run teamLeader analyze the codebase
-
-# Run agent in background
-/agent run --bg researcher find information about AI
-
-# Shutdown agent
-/agent shutdown
-/agent shutdown <agent-id>
-```
-
-#### `/cost` - Cost Tracking
-
-```bash
-# Display total costs incurred by the agent
-/cost
-```
-
-#### `/help` - Help System
-
-```bash
-# Display help for all commands
-/help
-
-# Display help for specific command
-/help <command>
-```
-
-#### `/hooks` - Hook Management
-
-```bash
-# List registered hooks
-/hooks list
-
-# Enable hooks
-/hooks enable <hook-name>
-
-# Disable hooks
-/hooks disable <hook-name>
-
-# Get currently enabled hooks
-/hooks get
-
-# Set hooks (replaces current)
-/hooks set <hook1> [hook2...]
-
-# Select hooks (interactive)
-/hooks select
-
-# Reset hooks to initial state
-/hooks reset
-```
-
-#### `/settings` - Settings Display
-
-```bash
-# Display agent settings
-/settings
-```
-
-#### `/work` - Work Handler
-
-```bash
-# Execute work handler
-/work <task>
-```
-
-#### `/debug` - Debug Commands
-
-```bash
-# Debug logging controls
-/debug logging on
-/debug logging off
-
-# View debug markdown
-/debug markdown
-
-# View debug services
-/debug services [limit]
-
-# Test human interface question types
-/debug questions <type>
-
-# Throw error to test error handling
-/debug chat throwError
-
-# Send shutdown command to app
-/debug app shutdown
-```
-
-**Debug Questions Types:**
-
-- `text` - Test text input
-- `confirm` - Test approval dialog
-- `tree` - Test tree selection
-- `file` - Test file selection
-- `form` - Test multi-section form
-
-#### Agent Mention Syntax
-
-You can also invoke agents using the `@` mention syntax:
-
-```
-@researcher artificial intelligence
-```
-
-This is equivalent to:
-
-```
-/agent run researcher artificial intelligence
+// Use busyWithActivity for temporary status
+const result = await agent.busyWithActivity("Processing data...", async () => {
+  // Your async operation here
+  return await processData();
+});
 ```
 
 ## Configuration
@@ -929,34 +657,33 @@ const agentConfig = {
   headless: boolean,               // Headless mode (default: false)
   callable: boolean,               // Enable tool calls (default: true)
   command: {                       // Register this agent as a callable command (optional)
-    name? : string,                 // Custom command name (defaults to agentType)
-    description? : string,          // Custom command description (defaults to agent description)
-    help? : string,                 // Custom help text for the command
-    background? : boolean,          // Run in background mode (default: false)
-    forwardChatOutput? : boolean,   // Forward chat output (default: true)
-    forwardSystemOutput? : boolean, // Forward system output (default: true)
-    forwardHumanRequests? : boolean,// Forward human requests (default: true)
-    forwardReasoning? : boolean,    // Forward reasoning (default: false)
-    forwardInputCommands? : boolean,// Forward input commands (default: true)
-    forwardArtifacts? : boolean,    // Forward artifacts (default: false)
+    name?: string,                 // Custom command name (defaults to agentType)
+    description?: string,          // Custom command description (defaults to agent description)
+    help?: string,                 // Custom help text for the command
+    background?: boolean,          // Run in background mode (default: false)
+    forwardChatOutput?: boolean,   // Forward chat output (default: true)
+    forwardSystemOutput?: boolean, // Forward system output (default: true)
+    forwardHumanRequests?: boolean,// Forward human requests (default: true)
+    forwardReasoning?: boolean,    // Forward reasoning (default: false)
+    forwardInputCommands?: boolean,// Forward input commands (default: true)
+    forwardArtifacts?: boolean,    // Forward artifacts (default: false)
   },
   minimumRunning: number,          // Minimum running agents of this type (default: 0)
   idleTimeout: number,             // Idle timeout in seconds (default: 0 = no limit)
   maxRunTime: number,              // Max runtime in seconds (default: 0 = no limit)
   subAgent: {                      // Sub-agent configuration
-    forwardChatOutput? : boolean,   // Forward chat output (default: false)
-    forwardStatusMessages? : boolean,// Forward status messages (default: true)
-    forwardSystemOutput? : boolean, // Forward system output (default: false)
-    forwardHumanRequests? : boolean,// Forward human requests (default: true)
-    forwardReasoning? : boolean,    // Forward reasoning (default: false)
-    forwardInputCommands? : boolean,// Forward input commands (default: true)
-    forwardArtifacts? : boolean,    // Forward artifacts (default: false)
-    timeout? : number,              // Sub-agent timeout in seconds (default: 0)
-    maxResponseLength? : number,    // Max response length in characters (default: 10000)
-    minContextLength? : number,     // Minimum context length in characters (default: 1000)
+    forwardChatOutput?: boolean,   // Forward chat output (default: false)
+    forwardStatusMessages?: boolean,// Forward status messages (default: true)
+    forwardSystemOutput?: boolean, // Forward system output (default: false)
+    forwardHumanRequests?: boolean,// Forward human requests (default: true)
+    forwardReasoning?: boolean,    // Forward reasoning (default: false)
+    forwardInputCommands?: boolean,// Forward input commands (default: true)
+    forwardArtifacts?: boolean,    // Forward artifacts (default: false)
+    timeout?: number,              // Sub-agent timeout in seconds (default: 0)
+    maxResponseLength?: number,    // Max response length in characters (default: 10000)
+    minContextLength?: number,     // Minimum context length in characters (default: 1000)
   },
   allowedSubAgents: string[],      // Allowed sub-agent types (default: [])
-  enabledHooks: string[],          // Enabled hook names (default: [])
   todos: {                         // Todo list configuration
     copyToChild: boolean,          // Copy todos to child agents (default: true)
     initialItems: Array<{          // Initial todo items (default: [])
@@ -1005,7 +732,7 @@ const config = {
 **Input Events:**
 
 - `input.received` - Input received from user
-- `input.handled` - Input processing completed (status: success, error, or cancelled)
+- `input.interaction` - User interaction response
 
 **Output Events:**
 
@@ -1024,15 +751,8 @@ const config = {
 
 **Control Events:**
 
-- `abort` - Operation aborted
-- `pause` - Agent paused
-- `resume` - Agent resumed
-- `status` - Status update
-
-**Question Events:**
-
-- `question.request` - Human input requested
-- `question.response` - Human response provided
+- `cancel` - Operation cancelled
+- `input.execution` - Input execution status update
 
 ### Event Schema
 
@@ -1041,9 +761,7 @@ All events follow this structure:
 ```typescript
 {
   type: EventType,
-    timestamp
-:
-  number,
+  timestamp: number,
   // Event-specific fields
 }
 ```
@@ -1074,7 +792,6 @@ const config = {
         minimumRunning: 0,
         subAgent: {},
         allowedSubAgents: [],
-        enabledHooks: [],
         todos: {},
         createMessage: "Agent Created"
       }
@@ -1091,10 +808,9 @@ The agent package automatically integrates with TokenRing applications:
 
 ```typescript
 // Plugin automatically registers:
-// - Chat service integration
+// - Chat service integration (tools, context handlers)
 // - Agent command service
 // - Agent manager service
-// - Agent lifecycle service
 // - Web host RPC endpoints
 // - Context handlers
 // - Tools and commands
@@ -1105,7 +821,6 @@ The agent package automatically integrates with TokenRing applications:
 The agent package includes built-in chat commands:
 
 - `/agent` - Agent management commands
-- `/cost` - Cost tracking
 - `/help` - Help system
 - `/hooks` - Hook management
 - `/settings` - Settings display
@@ -1132,17 +847,13 @@ The agent package includes built-in tools:
 | `getAgent`                  | query    | `{agentId}`                        | Agent details              |
 | `getAgentEvents`            | query    | `{agentId, fromPosition}`          | Events from position       |
 | `streamAgentEvents`         | stream   | `{agentId, fromPosition}`          | Streaming events           |
-| `getAgentExecutionState`    | query    | `{agentId}`                        | Execution state            |
-| `streamAgentExecutionState` | stream   | `{agentId}`                        | Streaming execution state  |
 | `listAgents`                | query    | `{}`                               | Array of agent information |
 | `getAgentTypes`             | query    | `{}`                               | Array of agent types       |
 | `createAgent`               | mutation | `{agentType, headless}`            | Created agent details      |
 | `deleteAgent`               | mutation | `{agentId, reason}`                | Success status             |
 | `sendInput`                 | mutation | `{agentId, message, attachments?}` | Request ID                 |
-| `sendQuestionResponse`      | mutation | `{agentId, requestId, response}`   | Success status             |
-| `abortAgent`                | mutation | `{agentId, message}`               | Success status             |
-| `pauseAgent`                | mutation | `{agentId, message}`               | Success status             |
-| `resumeAgent`               | mutation | `{agentId, message}`               | Success status             |
+| `sendInteractionResponse`   | mutation | `{agentId, requestId, response}`   | Success status             |
+| `abortCurrentOperation`     | mutation | `{agentId, message}`               | Success status             |
 | `getCommandHistory`         | query    | `{agentId}`                        | Command history            |
 | `getAvailableCommands`      | query    | `{agentId}`                        | Available command names    |
 
@@ -1158,38 +869,27 @@ Agents support multiple state slices for different concerns:
 |-----------------------|--------------------------------------|
 | `AgentEventState`     | Event history and current state      |
 | `CommandHistoryState` | Command execution history            |
-| `CostTrackingState`   | Resource usage tracking              |
-| `HooksState`          | Hook configuration and enabled hooks |
 | `TodoState`           | Task list management                 |
 | `SubAgentState`       | Sub-agent configuration              |
 
 **AgentEventState:**
 
 - `events`: Array of AgentEventEnvelope
+- `inputQueue`: Array of input queue items
+- `currentlyExecutingInputItem`: Currently executing input item or null
 - `getEventCursorFromCurrentPosition()`: Get event cursor
 - `yieldEventsByCursor(cursor)`: Yield events by cursor
 - `idle`: Computed property (inputQueue.length === 0)
 
-**AgentExecutionState:**
+**AgentExecutionState (in AgentEventState):**
 
-- `busyWith`: String or null
-- `statusLine`: String or null
-- `waitingOn`: Array of ParsedQuestionRequest
-- `inputQueue`: Array of InputReceived
-- `currentlyExecuting`: Currently executing operation or null
-- `running`: Boolean
+- `status`: Execution status (queued, running, finished)
+- `currentActivity`: Current activity description
+- `availableInteractions`: Array of available interactions
 
 **CommandHistoryState:**
 
 - `commands`: Array of command strings
-
-**CostTrackingState:**
-
-- `costs`: Record of cost categories and amounts
-
-**HooksState:**
-
-- `enabledHooks`: Array of enabled hook names
 
 **TodoState:**
 
@@ -1210,7 +910,7 @@ const serializationSchema = z.object({
   data: z.array(z.string()).default([])
 });
 
-class CustomState implements AgentStateSlice<typeof serializationSchema> {
+class CustomState extends AgentStateSlice<typeof serializationSchema> {
   readonly name = "CustomState";
   serializationSchema = serializationSchema;
   data: string[] = [];
@@ -1264,27 +964,13 @@ The agent supports several question types for human interaction:
 ```typescript
 {
   type: 'text',
-    label
-:
-  'Name',
-    description
-:
-  'Enter your name',
-    required
-:
-  false,
-    defaultValue
-:
-  '',
-    expectedLines
-:
-  1,
-    masked
-:
-  false,
-    autoSubmitAfter
-:
-  number
+  label: 'Name',
+  description: 'Enter your name',
+  required: false,
+  defaultValue: '',
+  expectedLines: 1,
+  masked: false,
+  autoSubmitAfter: number
 }
 ```
 
@@ -1293,24 +979,12 @@ The agent supports several question types for human interaction:
 ```typescript
 {
   type: "treeSelect",
-    label
-:
-  'Choose an option',
-    minimumSelections
-:
-  1,
-    maximumSelections
-:
-  1,
-    defaultValue
-:
-  [],
-    allowFreeform
-:
-  false,
-    tree
-:
-  [
+  label: 'Choose an option',
+  minimumSelections: 1,
+  maximumSelections: 1,
+  defaultValue: [],
+  allowFreeform: false,
+  tree: [
     {
       name: "Option 1",
       value: "opt1",
@@ -1325,27 +999,13 @@ The agent supports several question types for human interaction:
 ```typescript
 {
   type: 'fileSelect',
-    allowFiles
-:
-  true,
-    allowDirectories
-:
-  true,
-    label
-:
-  'Select files',
-    description
-:
-  'Choose files or folders',
-    minimumSelections
-:
-  1,
-    maximumSelections
-:
-  5,
-    defaultValue
-:
-  []
+  allowFiles: true,
+  allowDirectories: true,
+  label: 'Select files',
+  description: 'Choose files or folders',
+  minimumSelections: 1,
+  maximumSelections: 5,
+  defaultValue: []
 }
 ```
 
@@ -1354,9 +1014,7 @@ The agent supports several question types for human interaction:
 ```typescript
 {
   type: 'form',
-    sections
-:
-  [
+  sections: [
     {
       name: "personal",
       description: "Personal Information",
@@ -1374,8 +1032,8 @@ The agent supports several question types for human interaction:
 ```typescript
 {
   name: string,
-    value ? : string,
-    children ? : Array<TreeLeaf>
+  value?: string,
+  children?: Array<TreeLeaf>
 }
 ```
 
@@ -1454,28 +1112,18 @@ pkg/agent/
 │   │   ├── markdown.ts               # Markdown rendering test
 │   │   ├── services.ts               # Service logs display
 │   │   ├── questions.ts              # Debug questions display
+│   │   ├── checkpoint.ts             # Debug checkpoint test
 │   │   └── app.ts                    # Debug app info
-│   ├── hooks/
-│   │   ├── list.ts                   # List hooks
-│   │   ├── select.ts                 # Select hooks
-│   │   ├── get.ts                    # Get hook info
-│   │   ├── set.ts                    # Set hooks
-│   │   ├── enable.ts                 # Enable hooks
-│   │   ├── disable.ts                # Disable hooks
-│   │   └── reset.ts                  # Reset hooks
 │   ├── cost.ts                       # Cost tracking commands
 │   ├── work.ts                       # Work handler invocation
 │   ├── settings.ts                   # Settings display
 │   └── help.ts                       # Help system
 ├── services/                         # Core services
 │   ├── AgentManager.ts               # Agent management service
-│   ├── AgentLifecycleService.ts      # Lifecycle and hooks service
 │   └── AgentCommandService.ts        # Command execution service
 ├── state/                            # State management
 │   ├── agentEventState.ts            # Event state management
 │   ├── commandHistoryState.ts        # Command history tracking
-│   ├── costTrackingState.ts          # Cost tracking state
-│   ├── hooksState.ts                 # Hook configuration state
 │   ├── todoState.ts                  # Todo state management
 │   └── subAgentState.ts              # Sub-agent configuration state
 ├── tools/                            # Built-in tools
@@ -1489,8 +1137,7 @@ pkg/agent/
 │   ├── agent.ts                      # Agent RPC implementation
 │   └── schema.ts                     # RPC schema definitions
 ├── util/                             # Utilities
-│   ├── formatAgentId.ts              # Agent ID formatting
-│   └── todo.ts                       # Todo formatting utilities
+│   └── formatAgentId.ts              # Agent ID formatting
 └── test/                             # Test files
     └── unit/
         ├── commands/
@@ -1498,7 +1145,6 @@ pkg/agent/
         │   └── work.test.ts
         ├── agent.test.ts
         ├── AgentCommandService.test.ts
-        ├── AgentLifecycleService.test.ts
         └── AgentManager.test.ts
 ```
 
