@@ -12,7 +12,7 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
 
 export default {
   name: "agent shutdown",
-  description: "/agent shutdown - Shut down an agent",
+  description: "Shut down an agent",
   execute,
   help: `## /agent shutdown [id]
 

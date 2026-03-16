@@ -34,7 +34,7 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
 
 export default {
   name: "agent run",
-  description: "/agent run - Run an agent with a message",
+  description: "Run an agent with a message",
   execute,
   help: `## /agent run [--bg] <agentType> <message>
 

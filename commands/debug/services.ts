@@ -18,7 +18,7 @@ ${markdownList(logs.map(log =>
 
 export default {
   name: "debug services",
-  description: "/debug services - Display service logs",
+  description: "Display service logs",
   execute,
   help: "## /debug services [limit]\n\nDisplay service logs from TokenRingApp. Defaults to last 50 entries.",
 } satisfies TokenRingAgentCommand;

@@ -36,8 +36,7 @@ export async function execute(
   } };
 }
 
-const description =
-  "Creates a new agent of the specified type, sends it a message, waits for the response, then cleans up the agent. Useful for getting responses from different agent types.";
+const description = "Creates a new agent of the specified type, sends it a message, waits for the response, then cleans up the agent. Useful for getting responses from different agent types.";
 
 const inputSchema = z.object({
   agentType: z

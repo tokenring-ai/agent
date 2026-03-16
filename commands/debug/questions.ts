@@ -76,7 +76,7 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
 
 export default {
   name: "debug questions",
-  description: "/debug questions - Test human interface request types",
+  description: "Test human interface request types",
   execute,
   help: "## /debug questions <type>\n\nTest different human interface request types: text, confirm, tree, file, form.",
 } satisfies TokenRingAgentCommand;

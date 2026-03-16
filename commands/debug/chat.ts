@@ -1,5 +1,4 @@
 import {Agent} from "@tokenring-ai/agent";
-import {CommandFailedError} from "../../AgentError.ts";
 import {TokenRingAgentCommand} from "../../types.ts";
 
 async function execute(remainder: string, _agent: Agent): Promise<string> {
@@ -8,7 +7,7 @@ async function execute(remainder: string, _agent: Agent): Promise<string> {
 
 export default {
   name: "debug chat throwError",
-  description: "/debug chat throwError - Throw an error in the chat handler",
+  description: "Throw an error in the chat handler",
   execute,
   help: "## /debug chat throwError\n\nThrows an error in the chat handler to test error handling.",
 } satisfies TokenRingAgentCommand;

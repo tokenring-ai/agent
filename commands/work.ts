@@ -3,8 +3,7 @@ import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.js";
 import {TokenRingAgentCommand} from "../types.ts";
 
-const description =
-  "/work - Runs the agents work handler with the message";
+const description = "Runs the agents work handler with the message";
 
 async function execute(remainder: string, agent: Agent): Promise<string> {
   if (!remainder?.trim()) {

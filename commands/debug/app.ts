@@ -8,7 +8,7 @@ async function execute(_remainder: string, agent: Agent): Promise<string> {
 
 export default {
   name: "debug app shutdown",
-  description: "/debug app shutdown - Send an abort command to the app",
+  description: "Send an abort command to the app",
   execute,
   help: "## /debug app shutdown\n\nSends an abort command to the app to test the shutdown handling.",
 } satisfies TokenRingAgentCommand;

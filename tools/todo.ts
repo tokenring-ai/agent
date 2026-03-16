@@ -2,7 +2,6 @@ import {TokenRingToolDefinition, type TokenRingToolResult} from "@tokenring-ai/c
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {z} from "zod";
 import Agent from "../Agent.js";
-import {AgentEventState} from "../state/agentEventState.ts";
 import {TodoState} from "../state/todoState.js";
 import {formatTodoList} from "../util/todo.ts";
 
@@ -55,8 +54,7 @@ export async function execute(
   return `Todo list updated! Current Todo list:\n ${todoList}`;
 }
 
-const description =
-  "The todo tool manages a list of items for the current task. This tool should proactively be used to organize complex tasks, track progress, and to convey the current task plan to the user.\n\n" +
+const description = "The todo tool manages a list of items for the current task. This tool should proactively be used to organize complex tasks, track progress, and to convey the current task plan to the user.\n\n" +
   "Use this tool for:\n" +
   "- Non-trivial and complex tasks - Tasks that require careful planning or multiple operations\n" +
   "- Tasks with multiple concerns - Tasks that involve multiple areas of expertise or systems\n" +

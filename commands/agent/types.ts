@@ -14,7 +14,7 @@ async function execute(_remainder: string, agent: Agent): Promise<string> {
 
 export default {
   name: "agent types",
-  description: "/agent types - List all available agent types",
+  description: "List all available agent types",
   execute,
   help: "## /agent types\n\nLists all available agent types with their descriptions.",
 } satisfies TokenRingAgentCommand;

@@ -3,7 +3,7 @@ import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.ts";
 import {TokenRingAgentCommand} from "../types.ts";
 
-const description = "/settings - Show current chat settings." as const;
+const description = "Show current chat settings." as const;
 
 export function execute(_remainder: string, agent: Agent): string {
   const activeServices = agent.app.getServices();

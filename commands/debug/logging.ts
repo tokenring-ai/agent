@@ -18,7 +18,7 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
 
 export default {
   name: "debug logging",
-  description: "/debug logging - Enable or disable debug logging",
+  description: "Enable or disable debug logging",
   execute,
   help: "## /debug logging on|off\n\nEnable or disable debug logging output.",
 } satisfies TokenRingAgentCommand;

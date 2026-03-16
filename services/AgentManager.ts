@@ -54,7 +54,7 @@ export default class AgentManager implements TokenRingService {
   private registerAgentCommand(config: ParsedAgentConfig) {
     const commandConfig = config.command!;
     const commandName = commandConfig.name || config.agentType;
-    const commandDescription = `/${commandName} - ${commandConfig.description || config.description}`;
+    const commandDescription = `${commandConfig.description || config.description}`;
     
     const agentCommand: TokenRingAgentCommand = {
       name: commandName,

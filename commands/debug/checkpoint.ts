@@ -13,7 +13,7 @@ ${JSON.stringify(checkpoint, null, 2)}
 
 export default {
   name: "debug checkpoint",
-  description: "/debug checkpoint - Dumps the current state of the agent to the chat window",
+  description: "Dumps the current state of the agent to the chat window",
   execute,
   help: "## /debug checkpoint\n\nDumps the current state of the agent to the chat window for debugging purposes.",
 } satisfies TokenRingAgentCommand;

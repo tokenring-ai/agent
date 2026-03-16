@@ -19,8 +19,7 @@ Timezone: ${timezone}
   `;
 }
 
-const description =
-  "Returns the current date, time, day of week, and the user's local timezone.\n" +
+const description = "Returns the current date, time, day of week, and the user's local timezone.\n" +
   "Use this tool any time you need to determine what date and time it is.\n" +
   "Do not rely on your internal knowledge of what date and time it is, " +
   "since that date and time is when you were ***trained***, and is not reflective of the current date and time";

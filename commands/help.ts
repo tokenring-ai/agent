@@ -4,7 +4,7 @@ import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import {TokenRingAgentCommand} from "../types.ts";
 
-const description = "/help - Show this help message" as const;
+const description = "Show this help message" as const;
 
 async function execute(remainder: string, agent: Agent): Promise<string> {
   const command = remainder?.trim();
@@ -20,7 +20,7 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
     markdownList(
       Array.from(commands).sort(
         (a,b) => a[0].localeCompare(b[0])
-      ).map(([cmdName, command]) => command.description)
+      ).map(([cmdName, command]) => `/${command.name} - ${command.description}`)
     )
   ];
 
