@@ -1,8 +1,15 @@
-import Agent from "../../Agent.ts";
 import AgentManager from "../../services/AgentManager.ts";
-import {TokenRingAgentCommand} from "../../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../../types.ts";
 
-async function execute(_remainder: string, agent: Agent): Promise<string> {
+const inputSchema = {
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
+
+async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const agentManager = agent.requireServiceByType(AgentManager);
   const agents = agentManager.getAgents();
 
@@ -18,6 +25,7 @@ async function execute(_remainder: string, agent: Agent): Promise<string> {
 export default {
   name: "agent list",
   description: "List all currently running agents",
+  inputSchema,
   execute,
   help: "## /agent list\n\nLists all currently running agents.",
-} satisfies TokenRingAgentCommand;
+} satisfies TokenRingAgentCommand<typeof inputSchema>;

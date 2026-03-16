@@ -1,22 +1,41 @@
-import Agent from "../../Agent.ts";
 import {CommandFailedError} from "../../AgentError.ts";
 import {runSubAgent} from "../../runSubAgent.ts";
-import {TokenRingAgentCommand} from "../../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../../types.ts";
+import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
-async function execute(remainder: string, agent: Agent): Promise<string> {
-  const isBg = remainder.includes("--bg");
-  const input = remainder.replace("--bg", "").trim();
+const inputSchema = {
+  args: {
+    "--bg": {
+      type: "flag",
+      description: "Run the agent in the background without forwarding output",
+    },
+    "--type": {
+      type: "string",
+      description: "The type of agent to run",
+      required: true,
+    },
+  },
+  prompt: {
+    description: "The message to send to the agent",
+    required: true,
+  },
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
 
-  if (!input) {
-    throw new CommandFailedError("Usage: /agent run [--bg] <agentType> <message>");
-  }
-
-  const parts = input.split(/\s+/);
-  const agentType = parts[0];
+async function execute({prompt, args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const isBg = args["--bg"] === true;
+  const parts = prompt.split(/\s+/);
+  const agentType = args["--type"];
   const message = parts.slice(1).join(" ");
 
   if (!message) {
-    throw new CommandFailedError("Please provide a message for the agent");
+    throw new CommandFailedError(
+      formatAgentCommandUsageError(command, "Please provide a message for the agent"),
+    );
   }
 
   await runSubAgent({
@@ -32,16 +51,19 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
   return isBg ? "Agent started in background." : "Sub-agent completed successfully.";
 }
 
-export default {
+const command = {
   name: "agent run",
   description: "Run an agent with a message",
+  inputSchema,
   execute,
-  help: `## /agent run [--bg] <agentType> <message>
+  help: `## /agent run [--bg] --type <agentType> <message>
 
 Runs an agent of the specified type with the given message.
 - Use --bg flag to run in background without forwarding output
 
 ### Examples
-/agent run leader analyze the codebase
-/agent run --bg researcher find information about AI`,
-} satisfies TokenRingAgentCommand;
+/agent run --type leader analyze the codebase
+/agent run --bg --type researcher find information about AI`,
+} satisfies TokenRingAgentCommand<typeof inputSchema>;
+
+export default command;

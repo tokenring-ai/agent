@@ -1,9 +1,21 @@
-import {Agent} from "@tokenring-ai/agent";
 import {CommandFailedError} from "../../AgentError.ts";
-import {TokenRingAgentCommand} from "../../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../../types.ts";
+import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
-async function execute(remainder: string, agent: Agent): Promise<string> {
-  const arg = remainder.trim().toLowerCase();
+const inputSchema = {
+  prompt: {
+    description: "Use 'on' or 'off' to control debug logging",
+    required: true,
+  },
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
+
+async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const arg = prompt.trim().toLowerCase();
 
   if (arg === "on") {
     agent.debugEnabled = true;
@@ -12,13 +24,18 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
     agent.debugEnabled = false;
     return "Debug logging disabled";
   } else {
-    throw new CommandFailedError(`Invalid argument: ${arg}. Use 'on' or 'off'`);
+    throw new CommandFailedError(
+      formatAgentCommandUsageError(command, `Invalid argument: ${arg}. Use 'on' or 'off'`),
+    );
   }
 }
 
-export default {
+const command = {
   name: "debug logging",
   description: "Enable or disable debug logging",
+  inputSchema,
   execute,
   help: "## /debug logging on|off\n\nEnable or disable debug logging output.",
-} satisfies TokenRingAgentCommand;
+} satisfies TokenRingAgentCommand<typeof inputSchema>;
+
+export default command;

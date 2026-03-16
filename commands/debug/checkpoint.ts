@@ -1,7 +1,14 @@
-import {Agent} from "@tokenring-ai/agent";
-import {TokenRingAgentCommand} from "../../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../../types.ts";
 
-async function execute(_remainder: string, agent: Agent): Promise<string> {
+const inputSchema = {
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
+
+async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const checkpoint = agent.generateCheckpoint();
 
   return `### Agent Checkpoint Dump
@@ -14,6 +21,7 @@ ${JSON.stringify(checkpoint, null, 2)}
 export default {
   name: "debug checkpoint",
   description: "Dumps the current state of the agent to the chat window",
+  inputSchema,
   execute,
   help: "## /debug checkpoint\n\nDumps the current state of the agent to the chat window for debugging purposes.",
-} satisfies TokenRingAgentCommand;
+} satisfies TokenRingAgentCommand<typeof inputSchema>;

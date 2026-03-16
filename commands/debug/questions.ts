@@ -1,9 +1,21 @@
-import {Agent} from "@tokenring-ai/agent";
 import {CommandFailedError} from "../../AgentError.ts";
-import {TokenRingAgentCommand} from "../../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../../types.ts";
+import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
-async function execute(remainder: string, agent: Agent): Promise<string> {
-  const type = remainder.trim().toLowerCase();
+const inputSchema = {
+  prompt: {
+    description: "Question type to test",
+    required: true,
+  },
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
+
+async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const type = prompt.trim().toLowerCase();
 
   switch (type) {
     case "text": {
@@ -70,13 +82,21 @@ async function execute(remainder: string, agent: Agent): Promise<string> {
       return `Form results: ${JSON.stringify(result, null, 2)}`;
     }
     default:
-      throw new CommandFailedError(`Unknown question type: ${type}. Use: text, confirm, tree, file, or form`);
+      throw new CommandFailedError(
+        formatAgentCommandUsageError(
+          command,
+          `Unknown question type: ${type}. Use: text, confirm, tree, file, or form`,
+        ),
+      );
   }
 }
 
-export default {
+const command = {
   name: "debug questions",
   description: "Test human interface request types",
+  inputSchema,
   execute,
   help: "## /debug questions <type>\n\nTest different human interface request types: text, confirm, tree, file, form.",
-} satisfies TokenRingAgentCommand;
+} satisfies TokenRingAgentCommand<typeof inputSchema>;
+
+export default command;

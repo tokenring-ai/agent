@@ -1,7 +1,14 @@
-import {Agent} from "@tokenring-ai/agent";
-import {TokenRingAgentCommand} from "../../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../../types.ts";
 
-async function execute(_remainder: string, agent: Agent): Promise<string> {
+const inputSchema = {
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
+
+async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   setTimeout(() => agent.app.shutdown());
   return "Sending app shutdown command...";
 }
@@ -9,6 +16,7 @@ async function execute(_remainder: string, agent: Agent): Promise<string> {
 export default {
   name: "debug app shutdown",
   description: "Send an abort command to the app",
+  inputSchema,
   execute,
   help: "## /debug app shutdown\n\nSends an abort command to the app to test the shutdown handling.",
-} satisfies TokenRingAgentCommand;
+} satisfies TokenRingAgentCommand<typeof inputSchema>;

@@ -1,21 +1,31 @@
-import {Agent} from "@tokenring-ai/agent";
 import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.js";
-import {TokenRingAgentCommand} from "../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../types.ts";
 
 const description = "Runs the agents work handler with the message";
+const inputSchema = {
+  prompt: {
+    description: "The work request to execute",
+    required: true,
+  },
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
 
-async function execute(remainder: string, agent: Agent): Promise<string> {
-  if (!remainder?.trim()) {
+async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  if (!prompt.trim()) {
     throw new CommandFailedError("Please provide a message indicating the work to be completed");
   }
 
   /* If the agent has a custom workflow defined, use it */
   if (agent.config.workHandler) {
-    const result = await agent.config.workHandler(remainder, agent);
+    const result = await agent.config.workHandler(prompt, agent);
     return typeof result === 'string' ? result : "Work completed successfully";
   } else {
-    return await agent.requireServiceByType(AgentCommandService).executeAgentCommand(agent, remainder);
+    return await agent.requireServiceByType(AgentCommandService).executeAgentCommand(agent, prompt);
   }
 }
 
@@ -36,6 +46,7 @@ Invokes the work handler for the agent, with the message corresponding to the wo
 export default {
   name: "work",
   description,
+  inputSchema,
   execute,
   help,
-} satisfies TokenRingAgentCommand
+} satisfies TokenRingAgentCommand<typeof inputSchema>

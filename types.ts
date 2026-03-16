@@ -9,21 +9,75 @@ export type TokenRingBaseAgentCommand = {
   description: string;
   help: string;
 };
-export type TokenRingAgentCommand = TokenRingBaseAgentCommand & (
-  {
-    allowAttachments: true;
-    execute: (
-      opts: { input: string; attachments: InputAttachment[] },
-      agent: Agent,
-    ) => Promise<string> | string;
-  } | {
-    execute: (
-      input: string,
-      agent: Agent,
-    ) => Promise<string> | string;
-    allowAttachments?: false;
-  }
-);
+
+export type AgentCommandArgumentSchema = {
+  type: "string" | "number" | "flag";
+  description: string;
+  required?: boolean;
+};
+
+export type AgentCommandArgumentsSchema = Record<string, AgentCommandArgumentSchema>;
+
+export type AgentCommandPromptSchema = {
+  description: string;
+  required?: boolean;
+};
+
+export type AgentCommandInputSchema = {
+  args?: AgentCommandArgumentsSchema;
+  prompt?: AgentCommandPromptSchema;
+  allowAttachments: boolean;
+};
+
+type Expand<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
+
+type AgentCommandArgumentValue<Schema extends AgentCommandArgumentSchema> =
+  Schema["type"] extends "flag"
+    ? boolean
+    : Schema["type"] extends "number"
+      ? number
+      : string;
+
+type RequiredAgentCommandArgumentKeys<Schema extends AgentCommandArgumentsSchema> = {
+  [Key in keyof Schema]: Schema[Key]["required"] extends true ? Key : never;
+}[keyof Schema];
+
+type OptionalAgentCommandArgumentKeys<Schema extends AgentCommandArgumentsSchema> =
+  Exclude<keyof Schema, RequiredAgentCommandArgumentKeys<Schema>>;
+
+export type AgentCommandArgsType<Schema extends AgentCommandArgumentsSchema> = Expand<
+  { [Key in RequiredAgentCommandArgumentKeys<Schema>]-?: AgentCommandArgumentValue<Schema[Key]> } &
+  { [Key in OptionalAgentCommandArgumentKeys<Schema>]?: AgentCommandArgumentValue<Schema[Key]> }
+>;
+
+type AgentCommandPromptInput<Schema extends AgentCommandInputSchema> =
+  Schema["prompt"] extends AgentCommandPromptSchema
+    ? Schema["prompt"]["required"] extends true
+      ? { prompt: string }
+      : { prompt?: string }
+    : { prompt?: never };
+
+type AgentCommandArgsInput<Schema extends AgentCommandInputSchema> =
+  Schema["args"] extends AgentCommandArgumentsSchema
+    ? { args: AgentCommandArgsType<Schema["args"]> }
+    : { args?: never };
+
+type AgentCommandAttachmentsInput<Schema extends AgentCommandInputSchema> =
+  Schema["allowAttachments"] extends true
+    ? { attachments: InputAttachment[] }
+    : { attachments?: never };
+
+export type AgentCommandInputType<Schema extends AgentCommandInputSchema> =
+  { agent: Agent } &
+  AgentCommandPromptInput<Schema> &
+  AgentCommandArgsInput<Schema> &
+  AgentCommandAttachmentsInput<Schema>;
+
+export type TokenRingAgentCommand<InputSchema extends AgentCommandInputSchema = AgentCommandInputSchema> =
+  TokenRingBaseAgentCommand & {
+    inputSchema: InputSchema;
+    execute(input: AgentCommandInputType<InputSchema>): Promise<string> | string;
+  };
 
 export abstract class AgentStateSlice<SerializationSchema extends ZodTypeAny> extends SerializableStateSlice<SerializationSchema> {
   abstract show(): string[];
@@ -54,4 +108,3 @@ export type ContextItem = {
   position: ContextItemPosition;
   content: string;
 };
-

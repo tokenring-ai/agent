@@ -14,4 +14,4 @@ import settings from "./commands/settings.ts";
 import work from "./commands/work.ts";
 import type {TokenRingAgentCommand} from "./types.ts";
 
-export default [settings, work, help, agentTypes, agentList, agentRun, agentShutdown, debugAppShutdown, debugChat, debugLogging, debugMarkdown, debugQuestions, debugServices, debugCheckpoint] satisfies TokenRingAgentCommand[];
+export default [settings, work, help, agentTypes, agentList, agentRun, agentShutdown, debugAppShutdown, debugChat, debugLogging, debugMarkdown, debugQuestions, debugServices, debugCheckpoint] satisfies TokenRingAgentCommand<any>[];

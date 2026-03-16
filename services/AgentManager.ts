@@ -8,7 +8,13 @@ import {CommandFailedError} from "../AgentError.ts";
 import {runSubAgent} from "../runSubAgent.ts";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
-import {AgentCheckpointData, type AgentCreationContext, type TokenRingAgentCommand} from "../types.js";
+import {
+  AgentCheckpointData,
+  type AgentCommandInputSchema,
+  type AgentCommandInputType,
+  type AgentCreationContext,
+  type TokenRingAgentCommand,
+} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.js";
 import AgentCommandService from "./AgentCommandService.js";
 
@@ -55,14 +61,21 @@ export default class AgentManager implements TokenRingService {
     const commandConfig = config.command!;
     const commandName = commandConfig.name || config.agentType;
     const commandDescription = `${commandConfig.description || config.description}`;
+    const inputSchema = {
+      prompt: {
+        description: `Prompt to send to the ${config.agentType} agent`,
+        required: true,
+      },
+      allowAttachments: false,
+    } as const satisfies AgentCommandInputSchema;
     
-    const agentCommand: TokenRingAgentCommand = {
+    const agentCommand: TokenRingAgentCommand<typeof inputSchema> = {
       name: commandName,
       description: commandDescription,
-      execute: async (remainder: string, agent: Agent): Promise<string> => {
-
-        const message = remainder.trim();
-        if (! message) throw new CommandFailedError("Message to agent cannot be empty")
+      inputSchema,
+      execute: async ({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> => {
+        const message = prompt.trim();
+        if (!message) throw new CommandFailedError("Message to agent cannot be empty");
         
         const result = await runSubAgent({
           agentType: config.agentType,

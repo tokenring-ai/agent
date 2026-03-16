@@ -1,9 +1,20 @@
-import {Agent} from "@tokenring-ai/agent";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import {TokenRingAgentCommand} from "../../types.ts";
+import {
+  AgentCommandInputSchema,
+  AgentCommandInputType,
+  TokenRingAgentCommand,
+} from "../../types.ts";
 
-async function execute(remainder: string, agent: Agent): Promise<string> {
-  const limit = remainder ? parseInt(remainder.trim()) : 50;
+const inputSchema = {
+  prompt: {
+    description: "Optional number of log entries to show",
+    required: false,
+  },
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
+
+async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const limit = prompt ? parseInt(prompt.trim()) : 50;
   const logs = agent.app.logs.slice(-limit);
 
   if (logs.length === 0) {
@@ -19,6 +30,7 @@ ${markdownList(logs.map(log =>
 export default {
   name: "debug services",
   description: "Display service logs",
+  inputSchema,
   execute,
   help: "## /debug services [limit]\n\nDisplay service logs from TokenRingApp. Defaults to last 50 entries.",
-} satisfies TokenRingAgentCommand;
+} satisfies TokenRingAgentCommand<typeof inputSchema>;

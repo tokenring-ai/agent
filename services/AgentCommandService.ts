@@ -16,13 +16,14 @@ import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
 import type {InputAttachment, ParsedAgentCancelledResponse, ParsedAgentErrorResponse, ParsedAgentResponse, ParsedAgentSuccessResponse} from "../AgentEvents.ts";
 import {AgentEventState, agentMessages, type InputQueueItem} from "../state/agentEventState.ts";
-import type {TokenRingAgentCommand} from "../types.js";
+import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../types.js";
+import {parseAgentCommandInput} from "../util/parseAgentCommandInput.ts";
 
 export default class AgentCommandService implements TokenRingService {
   readonly name = "AgentCommandService";
   description = "A service which registers and dispatches agent commands.";
 
-  private agentCommands = new KeyedRegistry<TokenRingAgentCommand>();
+  private agentCommands = new KeyedRegistry<TokenRingAgentCommand<any>>();
   private readonly defaultCommand = "/chat send";
 
   getCommandNames = this.agentCommands.getAllItemNames;
@@ -32,7 +33,7 @@ export default class AgentCommandService implements TokenRingService {
   constructor(private readonly app: TokenRingApp) {
   }
 
-  addAgentCommands(...commands: (TokenRingAgentCommand | TokenRingAgentCommand[])[]) {
+  addAgentCommands(...commands: (TokenRingAgentCommand<any> | TokenRingAgentCommand<any>[])[]) {
     for (const command of commands.flat()) {
       this.agentCommands.register(command.name, command);
       for (const alias of command.aliases ?? []) {
@@ -81,15 +82,7 @@ export default class AgentCommandService implements TokenRingService {
         return match.item.help;
       }
 
-      if (match.item.allowAttachments) {
-        const result = await match.item.execute({input: match.remainder, attachments}, agent);
-        return result ? result.trim() : "Command completed successfully";
-      }
-
-      if (attachments.length > 0) {
-        throw new CommandFailedError(`Attachments are not allowed for command: /${match.item.name}`);
-      }
-      const result = await match.item.execute(match.remainder, agent);
+      const result = await this.executeParsedCommand(match.item, match.remainder, attachments, agent);
       return result ? result.trim() : "Command completed successfully";
     }
     const firstWord = commandInput.split(/\s+/)[0];
@@ -105,6 +98,16 @@ Type /help for a list of commands.`
       );
     }
     throw new CommandFailedError(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
+  }
+
+  private async executeParsedCommand<Schema extends AgentCommandInputSchema>(
+    command: TokenRingAgentCommand<Schema>,
+    input: string,
+    attachments: InputAttachment[],
+    agent: Agent,
+  ) {
+    const parsedInput = parseAgentCommandInput(command, input, attachments, agent);
+    return command.execute(parsedInput);
   }
 
   async attach(agent: Agent) {
