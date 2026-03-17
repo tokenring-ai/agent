@@ -34,13 +34,13 @@ export function formatCommandUsage<Schema extends AgentCommandInputSchema>(
     detailLines.push(`- ${argumentName}: ${argumentSchema.description}${isRequired ? " (required)" : " (optional)"}`);
   }
 
-  const lines = [`## ${usageParts.join(" ")}`,command.description];
+  const lines = [`# ${usageParts.join(" ")}`,command.description];
 
   if (detailLines.length > 0) {
     lines.push("", "### Arguments", ...detailLines);
   }
 
-  lines.push(command.help)
+  lines.push("\n## Help", command.help)
 
   return lines.join("\n");
 }
@@ -52,7 +52,7 @@ async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Prom
     .map(([, command]) => formatCommandUsage(command))
     .join("\n\n---\n\n");
 
-  return `# Registered Commands\n\n${commandList}`;
+  return `# Registered Commands\n\n---\n\n${commandList}\n\n---\n\n`;
 }
 
 export default {
