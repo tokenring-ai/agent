@@ -17,5 +17,5 @@ export default {
   description: "Throw an error in the chat handler",
   inputSchema,
   execute,
-  help: "## /debug chat throwError\n\nThrows an error in the chat handler to test error handling.",
+  help: "Throws an error in the chat handler to test error handling.",
 } satisfies TokenRingAgentCommand<typeof inputSchema>;

@@ -20,9 +20,5 @@ export default {
   description: "Output a markdown sample",
   inputSchema,
   execute,
-  help: `
-## /debug markdown
-
-Output a markdown sample to test console rendering.
-`,
+  help: `Output a markdown sample to test console rendering.`,
 } satisfies TokenRingAgentCommand<typeof inputSchema>;

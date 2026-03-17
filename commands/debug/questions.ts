@@ -7,15 +7,18 @@ import {
 import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
 const inputSchema = {
-  prompt: {
-    description: "Question type to test",
-    required: true,
-  },
+  positionals: [
+    {
+      name: "type",
+      description: "Question type to test",
+      required: true,
+    },
+  ],
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const type = prompt.trim().toLowerCase();
+async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const type = positionals.type;
 
   switch (type) {
     case "text": {
@@ -96,7 +99,7 @@ const command = {
   description: "Test human interface request types",
   inputSchema,
   execute,
-  help: "## /debug questions <type>\n\nTest different human interface request types: text, confirm, tree, file, form.",
+  help: "Test different human interface request types: text, confirm, tree, file, form.",
 } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
 export default command;

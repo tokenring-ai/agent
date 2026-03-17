@@ -26,9 +26,10 @@ export function formatAgentCommandUsage<Schema extends AgentCommandInputSchema>(
     detailLines.push(`- \`${argumentName}\`: ${argumentSchema.description}`);
   }
 
-  if (command.inputSchema.prompt) {
-    usageParts.push(command.inputSchema.prompt.required ? "<prompt>" : "[prompt]");
-    detailLines.push(`- \`prompt\`: ${command.inputSchema.prompt.description}`);
+  for (const positional of command.inputSchema.positionals ?? []) {
+    const displayName = positional.displayName ?? positional.name;
+    usageParts.push(positional.required ? `<${displayName}>` : `[${displayName}]`);
+    detailLines.push(`- \`${displayName}\`: ${positional.description}`);
   }
 
   const lines = [`Usage: ${usageParts.join(" ")}`];

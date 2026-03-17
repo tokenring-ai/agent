@@ -2,23 +2,23 @@ import markdownList from "@tokenring-ai/utility/string/markdownList";
 import Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
 
 const description = "Show this help message" as const;
 const inputSchema = {
-  prompt: {
-    description: "Optional command name to show help for",
-    required: false,
-  },
+  positionals: [
+    {
+      name: "command",
+      description: "Optional command name to show help for",
+      required: false,
+      greedy: true,
+    },
+  ],
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const command = prompt?.trim();
+async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const command = positionals.command;
   if (command) {
     return getHelpOnCommand(command, agent);
   }
@@ -53,17 +53,7 @@ function getHelpOnCommand(command: string, agent: Agent): string {
   }
 }
 
-const help = `# /help
-
-Displays help information for available commands.
-
-## Description
-
-Displays detailed help information for all available commands. Each command shows its usage, description, and examples when available.
-
-## Usage
-
-/help
+const help = `Displays detailed help information for all available commands. Each command shows its usage, description, and examples when available.
 
 ## Output
 

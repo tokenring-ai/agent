@@ -18,5 +18,5 @@ export default {
   description: "Send an abort command to the app",
   inputSchema,
   execute,
-  help: "## /debug app shutdown\n\nSends an abort command to the app to test the shutdown handling.",
+  help: "Sends an abort command to the app to test the shutdown handling.",
 } satisfies TokenRingAgentCommand<typeof inputSchema>;

@@ -11,22 +11,65 @@ export type TokenRingBaseAgentCommand = {
 };
 
 export type AgentCommandArgumentSchema = {
-  type: "string" | "number" | "flag";
+  type: "string";
   description: string;
-  required?: boolean;
+  defaultValue?: string;
+  minimum?: number;
+  maximum?: number;
+  required?: false;
+} | {
+  type: "string";
+  description: string;
+  defaultValue?: never;
+  minimum?: number;
+  maximum?: number;
+  required: true;
+} | {
+  type: "number";
+  description: string;
+  defaultValue?: number;
+  minimum?: number;
+  maximum?: number;
+  required?: false;
+} | {
+  type: "number";
+  description: string;
+  defaultValue?: never;
+  minimum?: number;
+  maximum?: number;
+  required: true;
+} | {
+  type: "flag";
+  description: string;
+  required?: never;
 };
 
 export type AgentCommandArgumentsSchema = Record<string, AgentCommandArgumentSchema>;
 
-export type AgentCommandPromptSchema = {
+export type AgentCommandPositionalSchema = {
+  name: string;
+  displayName?: string;
   description: string;
-  required?: boolean;
+  required?: false;
+  defaultValue?: string;
+  minimum?: number;
+  maximum?: number;
+  greedy?: boolean;
+} | {
+  name: string;
+  displayName?: string;
+  description: string;
+  required: true;
+  defaultValue?: never;
+  minimum?: number;
+  maximum?: number;
+  greedy?: boolean;
 };
 
 export type AgentCommandInputSchema = {
   args?: AgentCommandArgumentsSchema;
-  prompt?: AgentCommandPromptSchema;
-  allowAttachments: boolean;
+  positionals?: readonly AgentCommandPositionalSchema[];
+  allowAttachments?: boolean;
 };
 
 type Expand<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
@@ -38,8 +81,16 @@ type AgentCommandArgumentValue<Schema extends AgentCommandArgumentSchema> =
       ? number
       : string;
 
+type AgentCommandArgumentHasDefault<Schema extends AgentCommandArgumentSchema> =
+  Schema extends {defaultValue: AgentCommandArgumentValue<Schema>} ? true : false;
+
 type RequiredAgentCommandArgumentKeys<Schema extends AgentCommandArgumentsSchema> = {
-  [Key in keyof Schema]: Schema[Key]["required"] extends true ? Key : never;
+  [Key in keyof Schema]:
+    Schema[Key]["required"] extends true
+      ? Key
+      : AgentCommandArgumentHasDefault<Schema[Key]> extends true
+        ? Key
+        : never;
 }[keyof Schema];
 
 type OptionalAgentCommandArgumentKeys<Schema extends AgentCommandArgumentsSchema> =
@@ -50,12 +101,25 @@ export type AgentCommandArgsType<Schema extends AgentCommandArgumentsSchema> = E
   { [Key in OptionalAgentCommandArgumentKeys<Schema>]?: AgentCommandArgumentValue<Schema[Key]> }
 >;
 
-type AgentCommandPromptInput<Schema extends AgentCommandInputSchema> =
-  Schema["prompt"] extends AgentCommandPromptSchema
-    ? Schema["prompt"]["required"] extends true
-      ? { prompt: string }
-      : { prompt?: string }
-    : { prompt?: never };
+type RequiredAgentCommandPositionals<Schema extends readonly AgentCommandPositionalSchema[]> = Extract<
+  Schema[number],
+  {required: true} | {defaultValue: string}
+>;
+
+type OptionalAgentCommandPositionals<Schema extends readonly AgentCommandPositionalSchema[]> = Exclude<
+  Schema[number],
+  RequiredAgentCommandPositionals<Schema>
+>;
+
+export type AgentCommandPositionalsType<Schema extends readonly AgentCommandPositionalSchema[]> = Expand<
+  { [Positional in RequiredAgentCommandPositionals<Schema> as Positional["name"]]-?: string } &
+  { [Positional in OptionalAgentCommandPositionals<Schema> as Positional["name"]]?: string }
+>;
+
+type AgentCommandPositionalsInput<Schema extends AgentCommandInputSchema> =
+  Schema["positionals"] extends readonly AgentCommandPositionalSchema[]
+    ? { positionals: AgentCommandPositionalsType<Schema["positionals"]> }
+    : { positionals?: never };
 
 type AgentCommandArgsInput<Schema extends AgentCommandInputSchema> =
   Schema["args"] extends AgentCommandArgumentsSchema
@@ -69,7 +133,7 @@ type AgentCommandAttachmentsInput<Schema extends AgentCommandInputSchema> =
 
 export type AgentCommandInputType<Schema extends AgentCommandInputSchema> =
   { agent: Agent } &
-  AgentCommandPromptInput<Schema> &
+  AgentCommandPositionalsInput<Schema> &
   AgentCommandArgsInput<Schema> &
   AgentCommandAttachmentsInput<Schema>;
 

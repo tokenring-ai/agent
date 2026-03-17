@@ -23,5 +23,5 @@ export default {
   description: "Dumps the current state of the agent to the chat window",
   inputSchema,
   execute,
-  help: "## /debug checkpoint\n\nDumps the current state of the agent to the chat window for debugging purposes.",
+  help: "Dumps the current state of the agent to the chat window for debugging purposes.",
 } satisfies TokenRingAgentCommand<typeof inputSchema>;

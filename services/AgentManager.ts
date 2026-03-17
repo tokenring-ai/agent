@@ -62,10 +62,13 @@ export default class AgentManager implements TokenRingService {
     const commandName = commandConfig.name || config.agentType;
     const commandDescription = `${commandConfig.description || config.description}`;
     const inputSchema = {
-      prompt: {
-        description: `Prompt to send to the ${config.agentType} agent`,
-        required: true,
-      },
+      positionals: [
+        {
+          name: 'message',
+          description: `Message to send to the ${config.agentType} agent`,
+          required: true,
+        },
+      ],
       allowAttachments: false,
     } as const satisfies AgentCommandInputSchema;
     
@@ -73,10 +76,7 @@ export default class AgentManager implements TokenRingService {
       name: commandName,
       description: commandDescription,
       inputSchema,
-      execute: async ({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> => {
-        const message = prompt.trim();
-        if (!message) throw new CommandFailedError("Message to agent cannot be empty");
-        
+      execute: async ({positionals: { message }, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> => {
         const result = await runSubAgent({
           agentType: config.agentType,
           background: commandConfig.background,

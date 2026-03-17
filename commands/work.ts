@@ -8,18 +8,19 @@ import {
 
 const description = "Runs the agents work handler with the message";
 const inputSchema = {
-  prompt: {
-    description: "The work request to execute",
-    required: true,
-  },
+  positionals: [
+    {
+      name: 'prompt',
+      description: "The work request to execute",
+      required: true,
+      greedy: true
+    },
+  ],
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  if (!prompt.trim()) {
-    throw new CommandFailedError("Please provide a message indicating the work to be completed");
-  }
-
+async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const { prompt } = positionals
   /* If the agent has a custom workflow defined, use it */
   if (agent.config.workHandler) {
     const result = await agent.config.workHandler(prompt, agent);
@@ -29,10 +30,7 @@ async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema
   }
 }
 
-const help: string = `# /work
-
-## Description
-Invokes the work handler for the agent, with the message corresponding to the work which needs to be completed.
+const help: string = `Invokes the work handler for the agent, with the message corresponding to the work which needs to be completed.
 
 ## Usage
 /work Write a blog post about AI safety

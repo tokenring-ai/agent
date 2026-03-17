@@ -29,10 +29,7 @@ export function execute({agent}: AgentCommandInputType<typeof inputSchema>): str
   return lines.join("\n");
 }
 
-const help: string = `# /settings
-
-## Description
-Displays current agent settings and configuration state.
+const help: string = `Displays current agent settings and configuration state.
 
 ## Output includes
 - Active services currently running

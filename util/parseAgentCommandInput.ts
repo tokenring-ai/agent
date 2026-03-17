@@ -5,6 +5,7 @@ import type {
   AgentCommandArgumentSchema,
   AgentCommandInputSchema,
   AgentCommandInputType,
+  AgentCommandPositionalSchema,
   TokenRingAgentCommand,
 } from "../types.ts";
 import {formatAgentCommandUsageError} from "./formatAgentCommandUsage.ts";
@@ -105,10 +106,56 @@ function parseArgumentValue(
     if (!Number.isFinite(parsedValue)) {
       throw new CommandFailedError(`Argument ${argumentName} must be a valid number.`);
     }
-    return parsedValue;
+    return validateNumberRange(argumentName, parsedValue, argumentSchema.minimum, argumentSchema.maximum);
   }
 
-  return rawValue;
+  return validateStringRange(argumentName, rawValue, argumentSchema.minimum, argumentSchema.maximum);
+}
+
+function parsePositionalValue(
+  positionalSchema: AgentCommandPositionalSchema,
+  rawValue: string,
+): string {
+  return validateStringRange(
+    positionalSchema.name,
+    rawValue,
+    positionalSchema.minimum,
+    positionalSchema.maximum,
+  );
+}
+
+function validateStringRange(
+  name: string,
+  value: string,
+  minimum?: number,
+  maximum?: number,
+): string {
+  if (minimum !== undefined && value.length < minimum) {
+    throw new CommandFailedError(`${name} must be at least ${minimum} characters.`);
+  }
+
+  if (maximum !== undefined && value.length > maximum) {
+    throw new CommandFailedError(`${name} must be at most ${maximum} characters.`);
+  }
+
+  return value;
+}
+
+function validateNumberRange(
+  name: string,
+  value: number,
+  minimum?: number,
+  maximum?: number,
+): number {
+  if (minimum !== undefined && value < minimum) {
+    throw new CommandFailedError(`${name} must be at least ${minimum}.`);
+  }
+
+  if (maximum !== undefined && value > maximum) {
+    throw new CommandFailedError(`${name} must be at most ${maximum}.`);
+  }
+
+  return value;
 }
 
 function findMatchingArgument(
@@ -147,7 +194,9 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
 
     const tokens = tokenizeInput(input.trim());
     const parsedArgs: Record<string, string | number | boolean> = {};
+    const parsedPositionals: Record<string, string> = {};
     const argsSchema = inputSchema.args;
+    const positionalSchema = inputSchema.positionals;
     let tokenIndex = 0;
 
     if (argsSchema) {
@@ -188,26 +237,95 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
       }
 
       for (const [argumentName, argumentSchema] of Object.entries(argsSchema)) {
-        if (argumentSchema.required && !(argumentName in parsedArgs)) {
+        if (argumentName in parsedArgs) {
+          continue;
+        }
+
+        if (argumentSchema.type === "number" && argumentSchema.defaultValue !== undefined) {
+          parsedArgs[argumentName] =
+            validateNumberRange(
+              argumentName,
+              argumentSchema.defaultValue,
+              argumentSchema.minimum,
+              argumentSchema.maximum,
+            );
+          continue;
+        }
+
+        if (argumentSchema.type === "string" && argumentSchema.defaultValue !== undefined) {
+          parsedArgs[argumentName] =
+            validateStringRange(
+              argumentName,
+              argumentSchema.defaultValue,
+              argumentSchema.minimum,
+              argumentSchema.maximum,
+            );
+          continue;
+        }
+
+        if (argumentSchema.required) {
           throw new CommandFailedError(`Missing required argument ${argumentName} for command /${command.name}`);
         }
       }
     }
 
-    const promptValue = tokens.slice(tokenIndex).join(" ").trim();
-    if (!inputSchema.prompt && promptValue) {
-      throw new CommandFailedError(`Command /${command.name} does not take a prompt.`);
-    }
+    const remainingTokens = tokens.slice(tokenIndex);
 
-    if (inputSchema.prompt?.required && !promptValue) {
-      throw new CommandFailedError(`Command /${command.name} requires a prompt.`);
+    if (positionalSchema) {
+      let positionalTokenIndex = 0;
+
+      for (let index = 0; index < positionalSchema.length; index += 1) {
+        const positional = positionalSchema[index];
+
+        if (positional.greedy) {
+          if (index !== positionalSchema.length - 1) {
+            throw new CommandFailedError(`Greedy positional ${positional.name} must be the final positional for command /${command.name}`);
+          }
+
+          const value = remainingTokens.slice(positionalTokenIndex).join(" ").trim();
+
+          if (value) {
+            parsedPositionals[positional.name] = parsePositionalValue(positional, value);
+          } else if (positional.defaultValue !== undefined) {
+            parsedPositionals[positional.name] = parsePositionalValue(positional, positional.defaultValue);
+          } else if (positional.required) {
+            throw new CommandFailedError(`Missing required positional ${positional.name} for command /${command.name}`);
+          }
+
+          positionalTokenIndex = remainingTokens.length;
+          continue;
+        }
+
+        const value = remainingTokens[positionalTokenIndex];
+
+        if (value !== undefined) {
+          parsedPositionals[positional.name] = parsePositionalValue(positional, value);
+          positionalTokenIndex += 1;
+          continue;
+        }
+
+        if (positional.defaultValue !== undefined) {
+          parsedPositionals[positional.name] = parsePositionalValue(positional, positional.defaultValue);
+          continue;
+        }
+
+        if (positional.required) {
+          throw new CommandFailedError(`Missing required positional ${positional.name} for command /${command.name}`);
+        }
+      }
+
+      if (positionalTokenIndex < remainingTokens.length) {
+        throw new CommandFailedError(`Too many positional arguments for command /${command.name}`);
+      }
+    } else if (remainingTokens.length > 0) {
+      throw new CommandFailedError(`Command /${command.name} does not take positional arguments.`);
     }
 
     const parsedInput = {
       agent,
       ...(inputSchema.allowAttachments ? {attachments} : {}),
       ...(argsSchema ? {args: parsedArgs} : {}),
-      ...(inputSchema.prompt ? (promptValue ? {prompt: promptValue} : {}) : {}),
+      ...(positionalSchema ? {positionals: parsedPositionals} : {}),
     };
 
     return parsedInput as AgentCommandInputType<Schema>;

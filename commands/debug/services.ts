@@ -6,15 +6,21 @@ import {
 } from "../../types.ts";
 
 const inputSchema = {
-  prompt: {
-    description: "Optional number of log entries to show",
-    required: false,
+  args: {
+    "--limit": {
+      type: "number",
+      description: "Optional number of log entries to show",
+      required: false,
+      defaultValue: 50,
+      minimum: 1,
+      maximum: 1000,
+    }
   },
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const limit = prompt ? parseInt(prompt.trim()) : 50;
+async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const limit = args["--limit"];
   const logs = agent.app.logs.slice(-limit);
 
   if (logs.length === 0) {
@@ -32,5 +38,5 @@ export default {
   description: "Display service logs",
   inputSchema,
   execute,
-  help: "## /debug services [limit]\n\nDisplay service logs from TokenRingApp. Defaults to last 50 entries.",
+  help: "Display service logs from TokenRingApp. Defaults to last 50 entries.",
 } satisfies TokenRingAgentCommand<typeof inputSchema>;

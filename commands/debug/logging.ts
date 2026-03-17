@@ -7,25 +7,28 @@ import {
 import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
 const inputSchema = {
-  prompt: {
-    description: "Use 'on' or 'off' to control debug logging",
-    required: true,
-  },
+  positionals: [
+    {
+      name: 'enabled',
+      description: "Use 'on' or 'off' to control debug logging",
+      required: true,
+    },
+  ],
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const arg = prompt.trim().toLowerCase();
+async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const enabled = positionals.enabled;
 
-  if (arg === "on") {
+  if (enabled === "on") {
     agent.debugEnabled = true;
     return "Debug logging enabled";
-  } else if (arg === "off") {
+  } else if (enabled === "off") {
     agent.debugEnabled = false;
     return "Debug logging disabled";
   } else {
     throw new CommandFailedError(
-      formatAgentCommandUsageError(command, `Invalid argument: ${arg}. Use 'on' or 'off'`),
+      formatAgentCommandUsageError(command, `Invalid argument: ${enabled}. Use 'on' or 'off'`),
     );
   }
 }
@@ -35,7 +38,7 @@ const command = {
   description: "Enable or disable debug logging",
   inputSchema,
   execute,
-  help: "## /debug logging on|off\n\nEnable or disable debug logging output.",
+  help: "Enable or disable debug logging output.",
 } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
 export default command;

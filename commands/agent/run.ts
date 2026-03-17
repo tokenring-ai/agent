@@ -19,24 +19,18 @@ const inputSchema = {
       required: true,
     },
   },
-  prompt: {
+  positionals: [{
+    name: "message",
     description: "The message to send to the agent",
     required: true,
-  },
+    greedy: true
+  }],
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({positionals, args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const isBg = args["--bg"] === true;
-  const parts = prompt.split(/\s+/);
   const agentType = args["--type"];
-  const message = parts.slice(1).join(" ");
-
-  if (!message) {
-    throw new CommandFailedError(
-      formatAgentCommandUsageError(command, "Please provide a message for the agent"),
-    );
-  }
 
   await runSubAgent({
     agentType,
@@ -44,7 +38,7 @@ async function execute({prompt, args, agent}: AgentCommandInputType<typeof input
     headless: agent.headless,
     input: {
       from: "Parent agent command: /agent run",
-      message: `/work ${message}`,
+      message: `/work ${positionals.message}`,
     }
   }, agent, true);
 
@@ -56,10 +50,7 @@ const command = {
   description: "Run an agent with a message",
   inputSchema,
   execute,
-  help: `## /agent run [--bg] --type <agentType> <message>
-
-Runs an agent of the specified type with the given message.
-- Use --bg flag to run in background without forwarding output
+  help: `Runs an agent of the specified type with the given message.
 
 ### Examples
 /agent run --type leader analyze the codebase
