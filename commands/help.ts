@@ -6,19 +6,14 @@ import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} 
 
 const description = "Show this help message" as const;
 const inputSchema = {
-  positionals: [
-    {
-      name: "command",
-      description: "Optional command name to show help for",
-      required: false,
-      greedy: true,
-    },
-  ],
-  allowAttachments: false,
+  remainder: {
+    name: "command",
+    description: "Optional command name to show help for",
+  }
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const command = positionals.command;
+async function execute({remainder, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const command = remainder;
   if (command) {
     return getHelpOnCommand(command, agent);
   }

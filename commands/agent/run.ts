@@ -1,11 +1,5 @@
-import {CommandFailedError} from "../../AgentError.ts";
 import {runSubAgent} from "../../runSubAgent.ts";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../../types.ts";
-import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {
   args: {
@@ -19,16 +13,14 @@ const inputSchema = {
       required: true,
     },
   },
-  positionals: [{
+  remainder: {
     name: "message",
     description: "The message to send to the agent",
     required: true,
-    greedy: true
-  }],
-  allowAttachments: false,
+  }
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({positionals, args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({remainder, args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const isBg = args["--bg"] === true;
   const agentType = args["--type"];
 
@@ -38,7 +30,7 @@ async function execute({positionals, args, agent}: AgentCommandInputType<typeof 
     headless: agent.headless,
     input: {
       from: "Parent agent command: /agent run",
-      message: `/work ${positionals.message}`,
+      message: `/work ${remainder}`,
     }
   }, agent, true);
 

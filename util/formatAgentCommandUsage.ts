@@ -1,8 +1,4 @@
-import type {
-  AgentCommandArgumentSchema,
-  AgentCommandInputSchema,
-  TokenRingAgentCommand,
-} from "../types.ts";
+import type {AgentCommandArgumentSchema, AgentCommandInputSchema, TokenRingAgentCommand,} from "../types.ts";
 
 function formatUsageToken(argumentName: string, argumentSchema: AgentCommandArgumentSchema) {
   if (argumentSchema.type === "flag") {
@@ -27,9 +23,14 @@ export function formatAgentCommandUsage<Schema extends AgentCommandInputSchema>(
   }
 
   for (const positional of command.inputSchema.positionals ?? []) {
-    const displayName = positional.displayName ?? positional.name;
-    usageParts.push(positional.required ? `<${displayName}>` : `[${displayName}]`);
-    detailLines.push(`- \`${displayName}\`: ${positional.description}`);
+    usageParts.push(positional.required ? `<${positional.name}>` : `[${positional.name}]`);
+    detailLines.push(`- \`${positional.name}\`: ${positional.description}`);
+  }
+
+  const remainder = command.inputSchema.remainder;
+  if (remainder) {
+    usageParts.push(remainder.required ? `<${remainder.name}...>` : `[${remainder.name}...]`);
+    detailLines.push(`- \`${remainder.name}\`: ${remainder.description}`);
   }
 
   const lines = [`Usage: ${usageParts.join(" ")}`];

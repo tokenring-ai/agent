@@ -1,12 +1,6 @@
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
-const inputSchema = {
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   throw new Error("This is an error thrown by the chat handler");

@@ -48,27 +48,32 @@ export type AgentCommandArgumentsSchema = Record<string, AgentCommandArgumentSch
 
 export type AgentCommandPositionalSchema = {
   name: string;
-  displayName?: string;
   description: string;
   required?: false;
   defaultValue?: string;
-  minimum?: number;
-  maximum?: number;
-  greedy?: boolean;
 } | {
   name: string;
-  displayName?: string;
   description: string;
   required: true;
   defaultValue?: never;
-  minimum?: number;
-  maximum?: number;
-  greedy?: boolean;
+};
+
+export type AgentCommandRemainderSchema = {
+  name: string;
+  description: string;
+  required: true;
+  defaultValue?: never;
+} | {
+  name: string;
+  description: string;
+  required?: false;
+  defaultValue?: string;
 };
 
 export type AgentCommandInputSchema = {
   args?: AgentCommandArgumentsSchema;
   positionals?: readonly AgentCommandPositionalSchema[];
+  remainder?: AgentCommandRemainderSchema;
   allowAttachments?: boolean;
 };
 
@@ -121,6 +126,15 @@ type AgentCommandPositionalsInput<Schema extends AgentCommandInputSchema> =
     ? { positionals: AgentCommandPositionalsType<Schema["positionals"]> }
     : { positionals?: never };
 
+type AgentCommandRemainderInput<Schema extends AgentCommandInputSchema> =
+  Schema["remainder"] extends AgentCommandRemainderSchema
+    ? {
+      remainder:
+        Schema["remainder"]["required"] extends true ? string :
+          Schema["remainder"]["defaultValue"] extends string ? string : string | undefined
+    }
+    : { remainder?: never };
+
 type AgentCommandArgsInput<Schema extends AgentCommandInputSchema> =
   Schema["args"] extends AgentCommandArgumentsSchema
     ? { args: AgentCommandArgsType<Schema["args"]> }
@@ -134,6 +148,7 @@ type AgentCommandAttachmentsInput<Schema extends AgentCommandInputSchema> =
 export type AgentCommandInputType<Schema extends AgentCommandInputSchema> =
   { agent: Agent } &
   AgentCommandPositionalsInput<Schema> &
+  AgentCommandRemainderInput<Schema> &
   AgentCommandArgsInput<Schema> &
   AgentCommandAttachmentsInput<Schema>;
 

@@ -8,8 +8,7 @@ const inputSchema = {
       description: "Optional agent id to shut down",
       required: false,
     }
-  ],
-  allowAttachments: false,
+  ]
 } as const satisfies AgentCommandInputSchema;
 
 async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {

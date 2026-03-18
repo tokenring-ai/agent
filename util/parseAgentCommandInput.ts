@@ -1,13 +1,7 @@
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
 import type {InputAttachment} from "../AgentEvents.ts";
-import type {
-  AgentCommandArgumentSchema,
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  AgentCommandPositionalSchema,
-  TokenRingAgentCommand,
-} from "../types.ts";
+import type {AgentCommandArgumentSchema, AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
 import {formatAgentCommandUsageError} from "./formatAgentCommandUsage.ts";
 
 function tokenizeInput(input: string): string[] {
@@ -41,8 +35,14 @@ function tokenizeInput(input: string): string[] {
       continue;
     }
 
-    if (char === '"' || char === "'") {
+    if ((char === '"' || char === "'") && (!tokenStarted || current.endsWith("="))) {
       quote = char;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      current += char;
       tokenStarted = true;
       continue;
     }
@@ -110,18 +110,6 @@ function parseArgumentValue(
   }
 
   return validateStringRange(argumentName, rawValue, argumentSchema.minimum, argumentSchema.maximum);
-}
-
-function parsePositionalValue(
-  positionalSchema: AgentCommandPositionalSchema,
-  rawValue: string,
-): string {
-  return validateStringRange(
-    positionalSchema.name,
-    rawValue,
-    positionalSchema.minimum,
-    positionalSchema.maximum,
-  );
 }
 
 function validateStringRange(
@@ -197,7 +185,9 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
     const parsedPositionals: Record<string, string> = {};
     const argsSchema = inputSchema.args;
     const positionalSchema = inputSchema.positionals;
+    const remainderSchema = inputSchema.remainder;
     let tokenIndex = 0;
+    let consumedPositionalTokens = 0;
 
     if (argsSchema) {
       while (tokenIndex < tokens.length) {
@@ -274,38 +264,17 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
     if (positionalSchema) {
       let positionalTokenIndex = 0;
 
-      for (let index = 0; index < positionalSchema.length; index += 1) {
-        const positional = positionalSchema[index];
-
-        if (positional.greedy) {
-          if (index !== positionalSchema.length - 1) {
-            throw new CommandFailedError(`Greedy positional ${positional.name} must be the final positional for command /${command.name}`);
-          }
-
-          const value = remainingTokens.slice(positionalTokenIndex).join(" ").trim();
-
-          if (value) {
-            parsedPositionals[positional.name] = parsePositionalValue(positional, value);
-          } else if (positional.defaultValue !== undefined) {
-            parsedPositionals[positional.name] = parsePositionalValue(positional, positional.defaultValue);
-          } else if (positional.required) {
-            throw new CommandFailedError(`Missing required positional ${positional.name} for command /${command.name}`);
-          }
-
-          positionalTokenIndex = remainingTokens.length;
-          continue;
-        }
-
+      for (const positional of positionalSchema) {
         const value = remainingTokens[positionalTokenIndex];
 
         if (value !== undefined) {
-          parsedPositionals[positional.name] = parsePositionalValue(positional, value);
+          parsedPositionals[positional.name] = value;
           positionalTokenIndex += 1;
           continue;
         }
 
         if (positional.defaultValue !== undefined) {
-          parsedPositionals[positional.name] = parsePositionalValue(positional, positional.defaultValue);
+          parsedPositionals[positional.name] = positional.defaultValue;
           continue;
         }
 
@@ -314,11 +283,28 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
         }
       }
 
-      if (positionalTokenIndex < remainingTokens.length) {
+      if (!remainderSchema && positionalTokenIndex < remainingTokens.length) {
         throw new CommandFailedError(`Too many positional arguments for command /${command.name}`);
       }
-    } else if (remainingTokens.length > 0) {
+
+      consumedPositionalTokens = positionalTokenIndex;
+    } else if (!remainderSchema && remainingTokens.length > 0) {
       throw new CommandFailedError(`Command /${command.name} does not take positional arguments.`);
+    }
+
+    const remainderTokens = remainingTokens.slice(consumedPositionalTokens);
+    let parsedRemainder: string | undefined;
+
+    if (remainderSchema) {
+      const value = remainderTokens.join(" ").trim();
+
+      if (value) {
+        parsedRemainder = value;
+      } else if ("defaultValue" in remainderSchema) {
+        parsedRemainder = remainderSchema.defaultValue;
+      } else if (remainderSchema.required) {
+        throw new CommandFailedError(`Missing required remainder ${remainderSchema.name} for command /${command.name}`);
+      }
     }
 
     const parsedInput = {
@@ -326,6 +312,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
       ...(inputSchema.allowAttachments ? {attachments} : {}),
       ...(argsSchema ? {args: parsedArgs} : {}),
       ...(positionalSchema ? {positionals: parsedPositionals} : {}),
+      ...(remainderSchema ? {remainder: parsedRemainder} : {}),
     };
 
     return parsedInput as AgentCommandInputType<Schema>;

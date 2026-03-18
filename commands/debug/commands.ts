@@ -1,13 +1,7 @@
 import AgentCommandService from "../../services/AgentCommandService.ts";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
-const inputSchema = {
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 
 export function formatCommandUsage<Schema extends AgentCommandInputSchema>(

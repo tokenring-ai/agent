@@ -1,13 +1,7 @@
 import AgentManager from "../../services/AgentManager.ts";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
-const inputSchema = {
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const agentManager = agent.requireServiceByType(AgentManager);

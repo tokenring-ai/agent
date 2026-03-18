@@ -1,26 +1,16 @@
-import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.js";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
 
 const description = "Runs the agents work handler with the message";
 const inputSchema = {
-  positionals: [
-    {
-      name: 'prompt',
-      description: "The work request to execute",
-      required: true,
-      greedy: true
-    },
-  ],
-  allowAttachments: false,
+  remainder: {
+    name: 'prompt',
+    description: "The work request to execute",
+    required: true,
+  }
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const { prompt } = positionals
+async function execute({remainder: prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   /* If the agent has a custom workflow defined, use it */
   if (agent.config.workHandler) {
     const result = await agent.config.workHandler(prompt, agent);

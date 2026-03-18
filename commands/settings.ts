@@ -1,15 +1,9 @@
 import joinDefault from "@tokenring-ai/utility/string/joinDefault";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
 
 const description = "Show current chat settings." as const;
-const inputSchema = {
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 export function execute({agent}: AgentCommandInputType<typeof inputSchema>): string {
   const activeServices = agent.app.getServices();

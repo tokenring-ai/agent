@@ -1,9 +1,5 @@
 import {CommandFailedError} from "../../AgentError.ts";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
 const inputSchema = {
@@ -13,8 +9,7 @@ const inputSchema = {
       description: "Use 'on' or 'off' to control debug logging",
       required: true,
     },
-  ],
-  allowAttachments: false,
+  ]
 } as const satisfies AgentCommandInputSchema;
 
 async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {

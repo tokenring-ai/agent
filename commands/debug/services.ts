@@ -1,9 +1,5 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import {
-  AgentCommandInputSchema,
-  AgentCommandInputType,
-  TokenRingAgentCommand,
-} from "../../types.ts";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {
   args: {
@@ -15,8 +11,7 @@ const inputSchema = {
       minimum: 1,
       maximum: 1000,
     }
-  },
-  allowAttachments: false,
+  }
 } as const satisfies AgentCommandInputSchema;
 
 async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {

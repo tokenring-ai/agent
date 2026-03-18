@@ -4,7 +4,6 @@ import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {setTimeout} from "node:timers/promises";
 import Agent from "../Agent.js";
-import {CommandFailedError} from "../AgentError.ts";
 import {runSubAgent} from "../runSubAgent.ts";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
@@ -68,8 +67,7 @@ export default class AgentManager implements TokenRingService {
           description: `Message to send to the ${config.agentType} agent`,
           required: true,
         },
-      ],
-      allowAttachments: false,
+      ]
     } as const satisfies AgentCommandInputSchema;
     
     const agentCommand: TokenRingAgentCommand<typeof inputSchema> = {
