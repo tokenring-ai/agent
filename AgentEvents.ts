@@ -69,39 +69,6 @@ export const InputMessageSchema = z.object({
 
 export type InputMessage = z.input<typeof InputMessageSchema>;
 
-/*
-export const InputHandledSchema = z.object({
-  type: z.literal("input.handled"),
-  timestamp: z.number(),
-  message: z.string(),
-  requestId: z.string(),
-  status: z.enum(["success", "error", "cancelled"]),
-});
-
-export const PauseSchema = z.object({
-  type: z.literal("pause"),
-  timestamp: z.number(),
-  message: z.string()
-});
-
-export const ResumeSchema = z.object({
-  type: z.literal("resume"),
-  timestamp: z.number(),
-  message: z.string()
-});
-
-export const AbortSchema = z.object({
-  type: z.literal("abort"),
-  timestamp: z.number(),
-  message: z.string()
-});
-
-export const StatusSchema = z.object({
-  type: z.literal("status"),
-  timestamp: z.number(),
-  message: z.string()
-})*/
-
 /* A question request is a request that immediately requires an answer from the user for a single form field
 * This is used for functionality such as when the user needs to immediately select a model or provider */
 export const InteractionResponseSchema = z.object({
