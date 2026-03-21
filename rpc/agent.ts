@@ -5,6 +5,7 @@ import Agent from "../Agent.ts";
 import AgentManager from "../services/AgentManager.js";
 import {AgentEventState} from "../state/agentEventState.js";
 import {CommandHistoryState} from "../state/commandHistoryState.ts";
+import {SubAgentState} from "../state/subAgentState.ts";
 import AgentRpcSchema from "./schema.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 
@@ -146,5 +147,56 @@ export default createRPCEndpoint(AgentRpcSchema, {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
     return agent.requireServiceByType(AgentCommandService).getCommandNames();
-  }
+  },
+
+  getAvailableSubAgents(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    
+    const configs = app.requireService(AgentManager).getAgentConfigEntries();
+    const agents = configs.map(([type, config]) => ({
+      type,
+      displayName: config.displayName,
+      description: config.description,
+      category: config.category,
+    }));
+    
+    return { agents };
+  },
+
+  getEnabledSubAgents(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    
+    const subAgentState = agent.getState(SubAgentState);
+    return { agents: subAgentState.allowedSubAgents };
+  },
+
+  enableSubAgents(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    
+    agent.mutateState(SubAgentState, (state) => {
+      for (const agentType of args.agents) {
+        if (!state.allowedSubAgents.includes(agentType)) {
+          state.allowedSubAgents.push(agentType);
+        }
+      }
+    });
+    
+    return { success: true };
+  },
+
+  disableSubAgents(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) throw new Error("Agent not found");
+    
+    agent.mutateState(SubAgentState, (state) => {
+      state.allowedSubAgents = state.allowedSubAgents.filter(
+        (agentType) => !args.agents.includes(agentType)
+      );
+    });
+    
+    return { success: true };
+  },
 });

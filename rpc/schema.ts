@@ -153,6 +153,49 @@ export default {
         agentId: z.string(),
       }),
       result: z.array(z.string()),
-    }
+    },
+    getAvailableSubAgents: {
+      type: "query",
+      input: z.object({
+        agentId: z.string(),
+      }),
+      result: z.object({
+        agents: z.array(z.object({
+          type: z.string(),
+          displayName: z.string(),
+          description: z.string(),
+          category: z.string().optional(),
+        })),
+      }),
+    },
+    getEnabledSubAgents: {
+      type: "query",
+      input: z.object({
+        agentId: z.string(),
+      }),
+      result: z.object({
+        agents: z.array(z.string()),
+      }),
+    },
+    enableSubAgents: {
+      type: "mutation",
+      input: z.object({
+        agentId: z.string(),
+        agents: z.array(z.string()),
+      }),
+      result: z.object({
+        success: z.boolean(),
+      }),
+    },
+    disableSubAgents: {
+      type: "mutation",
+      input: z.object({
+        agentId: z.string(),
+        agents: z.array(z.string()),
+      }),
+      result: z.object({
+        success: z.boolean(),
+      }),
+    },
   }
 } satisfies RPCSchema;
