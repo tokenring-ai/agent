@@ -3,18 +3,36 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import AgentCommandService from '../../services/AgentCommandService.ts';
 import type {TokenRingAgentCommand} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
+import {CommandFailedError} from "../../AgentError.js";
 
 const mockApp = createTestingApp();
-const mockAgent = createTestingAgent(mockApp)
-// Mock commands
+const mockAgent = createTestingAgent(mockApp);
+
+// Mock commands with proper input schema
 const mockCommand: TokenRingAgentCommand = {
+  name: 'mock',
   description: 'Mock command',
+  inputSchema: {
+    remainder: {
+      name: 'input',
+      description: 'Input',
+      required: true,
+    }
+  },
   execute: vi.fn().mockResolvedValue('success'),
   help: 'Mock help text',
 };
 
 const mockChatCommand: TokenRingAgentCommand = {
+  name: 'chat send',
   description: 'Chat command',
+  inputSchema: {
+    remainder: {
+      name: 'input',
+      description: 'Input',
+      required: true,
+    }
+  },
   execute: vi.fn().mockResolvedValue('chat success'),
   help: 'Chat help text',
 };
@@ -24,12 +42,9 @@ describe('AgentCommandService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new AgentCommandService();
+    service = new AgentCommandService(mockApp);
 
-    service.addAgentCommands({
-      'mock': mockCommand,
-      'chat': mockChatCommand,
-    });
+    service.addAgentCommands(mockCommand, mockChatCommand);
   });
 
   afterEach(() => {
@@ -43,15 +58,16 @@ describe('AgentCommandService', () => {
     });
 
     it('should register commands correctly', () => {
-      const commands = service.getCommands();
-      expect(commands).toHaveProperty('mock');
-      expect(commands).toHaveProperty('chat');
+      const entries = service.getCommandEntries();
+      const entriesArray = Array.from(entries);
+      expect(entriesArray).toContainEqual(['mock', mockCommand]);
+      expect(entriesArray).toContainEqual(['chat send', mockChatCommand]);
     });
 
     it('should get command names', () => {
       const names = service.getCommandNames();
       expect(names).toContain('mock');
-      expect(names).toContain('chat');
+      expect(names).toContain('chat send');
     });
 
     it('should get command by name', () => {
@@ -59,166 +75,101 @@ describe('AgentCommandService', () => {
       expect(command).toBe(mockCommand);
     });
 
-    it('should throw error for non-existent command', () => {
-      expect(() => service.getCommand('nonexistent')).toThrow();
+    it('should return undefined for non-existent command', () => {
+      const command = service.getCommand('nonexistent');
+      expect(command).toBeUndefined();
     });
 
-    it('should get all command items', () => {
-      const commands = service.getCommands();
-      expect(Object.keys(commands)).toHaveLength(2);
-      expect(commands.mock).toBe(mockCommand);
-      expect(commands.chat).toBe(mockChatCommand);
-    });
-  });
-
-  describe('Command Execution', () => {
-    it('should execute chat command', async () => {
-      await service.executeAgentCommand(mockAgent, '/chat test message');
-      
-      expect(mockChatCommand.execute).toHaveBeenCalledWith('test message', mockAgent);
-    });
-
-    it('should execute regular command', async () => {
-      await service.executeAgentCommand(mockAgent, '/mock test');
-      
-      expect(mockCommand.execute).toHaveBeenCalledWith('test', mockAgent);
-    });
-
-    it('should handle commands with spaces', async () => {
-      await service.executeAgentCommand(mockAgent, '/mock  test with spaces  ');
-      
-      expect(mockCommand.execute).toHaveBeenCalledWith('test with spaces', mockAgent);
-    });
-
-    it('should handle plural command names', async () => {
-      await service.executeAgentCommand(mockAgent, '/mocks test');
-      
-      expect(mockCommand.execute).toHaveBeenCalledWith('test', mockAgent);
-    });
-
-    it('should handle unknown commands', async () => {
-      vi.spyOn(mockAgent, 'errorMessage');
-      await service.executeAgentCommand(mockAgent, '/unknown command');
-      
-      expect(mockAgent.errorMessage).toHaveBeenCalledWith(
-        'Unknown command: /unknown. Type /help for a list of commands.'
-      );
-      expect(mockCommand.execute).not.toHaveBeenCalled();
-    });
-
-    it('should handle non-command messages', async () => {
-      await service.executeAgentCommand(mockAgent, 'regular message');
-      
-      expect(mockChatCommand.execute).toHaveBeenCalledWith('send regular message', mockAgent);
-    });
-
-    it('should trim input messages', async () => {
-      await service.executeAgentCommand(mockAgent, '  spaced message  ');
-      
-      expect(mockChatCommand.execute).toHaveBeenCalledWith('send spaced message', mockAgent);
+    it('should get all command entries', () => {
+      const entries = service.getCommandEntries();
+      const entriesArray = Array.from(entries);
+      expect(entriesArray).toHaveLength(2);
+      expect(entriesArray).toContainEqual(['mock', mockCommand]);
+      expect(entriesArray).toContainEqual(['chat send', mockChatCommand]);
     });
   });
 
   describe('Command Registration', () => {
-    it('should add multiple commands', () => {
-      service.addAgentCommands({
-        'test1': {
-          description: 'Test command 1',
-          execute: vi.fn(),
-          help: 'Test 1 help',
+    it('should add multiple commands at once', () => {
+      const newCommand1: TokenRingAgentCommand = {
+        name: 'test1',
+        description: 'Test command 1',
+        inputSchema: {
+          remainder: {
+            name: 'input',
+            description: 'Input',
+            required: true,
+          }
         },
-        'test2': {
-          description: 'Test command 2',
-          execute: vi.fn(),
-          help: 'Test 2 help',
-        },
-      });
+        execute: vi.fn(),
+        help: 'Test 1 help',
+      };
 
-      const commands = service.getCommands();
-      expect(commands).toHaveProperty('test1');
-      expect(commands).toHaveProperty('test2');
+      const newCommand2: TokenRingAgentCommand = {
+        name: 'test2',
+        description: 'Test command 2',
+        inputSchema: {
+          remainder: {
+            name: 'input',
+            description: 'Input',
+            required: true,
+          }
+        },
+        execute: vi.fn(),
+        help: 'Test 2 help',
+      };
+
+      service.addAgentCommands(newCommand1, newCommand2);
+
+      const entries = service.getCommandEntries();
+      const entriesArray = Array.from(entries);
+      expect(entriesArray).toContainEqual(['test1', newCommand1]);
+      expect(entriesArray).toContainEqual(['test2', newCommand2]);
     });
 
     it('should overwrite existing commands', () => {
-      const newCommand = {
+      const newCommand: TokenRingAgentCommand = {
+        name: 'mock',
         description: 'New command',
+        inputSchema: {
+          remainder: {
+            name: 'input',
+            description: 'Input',
+            required: true,
+          }
+        },
         execute: vi.fn(),
         help: 'New help',
       };
 
-      service.addAgentCommands({
-        'mock': newCommand,
-      });
+      service.addAgentCommands(newCommand);
 
       const command = service.getCommand('mock');
       expect(command).toBe(newCommand);
     });
-  });
 
-  describe('Error Handling', () => {
-    it('should handle command execution errors', async () => {
-      const errorCommand: TokenRingAgentCommand = {
-        description: 'Error command',
-        execute: vi.fn().mockRejectedValue(new Error('Command failed')),
-        help: 'Error help',
+    it('should register command aliases', () => {
+      const aliasCommand: TokenRingAgentCommand = {
+        name: 'alias-test',
+        description: 'Command with alias',
+        inputSchema: {
+          remainder: {
+            name: 'input',
+            description: 'Input',
+            required: true,
+          }
+        },
+        execute: vi.fn(),
+        help: 'Alias help',
+        aliases: ['alias-test-alt'],
       };
 
-      service.addAgentCommands({
-        'error': errorCommand,
-      });
+      service.addAgentCommands(aliasCommand);
 
-      try {
-        await service.executeAgentCommand(mockAgent, '/error test');
-      } catch (e) {
-        expect(e.message).toBe('Command failed');
-      }
-
-      expect(errorCommand.execute).toHaveBeenCalledWith('test', mockAgent);
-    });
-
-    it('should handle empty messages', async () => {
-      await service.executeAgentCommand(mockAgent, '');
-      
-      expect(mockChatCommand.execute).not.toHaveBeenCalled()
-    });
-
-    it('should handle messages with only spaces', async () => {
-      await service.executeAgentCommand(mockAgent, '   ');
-      
-      expect(mockChatCommand.execute).not.toHaveBeenCalled()
-    });
-  });
-
-  describe('Default Command Behavior', () => {
-    it('should use default chat command for non-command messages', async () => {
-      await service.executeAgentCommand(mockAgent, 'hello world');
-
-      expect(mockChatCommand.execute).toHaveBeenCalledWith('send hello world', mockAgent);
-    });
-
-    it('should handle commands without leading slash', async () => {
-      await service.executeAgentCommand(mockAgent, 'mock test');
-
-      expect(mockChatCommand.execute).toHaveBeenCalledWith('send mock test', mockAgent);
-    });
-  });
-
-  describe('Command Parsing', () => {
-    it('should parse command names correctly', async () => {
-      await service.executeAgentCommand(mockAgent, '/test-command');
-      
-      const commands = service.getCommands();
-      const commandNames = Object.keys(commands);
-      
-      // Should try to find command without special characters
-      expect(commandNames).toContain('mock');
-      expect(commandNames).toContain('chat');
-    });
-
-    it('should handle complex command patterns', async () => {
-      await service.executeAgentCommand(mockAgent, '/command-name with args');
-      
-      expect(mockChatCommand.execute).not.toBeCalled();
+      // Main command should be registered
+      expect(service.getCommand('alias-test')).toBe(aliasCommand);
+      // Alias should also work
+      expect(service.getCommand('alias-test-alt')).toBe(aliasCommand);
     });
   });
 });

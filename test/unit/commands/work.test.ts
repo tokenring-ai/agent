@@ -15,7 +15,7 @@ const createMockAgent = () => ({
   },
 } as any);
 
-describe('Work Command', () => {
+describe('Work_Command', () => {
   let mockAgent: any;
 
   beforeEach(() => {
@@ -29,22 +29,25 @@ describe('Work Command', () => {
 
   describe('Command Properties', () => {
     it('should have correct description', () => {
-      expect(workCommand.description).toBe('/work - Runs the agents work handler with the message');
+      expect(workCommand.description).toBe('Runs the agents work handler with the message');
     });
 
     it('should have help text', () => {
-      expect(workCommand.help).toContain('# /work');
-      expect(workCommand.help).toContain('## Description');
       expect(workCommand.help).toContain('## Usage');
       expect(workCommand.help).toContain('## Notes');
       expect(workCommand.help).toContain('If the agent has a custom workHandler configured');
     });
 
     it('should satisfy TokenRingAgentCommand interface', () => {
+      expect(workCommand).toHaveProperty('name');
       expect(workCommand).toHaveProperty('description');
       expect(workCommand).toHaveProperty('execute');
       expect(workCommand).toHaveProperty('help');
       expect(typeof workCommand.execute).toBe('function');
+    });
+
+    it('should have correct name', () => {
+      expect(workCommand.name).toBe('work');
     });
   });
 
@@ -58,9 +61,10 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('test work message', agentWithHandler);
+      const result = await workCommand.execute({ remainder: 'test work message', agent: agentWithHandler });
 
       expect(workHandler).toHaveBeenCalledWith('test work message', agentWithHandler);
+      expect(result).toBe('work completed');
     });
 
     it('should execute work handler with complex input', async () => {
@@ -72,7 +76,7 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('analyze data and create report', agentWithHandler);
+      await workCommand.execute({ remainder: 'analyze data and create report', agent: agentWithHandler });
 
       expect(workHandler).toHaveBeenCalledWith('analyze data and create report', agentWithHandler);
     });
@@ -86,7 +90,8 @@ describe('Work Command', () => {
         },
       };
 
-      await expect(workCommand.execute('failing work', agentWithHandler)).rejects.toThrow('Work failed');
+      await expect(workCommand.execute({ remainder: 'failing work', agent: agentWithHandler }))
+        .rejects.toThrow('Work failed');
       expect(workHandler).toHaveBeenCalledWith('failing work', agentWithHandler);
     });
 
@@ -99,37 +104,66 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('test work', agentWithHandler);
+      await workCommand.execute({ remainder: 'test work', agent: agentWithHandler });
 
       expect(workHandler).toHaveBeenCalledWith('test work', agentWithHandler);
+    });
+
+    it('should return string result from work handler', async () => {
+      const workHandler = vi.fn().mockResolvedValue('custom result');
+      const agentWithHandler = {
+        ...mockAgent,
+        config: {
+          workHandler,
+        },
+      };
+
+      const result = await workCommand.execute({ remainder: 'test work', agent: agentWithHandler });
+
+      expect(result).toBe('custom result');
+    });
+
+    it('should return default message for non-string result', async () => {
+      const workHandler = vi.fn().mockResolvedValue({ result: 'object' });
+      const agentWithHandler = {
+        ...mockAgent,
+        config: {
+          workHandler,
+        },
+      };
+
+      const result = await workCommand.execute({ remainder: 'test work', agent: agentWithHandler });
+
+      expect(result).toBe('Work completed successfully');
     });
   });
 
   describe('Command Execution without Work Handler', () => {
     it('should use command service when no work handler', async () => {
       const mockCommandService = {
-        executeAgentCommand: vi.fn().mockResolvedValue(undefined),
+        executeAgentCommand: vi.fn().mockResolvedValue('command result'),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('regular command message', mockAgent);
+      const result = await workCommand.execute({ remainder: 'regular command message', agent: mockAgent });
 
       expect(mockAgent.requireServiceByType).toHaveBeenCalledWith(AgentCommandService);
       expect(mockCommandService.executeAgentCommand).toHaveBeenCalledWith(
         mockAgent,
         'regular command message'
       );
+      expect(result).toBe('command result');
     });
 
     it('should handle complex command messages', async () => {
       const mockCommandService = {
-        executeAgentCommand: vi.fn().mockResolvedValue(undefined),
+        executeAgentCommand: vi.fn().mockResolvedValue('result'),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('complex message with multiple parts', mockAgent);
+      await workCommand.execute({ remainder: 'complex message with multiple parts', agent: mockAgent });
 
       expect(mockCommandService.executeAgentCommand).toHaveBeenCalledWith(
         mockAgent,
@@ -144,23 +178,26 @@ describe('Work Command', () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await expect(workCommand.execute('failing command', mockAgent)).rejects.toThrow('Command failed');
+      await expect(workCommand.execute({ remainder: 'failing command', agent: mockAgent }))
+        .rejects.toThrow('Command failed');
     });
   });
 
   describe('Input Validation', () => {
-    it('should show info message for missing input', async () => {
-      await workCommand.execute('', mockAgent);
+    it('should handle empty input', async () => {
+      const mockCommandService = {
+        executeAgentCommand: vi.fn().mockResolvedValue('result'),
+      };
 
-      expect(mockAgent.infoMessage).toHaveBeenCalledWith(
-        'Please provide a message indicating the work to be completed'
+      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+
+      await workCommand.execute({ remainder: '', agent: mockAgent });
+
+      // Empty input should still be passed to command service
+      expect(mockCommandService.executeAgentCommand).toHaveBeenCalledWith(
+        mockAgent,
+        ''
       );
-    });
-
-    it('should not execute commands when input is empty', async () => {
-      await workCommand.execute('', mockAgent);
-
-      expect(mockAgent.requireServiceByType).not.toHaveBeenCalled();
     });
   });
 
@@ -180,7 +217,7 @@ describe('Work Command', () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('test message', agentWithBoth);
+      await workCommand.execute({ remainder: 'test message', agent: agentWithBoth });
 
       expect(workHandler).toHaveBeenCalledWith('test message', agentWithBoth);
       expect(mockCommandService.executeAgentCommand).not.toHaveBeenCalled();
@@ -188,12 +225,12 @@ describe('Work Command', () => {
 
     it('should use command service when no work handler', async () => {
       const mockCommandService = {
-        executeAgentCommand: vi.fn(),
+        executeAgentCommand: vi.fn().mockResolvedValue('result'),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('test message', mockAgent);
+      await workCommand.execute({ remainder: 'test message', agent: mockAgent });
 
       expect(mockCommandService.executeAgentCommand).toHaveBeenCalledWith(
         mockAgent,
@@ -203,7 +240,7 @@ describe('Work Command', () => {
 
     it('should handle null work handler', async () => {
       const mockCommandService = {
-        executeAgentCommand: vi.fn(),
+        executeAgentCommand: vi.fn().mockResolvedValue('result'),
       };
 
       const agentWithNull = {
@@ -215,7 +252,7 @@ describe('Work Command', () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('test message', agentWithNull);
+      await workCommand.execute({ remainder: 'test message', agent: agentWithNull });
 
       expect(mockCommandService.executeAgentCommand).toHaveBeenCalledWith(
         agentWithNull,
@@ -225,7 +262,7 @@ describe('Work Command', () => {
 
     it('should handle undefined work handler', async () => {
       const mockCommandService = {
-        executeAgentCommand: vi.fn(),
+        executeAgentCommand: vi.fn().mockResolvedValue('result'),
       };
 
       const agentWithUndefined = {
@@ -237,7 +274,7 @@ describe('Work Command', () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('test message', agentWithUndefined);
+      await workCommand.execute({ remainder: 'test message', agent: agentWithUndefined });
 
       expect(mockCommandService.executeAgentCommand).toHaveBeenCalledWith(
         agentWithUndefined,
@@ -260,9 +297,9 @@ describe('Work Command', () => {
         },
       };
 
-      const result = await workCommand.execute('async work', agentWithAsync);
+      const result = await workCommand.execute({ remainder: 'async work', agent: agentWithAsync });
 
-      expect(result).toBeUndefined(); // Command execute doesn't return result
+      expect(result).toBe('async work completed');
       expect(asyncWorkHandler).toHaveBeenCalledWith('async work', agentWithAsync);
     });
 
@@ -276,13 +313,14 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('sync work', agentWithSync);
+      const result = await workCommand.execute({ remainder: 'sync work', agent: agentWithSync });
 
+      expect(result).toBe('sync work completed');
       expect(syncWorkHandler).toHaveBeenCalledWith('sync work', agentWithSync);
     });
 
     it('should handle work handler with no return value', async () => {
-      const voidWorkHandler = vi.fn();
+      const voidWorkHandler = vi.fn().mockReturnValue(undefined);
 
       const agentWithVoid = {
         ...mockAgent,
@@ -291,8 +329,9 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('void work', agentWithVoid);
+      const result = await workCommand.execute({ remainder: 'void work', agent: agentWithVoid });
 
+      expect(result).toBe('Work completed successfully');
       expect(voidWorkHandler).toHaveBeenCalledWith('void work', agentWithVoid);
     });
   });
@@ -300,12 +339,12 @@ describe('Work Command', () => {
   describe('Integration with Agent Interface', () => {
     it('should use requireServiceByType correctly', async () => {
       const mockCommandService = {
-        executeAgentCommand: vi.fn(),
+        executeAgentCommand: vi.fn().mockResolvedValue('result'),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('test message', mockAgent);
+      await workCommand.execute({ remainder: 'test message', agent: mockAgent });
 
       expect(mockAgent.requireServiceByType).toHaveBeenCalledWith(AgentCommandService);
     });
@@ -315,7 +354,8 @@ describe('Work Command', () => {
         throw new Error('Service not found');
       });
 
-      await expect(workCommand.execute('test message', mockAgent)).rejects.toThrow('Service not found');
+      await expect(workCommand.execute({ remainder: 'test message', agent: mockAgent }))
+        .rejects.toThrow('Service not found');
     });
   });
 
@@ -329,7 +369,7 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('analyze this codebase for bugs', agentWithAnalysis);
+      await workCommand.execute({ remainder: 'analyze this codebase for bugs', agent: agentWithAnalysis });
 
       expect(analysisHandler).toHaveBeenCalledWith('analyze this codebase for bugs', agentWithAnalysis);
     });
@@ -343,7 +383,7 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('create a technical specification document', agentWithDocs);
+      await workCommand.execute({ remainder: 'create a technical specification document', agent: agentWithDocs });
 
       expect(docHandler).toHaveBeenCalledWith('create a technical specification document', agentWithDocs);
     });
@@ -357,24 +397,25 @@ describe('Work Command', () => {
         },
       };
 
-      await workCommand.execute('process the sales data and generate a report', agentWithData);
+      await workCommand.execute({ remainder: 'process the sales data and generate a report', agent: agentWithData });
 
       expect(dataHandler).toHaveBeenCalledWith('process the sales data and generate a report', agentWithData);
     });
 
     it('should handle general chat when no work handler configured', async () => {
       const mockCommandService = {
-        executeAgentCommand: vi.fn(),
+        executeAgentCommand: vi.fn().mockResolvedValue('chat result'),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      await workCommand.execute('general conversation about the weather', mockAgent);
+      const result = await workCommand.execute({ remainder: 'general conversation about the weather', agent: mockAgent });
 
       expect(mockCommandService.executeAgentCommand).toHaveBeenCalledWith(
         mockAgent,
         'general conversation about the weather'
       );
+      expect(result).toBe('chat result');
     });
   });
 });

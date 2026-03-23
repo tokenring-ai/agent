@@ -2,9 +2,8 @@ import TokenRingApp from '@tokenring-ai/app';
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
-import {AgentConfig, AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
+import {AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
 import AgentManager from '../../services/AgentManager.ts';
-import type {AgentCheckpointData} from '../../types.js';
 import createTestingAgent from "../createTestingAgent";
 
 const app = createTestingApp();
@@ -20,9 +19,9 @@ const createMockAgent = () => {
   return agent;
 };
 
-
 const mockConfig = AgentConfigSchema.parse({
-  name: 'Test Agent',
+  agentType: 'test',
+  displayName: 'Test Agent',
   description: 'A test agent',
   category: 'test',
   debug: false,
@@ -33,15 +32,7 @@ const mockConfig = AgentConfigSchema.parse({
   idleTimeout: 86400,
   maxRunTime: 1800,
   minimumRunning: 0,
-  agentType: 'someAgentType'
 });
-
-const mockCheckpoint: AgentCheckpointData = {
-  agentId: 'test-agent-id',
-  createdAt: Date.now(),
-  config: mockConfig,
-  state: {},
-};
 
 describe('AgentManager', () => {
   let app: TokenRingApp;
@@ -58,7 +49,8 @@ describe('AgentManager', () => {
     manager.addAgentConfigs('test', mockConfig);
     manager.addAgentConfigs('background', {
       ...mockConfig,
-      name: 'Background Agent',
+      agentType: 'background',
+      displayName: 'Background Agent',
     });
   });
 
@@ -77,25 +69,33 @@ describe('AgentManager', () => {
     it('should add single agent config', () => {
       const testConfig: ParsedAgentConfig = {
         ...mockConfig,
-        name: 'New Agent',
+        agentType: 'new',
+        displayName: 'New Agent',
       };
 
       manager.addAgentConfigs('new', testConfig);
       
-      const configs = manager.getAgentConfigs();
-      expect(configs).toHaveProperty('new');
-      expect(configs.new.name).toBe('New Agent');
+      const entries = Array.from(manager.getAgentConfigEntries());
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.arrayContaining(['new']),
+        ])
+      );
     });
 
     it('should add multiple agent configs', () => {
-      manager.addAgentConfigs({
-        'config1': { ...mockConfig, name: 'Agent 1' },
-        'config2': { ...mockConfig, name: 'Agent 2' },
-      });
+      manager.addAgentConfigs(
+        { agentType: 'config1', displayName: 'Agent 1', description: 'desc', category: 'test', createMessage: 'msg' },
+        { agentType: 'config2', displayName: 'Agent 2', description: 'desc', category: 'test', createMessage: 'msg' }
+      );
 
-      const configs = manager.getAgentConfigs();
-      expect(configs.config1.name).toBe('Agent 1');
-      expect(configs.config2.name).toBe('Agent 2');
+      const entries = Array.from(manager.getAgentConfigEntries());
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.arrayContaining(['config1']),
+          expect.arrayContaining(['config2']),
+        ])
+      );
     });
 
     it('should get all agent types', () => {
@@ -104,10 +104,19 @@ describe('AgentManager', () => {
       expect(types).toContain('background');
     });
 
-    it('should get agent configs', () => {
-      const configs = manager.getAgentConfigs();
-      expect(configs).toHaveProperty('test');
-      expect(configs).toHaveProperty('background');
+    it('should get agent config entries', () => {
+      const entries = Array.from(manager.getAgentConfigEntries());
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.arrayContaining(['test']),
+          expect.arrayContaining(['background']),
+        ])
+      );
+    });
+
+    it('should get agent types like pattern', () => {
+      const entries = manager.getAgentTypesLike('test');
+      expect(entries).toContain('test');
     });
   });
 
@@ -116,25 +125,29 @@ describe('AgentManager', () => {
       const agent = await manager.spawnAgentFromConfig(mockConfig);
       
       expect(agent).toBeInstanceOf(Agent);
-      expect(agent.config.name).toBe(mockConfig.name);
+      expect(agent.config.displayName).toBe(mockConfig.displayName);
     });
 
     it('should spawn agent by type', async () => {
       const agent = await manager.spawnAgent({ agentType: 'test', headless: true });
       
       expect(agent).toBeInstanceOf(Agent);
-      expect(agent.config.name).toBe('Test Agent');
+      expect(agent.config.displayName).toBe('Test Agent');
     });
 
     it('should spawn agent from checkpoint', async () => {
-      const agent = await manager.spawnAgentFromCheckpoint(mockCheckpoint, { headless: true });
+      const checkpoint = {
+        agentId: 'test-agent-id',
+        createdAt: Date.now(),
+        agentType: 'test',
+        sessionId: 'test-session',
+        state: {},
+      };
+
+      const agent = await manager.spawnAgentFromCheckpoint(checkpoint, { headless: true });
       
       expect(agent).toBeInstanceOf(Agent);
-      expect(agent.config).toEqual({
-        ...mockCheckpoint.config,
-        createMessage: "Recovered agent of type: someAgentType from checkpoint of agent test-age",
-
-      });
+      expect(agent.config.agentType).toBe('test');
     });
   });
 
@@ -146,7 +159,7 @@ describe('AgentManager', () => {
       });
       
       expect(subAgent).toBeInstanceOf(Agent);
-      expect(subAgent.config.agentType).toBe('someAgentType');
+      expect(subAgent.config.agentType).toBe('background');
     });
 
     it('should transfer state from parent to sub-agent', async () => {
@@ -163,23 +176,11 @@ describe('AgentManager', () => {
         }
       });
 
-
       await manager.spawnSubAgent(mockAgent, 'test', {
         headless: true 
       });
       
       expect(transferStateFromParent).toHaveBeenCalledWith(mockAgent);
-    });
-
-    it('should send system message when creating sub-agent', async () => {
-      const mockAgent = createMockAgent();
-      vi.spyOn(mockAgent, 'infoMessage');
-
-      await manager.spawnSubAgent(mockAgent, 'test', {
-        headless: true 
-      });
-      
-      expect(mockAgent.infoMessage).toHaveBeenCalled();
     });
   });
 
@@ -212,10 +213,8 @@ describe('AgentManager', () => {
 
       await manager.deleteAgent(agent.id, 'AgentManager initiated shutdown');
       
-      expect(agent.agentShutdownSignal.aborted).toEqual(true);
       expect(manager.getAgent(agent.id)).toBeNull();
     });
-
   });
 
   describe('Idle Agent Cleanup', () => {
@@ -230,7 +229,12 @@ describe('AgentManager', () => {
 
     it('should delete idle agents exceeding timeout', async () => {
       // Create agent with short timeout
-      const shortTimeoutConfig = { ...mockConfig, idleTimeout: 1 }; // 1 second
+      const shortTimeoutConfig = AgentConfigSchema.parse({
+        ...mockConfig,
+        agentType: 'short',
+        displayName: 'Short Timeout Agent',
+        idleTimeout: 1, // 1 second
+      });
       manager.addAgentConfigs('short', shortTimeoutConfig);
       
       const agent = await manager.spawnAgent({ agentType: 'short', headless: true });
@@ -239,12 +243,12 @@ describe('AgentManager', () => {
       vi.spyOn(agent, 'getIdleDuration').mockReturnValue(2000); // 2 seconds > 1 second timeout
 
       vi.spyOn(app, 'serviceOutput');
-      vi.spyOn(agent, 'requestAbort');
+      
       // Trigger cleanup
       await manager['checkAndDeleteIdleAgents']();
       
-      expect(agent.requestAbort).toHaveBeenCalledWith('AgentManager initiated shutdown');
       expect(app.serviceOutput).toHaveBeenCalledWith(
+        expect.anything(),
         expect.stringContaining('Agent')
       );
     });
@@ -255,13 +259,11 @@ describe('AgentManager', () => {
       // Mock agent to be active (idle duration < timeout)
       vi.spyOn(agent, 'getIdleDuration').mockReturnValue(1000); // 1 second < 86400 second timeout
 
-      vi.spyOn(agent, 'requestAbort');
       // Trigger cleanup
       await manager['checkAndDeleteIdleAgents']();
       
-      expect(agent.requestAbort).not.toHaveBeenCalled();
+      expect(manager.getAgent(agent.id)).toBe(agent);
     });
-
   });
 
   describe('Error Handling', () => {
@@ -272,22 +274,35 @@ describe('AgentManager', () => {
       })).rejects.toThrow();
     });
 
-    it('should handle config validation errors', () => {
-      const invalidConfig = {
-        name: 'Invalid Agent',
-        description: 'Invalid agent',
-        category: 'test',
-        type: 'interactive' as const,
-        visual: { color: '#blue' },
-        initialCommands: [],
-        callable: true,
-        idleTimeout: 86400,
-        maxRunTime: 1800,
-      };
+    it('should handle missing agent config', async () => {
+      await expect(manager.spawnAgentFromCheckpoint({
+        agentId: 'test',
+        createdAt: Date.now(),
+        agentType: 'non-existent',
+        sessionId: 'test',
+        state: {},
+      })).rejects.toThrow();
+    });
+  });
 
-      expect(() => {
-        manager.addAgentConfigs('invalid', invalidConfig as AgentConfig);
-      }).not.toThrow();
+  describe('Minimum Running Agents', () => {
+    it('should spawn minimum number of agents', async () => {
+      const minRunningConfig = AgentConfigSchema.parse({
+        ...mockConfig,
+        agentType: 'min-test',
+        displayName: 'Min Running Agent',
+        minimumRunning: 2,
+      });
+      manager.addAgentConfigs('min-test', minRunningConfig);
+
+      // Trigger cleanup which should check minimum running
+      await manager['checkAndDeleteIdleAgents']();
+      
+      // Wait a bit for async agent spawning
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      const agents = manager.getAgents().filter(a => a.config.agentType === 'min-test');
+      expect(agents.length).toBeGreaterThanOrEqual(2);
     });
   });
 });

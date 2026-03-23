@@ -1,18 +1,18 @@
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from "../../Agent";
-import AgentLifecycleService from '../../services/AgentLifecycleService.ts';
-import {LifecycleState} from '../../state/hooksState.js';
-import type {HookSubscription, HookType} from '../../types.js';
+import AgentLifecycleService from '@tokenring-ai/lifecycle/AgentLifecycleService';
+import {LifecycleState} from '@tokenring-ai/lifecycle/state/lifecycleState';
+import type {HookSubscription} from '@tokenring-ai/lifecycle/types';
+import {HookCallback, AfterAgentInputSuccess, BeforeAgentInput} from '@tokenring-ai/lifecycle/util/hooks';
 import createTestingAgent from "../createTestingAgent";
+import {AgentConfigSchema} from "../../schema";
 
 const app = createTestingApp();
-app.addServices(new AgentLifecycleService())
 
 // Create a mock agent
 const createMockAgent = () => {
   const agent = createTestingAgent(app);
-
   vi.spyOn(agent, 'requireServiceByType');
   vi.spyOn(agent, 'chatOutput');
   vi.spyOn(agent, 'infoMessage');
@@ -23,18 +23,21 @@ const createMockAgent = () => {
 
 const mockHook: HookSubscription = {
   name: 'test-hook',
-  displayName: "Test Hook",
+  displayName: 'Test Hook',
   description: 'A test hook',
-  afterChatCompletion: vi.fn(),
-  afterTesting: vi.fn(),
+  callbacks: [
+    new HookCallback(AfterAgentInputSuccess, vi.fn()),
+    new HookCallback(BeforeAgentInput, vi.fn()),
+  ],
 };
 
 const anotherHook: HookSubscription = {
   name: 'another-hook',
-  displayName: "Test Hook 2",
+  displayName: 'Test Hook 2',
   description: 'Another test hook',
-  afterChatCompletion: vi.fn(),
-  afterAgentInputComplete: vi.fn(),
+  callbacks: [
+    new HookCallback(AfterAgentInputSuccess, vi.fn()),
+  ],
 };
 
 describe('AgentLifecycleService', () => {
@@ -42,10 +45,14 @@ describe('AgentLifecycleService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new AgentLifecycleService();
+    service = new AgentLifecycleService({
+      agentDefaults: {
+        enabledHooks: [],
+      }
+    });
     
-    service.registerHook('test', mockHook);
-    service.registerHook('another', anotherHook);
+    service.registerHook('test-hook', mockHook);
+    service.registerHook('another-hook', anotherHook);
   });
 
   afterEach(() => {
@@ -61,192 +68,343 @@ describe('AgentLifecycleService', () => {
 
   describe('Hook Registration', () => {
     it('should register hooks correctly', () => {
-      const hooks = service.getRegisteredHooks();
-      expect(hooks).toHaveProperty('test');
-      expect(hooks).toHaveProperty('another');
+      const hookNames = service.getAllHookNames();
+      expect(hookNames).toContain('test-hook');
+      expect(hookNames).toContain('another-hook');
     });
 
     it('should add multiple hooks', () => {
-      service.addHooks('package', {
+      service.addHooks({
         'hook1': mockHook,
         'hook2': anotherHook,
       });
 
-      const hooks = service.getRegisteredHooks();
-      expect(hooks).toHaveProperty('package/hook1');
-      expect(hooks).toHaveProperty('package/hook2');
+      const hookNames = service.getAllHookNames();
+      expect(hookNames).toContain('hook1');
+      expect(hookNames).toContain('hook2');
     });
 
-    it('should throw error for non-existent hooks when ensuring', () => {
-      expect(() => service['hooks'].ensureItems(['non-existent'])).toThrow();
+    it('should get hook entries', () => {
+      const entries = Array.from(service.getAllHookEntries());
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.arrayContaining(['test-hook']),
+          expect.arrayContaining(['another-hook']),
+        ])
+      );
     });
   });
 
   describe('Hook Management', () => {
-    let mockAgent!: Agent;
+    let mockAgent: Agent;
     beforeEach(() => {
       mockAgent = createMockAgent();
+      // Attach service to agent to initialize state
+      service.attach(mockAgent);
     });
 
     it('should get enabled hooks', () => {
-      service.setEnabledHooks(['test'], mockAgent);
+      service.setEnabledHooks(['test-hook'], mockAgent);
       
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks).toEqual(['test']);
+      expect(enabledHooks).toEqual(['test-hook']);
     });
 
     it('should set enabled hooks', () => {
       vi.spyOn(mockAgent, 'mutateState');
-      service.setEnabledHooks(['test', 'another'], mockAgent);
+      service.setEnabledHooks(['test-hook', 'another-hook'], mockAgent);
       
       expect(mockAgent.mutateState).toHaveBeenCalledWith(LifecycleState, expect.any(Function));
     });
 
     it('should enable additional hooks', () => {
-      service.setEnabledHooks(['test'], mockAgent);
-
-      service.enableHooks(['another'], mockAgent);
+      service.setEnabledHooks(['test-hook'], mockAgent);
+      service.enableHooks(['another-hook'], mockAgent);
       
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks).toContain('test');
-      expect(enabledHooks).toContain('another');
+      expect(enabledHooks).toContain('test-hook');
+      expect(enabledHooks).toContain('another-hook');
     });
 
     it('should disable hooks', () => {
-      service.setEnabledHooks(['test', 'another'], mockAgent);
-
-      service.disableHooks(['test'], mockAgent);
+      service.setEnabledHooks(['test-hook', 'another-hook'], mockAgent);
+      service.disableHooks(['test-hook'], mockAgent);
       
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks).toEqual(['another']);
+      expect(enabledHooks).toEqual(['another-hook']);
     });
 
     it('should not duplicate enabled hooks', () => {
-      service.setEnabledHooks(['test'], mockAgent);
-
-      service.enableHooks(['test'], mockAgent);
+      service.setEnabledHooks(['test-hook'], mockAgent);
+      service.enableHooks(['test-hook'], mockAgent);
       
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks.filter(hook => hook === 'test')).toHaveLength(1);
+      expect(enabledHooks.filter(hook => hook === 'test-hook')).toHaveLength(1);
     });
   });
 
   describe('Hook Execution', () => {
-    let mockAgent!: Agent;
+    let mockAgent: Agent;
     beforeEach(() => {
       mockAgent = createMockAgent();
+      service.attach(mockAgent);
     });
 
-    it('should execute hooks after chat completion', async () => {
-      service.setEnabledHooks(['test'], mockAgent);
-      await service.executeHooks(mockAgent, 'afterChatCompletion', 'test args');
+    it('should execute hooks after agent input success', async () => {
+      service.setEnabledHooks(['test-hook'], mockAgent);
       
-      expect(mockHook.afterChatCompletion).toHaveBeenCalledWith(mockAgent, 'test args');
-      expect(anotherHook.afterChatCompletion).not.toHaveBeenCalled();
+      const requestData = {
+        type: 'input.received' as const,
+        requestId: 'test-request',
+        timestamp: Date.now(),
+        input: { from: 'test', message: 'test message' }
+      };
+      
+      const responseData = {
+        type: 'agent.response' as const,
+        timestamp: Date.now(),
+        requestId: 'test-request',
+        status: 'success',
+        message: 'success',
+      };
+
+      await service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent);
+      
+      const callback = mockHook.callbacks.find(c => c.hookConstructor === AfterAgentInputSuccess);
+      expect(callback?.callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        mockAgent
+      );
     });
 
-    it('should execute hooks after testing', async () => {
-      service.setEnabledHooks(['test'], mockAgent);
-      await service.executeHooks(mockAgent, 'afterTesting');
+    it('should execute hooks before agent input', async () => {
+      service.setEnabledHooks(['test-hook'], mockAgent);
       
-      expect(mockHook.afterTesting).toHaveBeenCalledWith(mockAgent);
+      const requestData = {
+        type: 'input.received' as const,
+        requestId: 'test-request',
+        timestamp: Date.now(),
+        input: { from: 'test', message: 'test message' }
+      };
+
+      await service.executeHooks(new BeforeAgentInput(requestData), mockAgent);
+      
+      const callback = mockHook.callbacks.find(c => c.hookConstructor === BeforeAgentInput);
+      expect(callback?.callback).toHaveBeenCalledWith(
+        expect.any(BeforeAgentInput),
+        mockAgent
+      );
     });
 
-    it('should execute hooks after agent input complete', async () => {
-      service.setEnabledHooks(['another'], mockAgent);
-      await service.executeHooks(mockAgent, 'afterAgentInputComplete', 'input');
+    it('should execute hooks after agent input handled', async () => {
+      const handledHook: HookSubscription = {
+        name: 'handled-hook',
+        displayName: 'Handled Hook',
+        description: 'A hook for handled input',
+        callbacks: [
+          new HookCallback(AfterAgentInputSuccess, vi.fn()),
+        ],
+      };
+      service.registerHook('handled-hook', handledHook);
       
-      expect(anotherHook.afterAgentInputComplete).toHaveBeenCalledWith(mockAgent, 'input');
+      service.setEnabledHooks(['handled-hook'], mockAgent);
+      
+      const requestData = {
+        type: 'input.received' as const,
+        requestId: 'test-request',
+        timestamp: Date.now(),
+        input: { from: 'test', message: 'test message' }
+      };
+      
+      const responseData = {
+        type: 'agent.response' as const,
+        timestamp: Date.now(),
+        requestId: 'test-request',
+        status: 'success',
+        message: 'success',
+      };
+
+      await service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent);
+      
+      const callback = handledHook.callbacks[0];
+      expect(callback.callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        mockAgent
+      );
     });
 
     it('should handle hooks with missing callback types', async () => {
       const partialHook: HookSubscription = {
         name: 'partial',
+        displayName: 'Partial Hook',
         description: 'Partial hook',
-        afterChatCompletion: vi.fn(),
+        callbacks: [
+          new HookCallback(AfterAgentInputSuccess, vi.fn()),
+        ],
       };
 
       service.registerHook('partial', partialHook);
-      service.setEnabledHooks(['test', 'partial'], mockAgent);
+      service.setEnabledHooks(['test-hook', 'partial'], mockAgent);
       
-      await service.executeHooks(mockAgent, 'afterChatCompletion');
+      const requestData = {
+        type: 'input.received' as const,
+        requestId: 'test-request',
+        timestamp: Date.now(),
+        input: { from: 'test', message: 'test message' }
+      };
       
-      expect(mockHook.afterChatCompletion).toHaveBeenCalledWith(mockAgent);
-      expect(partialHook.afterChatCompletion).toHaveBeenCalledWith(mockAgent);
+      const responseData = {
+        type: 'agent.response' as const,
+        timestamp: Date.now(),
+        requestId: 'test-request',
+        status: 'success',
+        message: 'success',
+      };
+
+      await service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent);
+      
+      const testCallback = mockHook.callbacks.find(c => c.hookConstructor === AfterAgentInputSuccess);
+      const partialCallback = partialHook.callbacks[0];
+      
+      expect(testCallback?.callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        mockAgent
+      );
+      expect(partialCallback.callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        mockAgent
+      );
     });
 
     it('should execute all enabled hooks of the specified type', async () => {
       const hook1: HookSubscription = {
         name: 'hook1',
+        displayName: 'Hook 1',
         description: 'Hook 1',
-        afterChatCompletion: vi.fn(),
+        callbacks: [
+          new HookCallback(AfterAgentInputSuccess, vi.fn()),
+        ],
       };
 
       const hook2: HookSubscription = {
         name: 'hook2',
+        displayName: 'Hook 2',
         description: 'Hook 2',
-        afterChatCompletion: vi.fn(),
+        callbacks: [
+          new HookCallback(AfterAgentInputSuccess, vi.fn()),
+        ],
       };
 
       service.registerHook('hook1', hook1);
       service.registerHook('hook2', hook2);
-      service.setEnabledHooks(['test', 'hook1', 'hook2'], mockAgent);
+      service.setEnabledHooks(['test-hook', 'hook1', 'hook2'], mockAgent);
       
-      await service.executeHooks(mockAgent, 'afterChatCompletion');
+      const requestData = {
+        type: 'input.received' as const,
+        requestId: 'test-request',
+        timestamp: Date.now(),
+        input: { from: 'test', message: 'test message' }
+      };
       
-      expect(mockHook.afterChatCompletion).toHaveBeenCalledWith(mockAgent);
-      expect(hook1.afterChatCompletion).toHaveBeenCalledWith(mockAgent);
-      expect(hook2.afterChatCompletion).toHaveBeenCalledWith(mockAgent);
+      const responseData = {
+        type: 'agent.response' as const,
+        timestamp: Date.now(),
+        requestId: 'test-request',
+        status: 'success',
+        message: 'success',
+      };
+
+      await service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent);
+      
+      const testCallback = mockHook.callbacks.find(c => c.hookConstructor === AfterAgentInputSuccess);
+      expect(testCallback?.callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        mockAgent
+      );
+      expect(hook1.callbacks[0].callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        mockAgent
+      );
+      expect(hook2.callbacks[0].callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        mockAgent
+      );
     });
 
-    it('should handle hook execution errors gracefully', async () => {
+    it('should handle hook execution errors', async () => {
       const errorHook: HookSubscription = {
         name: 'error',
+        displayName: 'Error Hook',
         description: 'Error hook',
-        afterChatCompletion: vi.fn().mockRejectedValue(new Error('Hook failed')),
+        callbacks: [
+          new HookCallback(AfterAgentInputSuccess, vi.fn().mockRejectedValue(new Error('Hook failed'))),
+        ],
       };
 
       service.registerHook('error', errorHook);
-      service.setEnabledHooks(['test', 'error'], mockAgent);
+      service.setEnabledHooks(['error'], mockAgent);
       
-      await expect(service.executeHooks(mockAgent, 'afterChatCompletion')).rejects.toThrow();
+      const requestData = {
+        type: 'input.received' as const,
+        requestId: 'test-request',
+        timestamp: Date.now(),
+        input: { from: 'test', message: 'test message' }
+      };
       
-      expect(mockHook.afterChatCompletion).toHaveBeenCalledWith(mockAgent);
-      expect(errorHook.afterChatCompletion).toHaveBeenCalledWith(mockAgent);
+      const responseData = {
+        type: 'agent.response' as const,
+        timestamp: Date.now(),
+        requestId: 'test-request',
+        status: 'success',
+        message: 'success',
+      };
+
+      await expect(service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent))
+        .rejects.toThrow('Hook failed');
     });
   });
 
   describe('Hook Types', () => {
     it('should handle all hook types', () => {
-      const allHookTypes: HookType[] = [
-        'afterChatCompletion',
-        'beforeChatCompletion',
-        'afterAgentInputComplete',
+      const hookTypes = [
+        AfterAgentInputSuccess,
+        BeforeAgentInput,
       ];
 
-      allHookTypes.forEach(type => {
+      hookTypes.forEach(HookType => {
         const hook: HookSubscription = {
-          name: type,
-          description: `${type} hook`,
+          name: HookType.name,
+          displayName: HookType.name,
+          description: `${HookType.name} hook`,
+          callbacks: [
+            new HookCallback(HookType, vi.fn()),
+          ],
         };
-        service.registerHook(type, hook);
+        service.registerHook(HookType.name, hook);
       });
 
-      const hooks = service.getRegisteredHooks();
-      expect(hooks).toHaveProperty('afterChatCompletion');
-      expect(hooks).toHaveProperty('beforeChatCompletion');
-      expect(hooks).toHaveProperty('afterAgentInputComplete');
+      const hookNames = service.getAllHookNames();
+      expect(hookNames).toContain(AfterAgentInputSuccess.name);
+      expect(hookNames).toContain(BeforeAgentInput.name);
     });
   });
-
 
   describe('Edge Cases', () => {
     it('should handle empty hook list', () => {
       const mockAgent = createMockAgent();
+      service.attach(mockAgent);
 
       const enabledHooks = service.getEnabledHooks(mockAgent);
       expect(enabledHooks).toEqual([]);
     });
 
+    it('should handle non-existent hooks when enabling', () => {
+      const mockAgent = createMockAgent();
+      service.attach(mockAgent);
+      
+      // Should throw when trying to enable non-existent hook
+      expect(() => service.setEnabledHooks(['non-existent'], mockAgent))
+        .toThrow();
+    });
   });
 });

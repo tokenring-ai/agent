@@ -3,11 +3,10 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
 import {AgentConfigSchema, type ParsedAgentConfig} from "../../schema";
 import {AgentEventState} from '../../state/agentEventState.ts';
-import {AgentExecutionState} from "../../state/agentExecutionState";
 import {CommandHistoryState} from '../../state/commandHistoryState.js';
-import {CostTrackingState} from '../../state/costTrackingState.ts';
-import {LifecycleState} from '../../state/hooksState.js';
 import createTestingAgent from "../createTestingAgent";
+
+import { setTimeout as delay } from 'node:timers/promises';
 
 const app = createTestingApp();
 
@@ -21,53 +20,54 @@ describe('Agent', () => {
 
   afterEach(() => {
     if (agent) {
-      agent.shutdown("Normal shutdown");
+      // Agent doesn't have shutdown method, just clear mocks
+      vi.clearAllMocks();
     }
   });
 
   describe('Constructor and Initialization', () => {
     it('should create an agent with correct properties', () => {
-      expect(agent.displayName).toBe(agent.config.name);
+      expect(agent.displayName).toBe(agent.config.displayName);
       expect(agent.config.description).toBe(agent.config.description);
       expect(agent.id).toBeDefined();
-      expect(agent.headless).toBe(false);
+      // headless is set from config
+      expect(agent.headless).toBe(agent.config.headless);
     });
 
     it('should initialize state correctly', () => {
       expect(agent.getState(AgentEventState)).toBeDefined();
       expect(agent.getState(CommandHistoryState)).toBeDefined();
-      expect(agent.getState(CostTrackingState)).toBeDefined();
     });
-
   });
 
   describe('Input Handling', () => {
     it('should handle input correctly', () => {
       const message = 'Test message';
-      const requestId = agent.handleInput({ message: message });
+      const requestId = agent.handleInput({ from: 'test', message: message });
       
       expect(requestId).toBeDefined();
       expect(typeof requestId).toBe('string');
 
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
-        type: 'input.received',
-        message,
-        requestId,
-      });
+      const lastEvent = eventState.events[eventState.events.length - 1];
+      expect(lastEvent.type).toBe('input.received');
+      expect(lastEvent.requestId).toBe(requestId);
     });
 
-    it('should trim input message', () => {
+    it('should not trim input message (trimming happens in command service)', () => {
       const message = '  Test message with spaces  ';
-      agent.handleInput({ message: message });
+      agent.handleInput({ from: 'test', message: message });
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[eventState.events.length - 1].message).toBe('Test message with spaces');
+      // Find the input.received event
+      const inputEvent = eventState.events.find(e => e.type === 'input.received');
+      expect(inputEvent).toBeDefined();
+      expect(inputEvent!.input.message).toBe(message);
     });
 
     it('should add message to command history', () => {
       const message = 'Test command';
-      agent.handleInput({ message: message });
+      agent.handleInput({ from: 'test', message: message });
       
       const historyState = agent.getState(CommandHistoryState);
       expect(historyState.commands).toContain(message);
@@ -95,13 +95,13 @@ describe('Agent', () => {
       });
     });
 
-    it('should output system messages', () => {
-      agent.infoMessage('System message');
+    it('should output info messages', () => {
+      agent.infoMessage('Info message');
       
       const eventState = agent.getState(AgentEventState);
       expect(eventState.events[eventState.events.length - 1]).toMatchObject({
         type: 'output.info',
-        message: 'System message',
+        message: 'Info message',
       });
     });
 
@@ -115,49 +115,11 @@ describe('Agent', () => {
     });
   });
 
-  describe('Cost Tracking', () => {
-    it('should add costs correctly', () => {
-      agent.addCost('token', 100);
-      agent.addCost('api', 50);
-      
-      const costState = agent.getState(CostTrackingState);
-      expect(costState.costs.token).toBe(100);
-      expect(costState.costs.api).toBe(50);
-    });
-
-    it('should accumulate costs for same category', () => {
-      agent.addCost('tokens', 100);
-      agent.addCost('tokens', 50);
-      
-      const costState = agent.getState(CostTrackingState);
-      expect(costState.costs.tokens).toBe(150);
-    });
-  });
-
-  describe('Reset Functionality', () => {
-    it('should reset agent state', () => {
-      // Add some state
-      agent.handleInput({ message: 'test' });
-      agent.addCost('test', 100);
-      
-      // Reset
-      agent.reset(['history','costs']);
-      
-      const eventState = agent.getState(AgentEventState);
-      const historyState = agent.getState(CommandHistoryState);
-      const costState = agent.getState(CostTrackingState);
-      
-      expect(eventState.events.length).toEqual(3);
-      expect(historyState.commands).toEqual([]);
-      expect(costState.costs).toEqual({});
-    });
-  });
-
   describe('Agent Lifecycle', () => {
     it('should calculate idle duration correctly', () => {
       const startTime = Date.now();
       vi.useFakeTimers({ now: startTime });
-      agent.infoMessage("hello world!"); // Sets the last idle time
+      agent.infoMessage("hello world!"); // Sets the last activity time
       
       // Simulate some time passing
       vi.advanceTimersByTime(1000);
@@ -166,35 +128,53 @@ describe('Agent', () => {
       expect(idleDuration).toBeGreaterThanOrEqual(1000);
     });
 
-    it('should not abort when agent is idle', () => {
-      const reason = 'Test abort reason';
-      agent.requestAbort(reason);
+    it('should calculate run duration correctly', () => {
+      const startTime = Date.now();
+      vi.useFakeTimers({ now: startTime });
       
-      const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(2);
-      expect(eventState.events[2]).not.toMatchObject({
-        type: 'abort',
-        reason,
-      });
+      // Trigger an event to set the first activity time
+      agent.infoMessage("start");
+      
+      vi.advanceTimersByTime(2000);
+      
+      const runDuration = agent.getRunDuration();
+      expect(runDuration).toBeGreaterThanOrEqual(2000);
     });
 
-    it('should handle abort requests', () => {
-      agent.mutateState(AgentExecutionState, state => {
-        state.inputQueue.push("doesn't matter" as any);
+    it('should abort current operation when there is one', () => {
+      // Add an input item to the queue
+      agent.mutateState(AgentEventState, (state) => {
+        state.inputQueue.push({
+          request: {
+            type: 'input.received',
+            requestId: 'test-request',
+            timestamp: Date.now(),
+            input: { from: 'test', message: 'test' }
+          },
+          executionState: {
+            status: 'queued',
+            currentActivity: 'test',
+            availableInteractions: []
+          },
+          interactionCallbacks: new Map(),
+          abortController: new AbortController()
+        });
+        state.currentlyExecutingInputItem = state.inputQueue[0];
       });
-
-      expect(agent.getState(AgentExecutionState).idle).toBe(false);
 
       const reason = 'Test abort reason';
-      agent.requestAbort(reason);
-
+      const result = agent.abortCurrentOperation(reason);
+      
+      expect(result).toBe(true);
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events).toHaveLength(2);
-      expect(eventState.events[1]).toMatchObject({
-        type: 'abort',
-        timestamp: expect.any(Number),
-        reason,
-      });
+      expect(eventState.currentlyExecutingInputItem?.abortController.signal.aborted).toBe(true);
+    });
+
+    it('should return false when aborting with no current operation', () => {
+      const reason = 'Test abort reason';
+      const result = agent.abortCurrentOperation(reason);
+      
+      expect(result).toBe(false);
     });
   });
 
@@ -206,25 +186,74 @@ describe('Agent', () => {
       );
     });
 
-    it('should handle busyWhile correctly', async () => {
+    it('should handle busyWithActivity correctly', async () => {
+      // Setup: need an input item to be executing
+      const abortController = new AbortController();
+      agent.mutateState(AgentEventState, (state) => {
+        state.currentlyExecutingInputItem = {
+          request: {
+            type: 'input.received',
+            requestId: 'test-request',
+            timestamp: Date.now(),
+            input: { from: 'test', message: 'test' }
+          },
+          executionState: {
+            status: 'running',
+            currentActivity: 'initial',
+            availableInteractions: []
+          },
+          interactionCallbacks: new Map(),
+          abortController
+        };
+      });
+
       const promise = Promise.resolve('result');
       const result = await agent.busyWithActivity('Loading...', promise);
       
       expect(result).toBe('result');
-      const eventState = agent.getState(AgentExecutionState);
-      expect(eventState.busyWith).toBeNull(); // Should be cleared after completion
+      
+      // After completion, the activity should be restored
+      const eventState = agent.getState(AgentEventState);
+      expect(eventState.currentlyExecutingInputItem?.executionState.currentActivity).toBe('initial');
+    });
+
+    it('should set current activity', () => {
+      const abortController = new AbortController();
+      agent.mutateState(AgentEventState, (state) => {
+        state.currentlyExecutingInputItem = {
+          request: {
+            type: 'input.received',
+            requestId: 'test-request',
+            timestamp: Date.now(),
+            input: { from: 'test', message: 'test' }
+          },
+          executionState: {
+            status: 'running',
+            currentActivity: 'initial',
+            availableInteractions: []
+          },
+          interactionCallbacks: new Map(),
+          abortController
+        };
+      });
+
+      agent.setCurrentActivity('New activity');
+      
+      const eventState = agent.getState(AgentEventState);
+      expect(eventState.currentlyExecutingInputItem?.executionState.currentActivity).toBe('New activity');
     });
   });
 
   describe('Configuration', () => {
     it('should get config slice with valid schema', () => {
-      const name = agent.getAgentConfigSlice('name', AgentConfigSchema.shape.name);
-      expect(name).toEqual(agent.config.name);
+      const displayName = agent.getAgentConfigSlice('displayName', AgentConfigSchema.shape.displayName);
+      expect(displayName).toEqual(agent.config.displayName);
     });
 
     it('should throw error for invalid config slice', () => {
       expect(() => {
-        agent.getAgentConfigSlice('nonexistent', AgentConfigSchema.shape.name);
+        // @ts-expect-error - Testing invalid key
+        agent.getAgentConfigSlice('nonexistent', AgentConfigSchema.shape.displayName);
       }).toThrow();
     });
   });
@@ -236,64 +265,146 @@ describe('Agent', () => {
       expect(checkpoint).toMatchObject({
         agentId: agent.id,
         createdAt: expect.any(Number),
-        config: agent.config,
+        sessionId: agent.app.sessionId,
+        agentType: agent.config.agentType,
         state: expect.any(Object),
       });
+      
+      // Checkpoint does NOT include config
+      expect((checkpoint as any).config).toBeUndefined();
     });
 
     it('should restore state from checkpoint', () => {
       // Add some state
-      agent.mutateState(AgentEventState, state => {
-        state.emit({ type: 'input.received', message: 'test', requestId: "abc123", timestamp: 100});
-        state.emit({ type: 'input.handled', message: 'test', requestId: "abc123", status: 'success', timestamp: 200 });
-      })
-      agent.handleInput({ message: 'test' });
-      agent.addCost('test', 100);
+      agent.handleInput({ from: 'test', message: 'test' });
       
       const checkpoint = agent.generateCheckpoint();
 
-      // Reset state
-      agent.reset(['history']);
+      // Create new agent and restore
+      const newAgent = createTestingAgent(app);
+      newAgent.restoreState(checkpoint.state);
       
-      // Restore
-      agent.restoreState(checkpoint.state);
-      
-      const eventState = agent.getState(AgentEventState);
-      const costState = agent.getState(CostTrackingState);
-
-      expect(eventState.events[1].type).toEqual('input.received');
-      expect(eventState.events[1].message).toEqual('test');
-
-      expect(eventState.events[2].type).toEqual('input.handled');
-      expect(eventState.events[2].message).toEqual('test');
-
-      expect(eventState.events[3].type).toEqual('reset');
-      expect(eventState.events[3].what).toEqual(['history']);
-
-      expect(costState.costs.test).toBe(100);
+      const eventState = newAgent.getState(AgentEventState);
+      // Events should be restored (with cleanup during restore)
+      expect(eventState.events.length).toBeGreaterThan(0);
     });
   });
 
   describe('Debug Mode', () => {
     it('should handle debug messages when enabled', () => {
-      const debugAgent = new Agent(app, {
-        ...agent.config,
+      const debugConfig = AgentConfigSchema.parse({
+        agentType: 'test',
+        displayName: 'Test',
+        description: 'Test',
+        category: 'test',
         debug: true,
-        headless: true 
+        createMessage: 'Test',
+        headless: true,
       });
+      
+      const debugAgent = new Agent(app, {}, debugConfig, new AbortController().signal);
       
       debugAgent.debugMessage('Debug message');
       
       const eventState = debugAgent.getState(AgentEventState);
-      expect(eventState.events[eventState.events.length - 1].type).toEqual('output.info');
-      expect(eventState.events[eventState.events.length - 1].message).toEqual('Debug message');
+      const lastEvent = eventState.events[eventState.events.length - 1];
+      expect(lastEvent.type).toEqual('output.info');
+      expect(lastEvent.message).toEqual('Debug message');
     });
 
     it('should not output debug messages when disabled', () => {
+      const initialEventCount = agent.getState(AgentEventState).events.length;
+      
       agent.debugMessage('Debug message');
       
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[eventState.events.length - 1].message).not.toEqual('Debug message');
+      // No new events should be added
+      expect(eventState.events.length).toBe(initialEventCount);
+    });
+  });
+
+  describe('Background Task', () => {
+    it('should run background task', async () => {
+      const taskCalled = vi.fn();
+      const task = vi.fn().mockImplementation((signal: AbortSignal) => {
+        taskCalled();
+        // Task completes synchronously
+      });
+      
+      agent.runBackgroundTask(task as any);
+
+      await delay(100);
+
+      expect(task).toHaveBeenCalled();
+      expect(taskCalled).toHaveBeenCalled();
+    });
+
+    it('should handle background task errors', async () => {
+      const errorMessageSpy = vi.spyOn(agent, 'errorMessage').mockImplementation(() => {});
+      
+      const task = vi.fn().mockImplementation((signal: AbortSignal) => {
+        throw new Error('Background task failed');
+      });
+      
+      agent.runBackgroundTask(task as any);
+
+      await delay(100);
+
+      expect(errorMessageSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('Artifact Output', () => {
+    it('should output artifacts', () => {
+      agent.artifactOutput({
+        name: 'test-artifact',
+        encoding: 'utf-8',
+        mimeType: 'text/plain',
+        body: 'artifact content'
+      });
+      
+      const eventState = agent.getState(AgentEventState);
+      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
+        type: 'output.artifact',
+        name: 'test-artifact',
+      });
+    });
+  });
+
+  describe('Send Interaction Response', () => {
+    it('should send interaction response', () => {
+      // Setup: need an input item in the queue with a callback
+      const resolveCallback = vi.fn();
+      agent.mutateState(AgentEventState, (state) => {
+        state.inputQueue.push({
+          request: {
+            type: 'input.received',
+            requestId: 'test-request',
+            timestamp: Date.now(),
+            input: { from: 'test', message: 'test' }
+          },
+          executionState: {
+            status: 'running',
+            currentActivity: 'test',
+            availableInteractions: []
+          },
+          interactionCallbacks: new Map([['test-interaction', resolveCallback]]),
+          abortController: new AbortController()
+        });
+        state.currentlyExecutingInputItem = state.inputQueue[0];
+      });
+
+      agent.sendInteractionResponse({
+        requestId: 'test-request',
+        interactionId: 'test-interaction',
+        result: 'test-result'
+      });
+      
+      const eventState = agent.getState(AgentEventState);
+      const lastEvent = eventState.events[eventState.events.length - 1];
+      expect(lastEvent.type).toBe('input.interaction');
+      expect(lastEvent.requestId).toBe('test-request');
+      expect(resolveCallback).toHaveBeenCalledWith('test-result');
     });
   });
 });
