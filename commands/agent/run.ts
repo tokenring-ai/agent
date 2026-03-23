@@ -1,4 +1,7 @@
-import {SubAgentService} from "../../index.ts";
+import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
+import {CommandFailedError} from "../../AgentError.ts";
+import {AfterSubAgentResponse} from "../../hooks.ts";
+import {type RunSubAgentOptions, SubAgentService} from "../../index.ts";
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {
@@ -26,7 +29,7 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
 
   const subAgentService = agent.requireServiceByType(SubAgentService);
 
-  await subAgentService.runSubAgent({
+  const request: RunSubAgentOptions = {
     agentType,
     background: isBg,
     headless: agent.headless,
@@ -36,9 +39,23 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
     },
     parentAgent: agent,
     autoCleanup: true
-  });
+  }
+  const result = await subAgentService.runSubAgent(request);
 
-  return isBg ? "Agent started in background." : "Sub-agent completed successfully.";
+  const lifecycleService = agent.getServiceByType(AgentLifecycleService);
+  lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
+
+  if (isBg) {
+    return `Agent ${agentType} started in background.`;
+  }
+
+  if (result.status === "success") {
+    return result.response || "Agent completed successfully.";
+  } else if (result.status === "cancelled") {
+    throw new CommandFailedError(`Agent was cancelled: ${result.response}`);
+  } else {
+    throw new CommandFailedError(`Agent error: ${result.response}`);
+  }
 }
 
 const command = {

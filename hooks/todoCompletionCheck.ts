@@ -22,7 +22,7 @@ const callbacks = [
 
     if (incompleteTodos.length === 0) {
       // All todos are complete
-      agent.infoMessage("✅ All todos completed!");
+      //agent.infoMessage("✅ All todos completed!");
       return;
     }
 
@@ -32,10 +32,10 @@ const callbacks = [
     
     const message = `📋 **${incompleteTodos.length} remaining task(s)** detected:\n` +
       `${pendingCount} pending, ${inProgressCount} in progress\n\n` +
-      "Please complete the remaining tasks on your todo list before ending this session.\n\n" +
+      "Please complete the remaining tasks on your todo list.\n\n" +
       formatIncompleteTodos(incompleteTodos);
 
-    agent.infoMessage(message);
+    agent.handleInput({ from: "Todo Completion Check Hook", message });
   })
 ];
 

@@ -1,10 +1,14 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
+import {ChatService} from "@tokenring-ai/chat";
+import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {setTimeout} from "node:timers/promises";
 import Agent from "../Agent.js";
-import {SubAgentService} from "../index.ts";
+import {CommandFailedError} from "../AgentError.ts";
+import {AfterSubAgentResponse} from "../hooks.ts";
+import {type RunSubAgentOptions, SubAgentService} from "../index.ts";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
 import {
@@ -61,28 +65,26 @@ export default class AgentManager implements TokenRingService {
     const commandName = commandConfig.name || config.agentType;
     const commandDescription = `${commandConfig.description || config.description}`;
     const inputSchema = {
-      positionals: [
-        {
-          name: 'message',
-          description: `Message to send to the ${config.agentType} agent`,
-          required: true,
-        },
-      ]
+      remainder: {
+        name: 'message',
+        description: `Message to send to the ${config.agentType} agent`,
+        required: true,
+      }
     } as const satisfies AgentCommandInputSchema;
     
     const agentCommand: TokenRingAgentCommand<typeof inputSchema> = {
       name: commandName,
       description: commandDescription,
       inputSchema,
-      execute: async ({positionals: { message }, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> => {
+      execute: async ({remainder, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> => {
         const subAgentService = agent.requireServiceByType(SubAgentService);
-        const result = await subAgentService.runSubAgent({
+        const request: RunSubAgentOptions = {
           agentType: config.agentType,
           background: commandConfig.background,
           headless: agent.headless,
           input: {
             from: `Parent agent command: /${commandName}`,
-            message: `/work ${message}`
+            message: `/work ${remainder}`
           },
           parentAgent: agent,
           options: {
@@ -94,18 +96,23 @@ export default class AgentManager implements TokenRingService {
             forwardArtifacts: commandConfig.forwardArtifacts,
           },
           checkPermissions: false
-        });
+        };
+
+        const result = await subAgentService.runSubAgent(request);
 
         if (commandConfig.background) {
           return `Agent ${config.agentType} started in background.`;
         }
-        
+
+        const lifecycleService = agent.getServiceByType(AgentLifecycleService);
+        lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
+
         if (result.status === "success") {
           return result.response || "Agent completed successfully.";
         } else if (result.status === "cancelled") {
-          return `Agent was cancelled: ${result.response}`;
+          throw new CommandFailedError(`Agent was cancelled: ${result.response}`);
         } else {
-          return `Agent error: ${result.response}`;
+          throw new CommandFailedError(`Agent error: ${result.response}`);
         }
       },
       help: commandConfig.help ?? `# /${commandName}
