@@ -70,7 +70,7 @@ export const AgentConfigSchema = z.object({
   maxRunTime: z.number().default(0), // In seconds
   subAgent: SubAgentConfigSchema,
   todos: z.object({
-    copyToChild: z.boolean().default(true),
+    copyToChild: z.boolean().default(false),
     initialItems: z.array(TodoItemSchema).default([]),
   }).prefault({}),
 });

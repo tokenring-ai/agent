@@ -329,10 +329,10 @@ export default class Agent {
   }
 
   runBackgroundTask(task: (signal: AbortSignal) => Promise<void>) {
-    task(this.agentShutdownSignal)
-      .catch(error => {
-        this.errorMessage("Error while running background task", error as Error);
-      });
+    Promise.resolve().then(() => task(this.agentShutdownSignal))
+    .catch(error => {
+      this.errorMessage("Error while running background task", error as Error);
+    });
   }
 
   private emit(event: AgentEventEnvelope): void {

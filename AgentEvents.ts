@@ -101,6 +101,9 @@ export const InteractionSchema = z.discriminatedUnion('type', [
   QuestionInteractionSchema,
 ]);
 
+export type Interaction = z.input<typeof InteractionSchema>;
+export type ParsedInteraction = z.output<typeof InteractionSchema>;
+
 export type InputAttachment = z.input<typeof AttachmentSchema>;
 
 export const InputReceivedSchema = z.object({

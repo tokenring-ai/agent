@@ -4,20 +4,29 @@ import todoCompletionCheckHook from './todoCompletionCheck.js';
 import {TodoState} from "../state/todoState.js";
 
 // Mock Agent
-const mockAgent = {
+const createMockAgent = () => ({
   getState: vi.fn(),
   mutateState: vi.fn(),
   infoMessage: vi.fn(),
   errorMessage: vi.fn(),
   askQuestion: vi.fn(),
+  handleInput: vi.fn(),
   id: 'test-agent-id',
-  name: 'test-agent',
-  config: { type: 'test-agent-type' }
-} as any;
+  config: { 
+    agentType: 'test-agent-type',
+    todos: {
+      copyToChild: true,
+      initialItems: [],
+    }
+  }
+} as any);
 
 describe('Todo Completion Check Hook', () => {
+  let mockAgent: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAgent = createMockAgent();
   });
 
   afterEach(() => {
@@ -27,6 +36,7 @@ describe('Todo Completion Check Hook', () => {
   describe('Hook Configuration', () => {
     it('should export correct name and description', () => {
       expect(todoCompletionCheckHook.name).toBe('todoCompletionCheck');
+      expect(todoCompletionCheckHook.displayName).toBe('Todo/Completion Check');
       expect(todoCompletionCheckHook.description).toBe('Checks if todos are complete at the end of a successful chat and prompts to complete remaining work');
     });
 
@@ -38,6 +48,12 @@ describe('Todo Completion Check Hook', () => {
       expect(hook.callbacks).toBeDefined();
       expect(hook.callbacks.length).toBeGreaterThan(0);
     });
+
+    it('should have callback for AfterAgentInputSuccess', () => {
+      const callback = todoCompletionCheckHook.callbacks[0];
+      expect(callback).toBeDefined();
+      expect(callback.hookConstructor).toBe(AfterAgentInputSuccess);
+    });
   });
 
   describe('Hook Execution - No Todos', () => {
@@ -48,6 +64,7 @@ describe('Todo Completion Check Hook', () => {
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
       expect(mockAgent.infoMessage).not.toHaveBeenCalled();
+      expect(mockAgent.handleInput).not.toHaveBeenCalled();
     });
 
     it('should do nothing when todos state is null', async () => {
@@ -57,11 +74,22 @@ describe('Todo Completion Check Hook', () => {
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
       expect(mockAgent.infoMessage).not.toHaveBeenCalled();
+      expect(mockAgent.handleInput).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing when todos is undefined', async () => {
+      mockAgent.getState.mockReturnValue(undefined);
+      
+      const hook = todoCompletionCheckHook.callbacks[0];
+      await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
+      
+      expect(mockAgent.infoMessage).not.toHaveBeenCalled();
+      expect(mockAgent.handleInput).not.toHaveBeenCalled();
     });
   });
 
   describe('Hook Execution - All Todos Complete', () => {
-    it('should notify when all todos are completed', async () => {
+    it('should not notify when all todos are completed', async () => {
       mockAgent.getState.mockReturnValue({
         todos: [
           { id: '1', content: 'Task 1', status: 'completed' },
@@ -72,7 +100,9 @@ describe('Todo Completion Check Hook', () => {
       const hook = todoCompletionCheckHook.callbacks[0];
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
-      expect(mockAgent.infoMessage).toHaveBeenCalledWith("✅ All todos completed!");
+      // The infoMessage call for "All todos completed" is commented out in implementation
+      expect(mockAgent.infoMessage).not.toHaveBeenCalled();
+      expect(mockAgent.handleInput).not.toHaveBeenCalled();
     });
   });
 
@@ -88,8 +118,8 @@ describe('Todo Completion Check Hook', () => {
       const hook = todoCompletionCheckHook.callbacks[0];
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
-      expect(mockAgent.infoMessage).toHaveBeenCalled();
-      const message = mockAgent.infoMessage.mock.calls[0][0];
+      expect(mockAgent.handleInput).toHaveBeenCalled();
+      const message = mockAgent.handleInput.mock.calls[0][0].message;
       expect(message).toContain('1 remaining task(s)');
       expect(message).toContain('1 pending');
       expect(message).toContain('Task 1');
@@ -106,8 +136,8 @@ describe('Todo Completion Check Hook', () => {
       const hook = todoCompletionCheckHook.callbacks[0];
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
-      expect(mockAgent.infoMessage).toHaveBeenCalled();
-      const message = mockAgent.infoMessage.mock.calls[0][0];
+      expect(mockAgent.handleInput).toHaveBeenCalled();
+      const message = mockAgent.handleInput.mock.calls[0][0].message;
       expect(message).toContain('1 remaining task(s)');
       expect(message).toContain('1 in progress');
       expect(message).toContain('Task 1');
@@ -126,8 +156,8 @@ describe('Todo Completion Check Hook', () => {
       const hook = todoCompletionCheckHook.callbacks[0];
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
-      expect(mockAgent.infoMessage).toHaveBeenCalled();
-      const message = mockAgent.infoMessage.mock.calls[0][0];
+      expect(mockAgent.handleInput).toHaveBeenCalled();
+      const message = mockAgent.handleInput.mock.calls[0][0].message;
       expect(message).toContain('3 remaining task(s)');
       expect(message).toContain('2 pending');
       expect(message).toContain('1 in progress');
@@ -148,7 +178,7 @@ describe('Todo Completion Check Hook', () => {
       const hook = todoCompletionCheckHook.callbacks[0];
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
-      const message = mockAgent.infoMessage.mock.calls[0][0];
+      const message = mockAgent.handleInput.mock.calls[0][0].message;
       expect(message).toContain('📝');
     });
 
@@ -162,8 +192,48 @@ describe('Todo Completion Check Hook', () => {
       const hook = todoCompletionCheckHook.callbacks[0];
       await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
       
-      const message = mockAgent.infoMessage.mock.calls[0][0];
+      const message = mockAgent.handleInput.mock.calls[0][0].message;
       expect(message).toContain('🔄');
+    });
+
+    it('should include instruction to complete tasks', async () => {
+      mockAgent.getState.mockReturnValue({
+        todos: [
+          { id: '1', content: 'Task 1', status: 'pending' }
+        ]
+      });
+      
+      const hook = todoCompletionCheckHook.callbacks[0];
+      await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
+      
+      const message = mockAgent.handleInput.mock.calls[0][0].message;
+      expect(message).toContain('Please complete the remaining tasks on your todo list.');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle empty todos array', async () => {
+      mockAgent.getState.mockReturnValue({ todos: [] });
+      
+      const hook = todoCompletionCheckHook.callbacks[0];
+      await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
+      
+      expect(mockAgent.handleInput).not.toHaveBeenCalled();
+    });
+
+    it('should handle todos with only completed items', async () => {
+      mockAgent.getState.mockReturnValue({
+        todos: [
+          { id: '1', content: 'Task 1', status: 'completed' },
+          { id: '2', content: 'Task 2', status: 'completed' },
+          { id: '3', content: 'Task 3', status: 'completed' }
+        ]
+      });
+      
+      const hook = todoCompletionCheckHook.callbacks[0];
+      await hook.callback(new AfterAgentInputSuccess({} as any, {} as any), mockAgent);
+      
+      expect(mockAgent.handleInput).not.toHaveBeenCalled();
     });
   });
 });
