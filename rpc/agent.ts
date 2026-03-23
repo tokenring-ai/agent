@@ -1,13 +1,13 @@
 import TokenRingApp from "@tokenring-ai/app";
-import omit from "@tokenring-ai/utility/object/omit";
 import {createRPCEndpoint} from "@tokenring-ai/rpc/createRPCEndpoint";
+import omit from "@tokenring-ai/utility/object/omit";
 import Agent from "../Agent.ts";
+import AgentCommandService from "../services/AgentCommandService.ts";
 import AgentManager from "../services/AgentManager.js";
 import {AgentEventState} from "../state/agentEventState.js";
 import {CommandHistoryState} from "../state/commandHistoryState.ts";
 import {SubAgentState} from "../state/subAgentState.ts";
 import AgentRpcSchema from "./schema.ts";
-import AgentCommandService from "../services/AgentCommandService.ts";
 
 export default createRPCEndpoint(AgentRpcSchema, {
   getAgent(args, app: TokenRingApp) {
@@ -169,7 +169,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
     if (!agent) throw new Error("Agent not found");
     
     const subAgentState = agent.getState(SubAgentState);
-    return { agents: subAgentState.allowedSubAgents };
+    return {agents: subAgentState.config.allowedSubAgents};
   },
 
   enableSubAgents(args, app) {
@@ -178,8 +178,8 @@ export default createRPCEndpoint(AgentRpcSchema, {
     
     agent.mutateState(SubAgentState, (state) => {
       for (const agentType of args.agents) {
-        if (!state.allowedSubAgents.includes(agentType)) {
-          state.allowedSubAgents.push(agentType);
+        if (!state.config.allowedSubAgents.includes(agentType)) {
+          state.config.allowedSubAgents.push(agentType);
         }
       }
     });
@@ -192,7 +192,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
     if (!agent) throw new Error("Agent not found");
     
     agent.mutateState(SubAgentState, (state) => {
-      state.allowedSubAgents = state.allowedSubAgents.filter(
+      state.config.allowedSubAgents = state.config.allowedSubAgents.filter(
         (agentType) => !args.agents.includes(agentType)
       );
     });

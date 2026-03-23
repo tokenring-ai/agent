@@ -4,7 +4,7 @@ import {SubAgentState} from "../state/subAgentState.ts";
 
 export default async function* getContextItems({agent}: ContextHandlerOptions): AsyncGenerator<ContextItem> {
   const agentManager = agent.requireServiceByType(AgentManager);
-  const {allowedSubAgents} = agent.getState(SubAgentState);
+  const {allowedSubAgents} = agent.getState(SubAgentState).config;
 
   const allowedAgentTypes = agentManager.getAgentTypesLike(allowedSubAgents);
 

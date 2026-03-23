@@ -4,7 +4,7 @@ import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {setTimeout} from "node:timers/promises";
 import Agent from "../Agent.js";
-import {runSubAgent} from "../runSubAgent.ts";
+import {SubAgentService} from "../index.ts";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
 import {
@@ -75,7 +75,8 @@ export default class AgentManager implements TokenRingService {
       description: commandDescription,
       inputSchema,
       execute: async ({positionals: { message }, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> => {
-        const result = await runSubAgent({
+        const subAgentService = agent.requireServiceByType(SubAgentService);
+        const result = await subAgentService.runSubAgent({
           agentType: config.agentType,
           background: commandConfig.background,
           headless: agent.headless,
@@ -83,14 +84,17 @@ export default class AgentManager implements TokenRingService {
             from: `Parent agent command: /${commandName}`,
             message: `/work ${message}`
           },
-          forwardChatOutput: commandConfig.forwardChatOutput,
-          forwardSystemOutput: commandConfig.forwardSystemOutput,
-          forwardHumanRequests: commandConfig.forwardHumanRequests,
-          forwardReasoning: commandConfig.forwardReasoning,
-          forwardInputCommands: commandConfig.forwardInputCommands,
-          forwardArtifacts: commandConfig.forwardArtifacts,
-          disablePermissionCheck: true // Agents registered as commands are always allowed to run
-        }, agent, true);
+          parentAgent: agent,
+          options: {
+            forwardChatOutput: commandConfig.forwardChatOutput,
+            forwardSystemOutput: commandConfig.forwardSystemOutput,
+            forwardHumanRequests: commandConfig.forwardHumanRequests,
+            forwardReasoning: commandConfig.forwardReasoning,
+            forwardInputCommands: commandConfig.forwardInputCommands,
+            forwardArtifacts: commandConfig.forwardArtifacts,
+          },
+          checkPermissions: false
+        });
 
         if (commandConfig.background) {
           return `Agent ${config.agentType} started in background.`;

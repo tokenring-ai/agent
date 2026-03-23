@@ -32,6 +32,23 @@ export const AgentCommandConfigSchema = z.object({
 });
 export type AgentCommandConfig = z.infer<typeof AgentCommandConfigSchema>;
 
+export const SubAgentConfigSchema = z.object({
+  allowedSubAgents: z.array(z.string()).default([]),
+  forwardChatOutput: z.boolean().default(false),
+  forwardStatusMessages: z.boolean().default(true),
+  forwardSystemOutput: z.boolean().default(false),
+  forwardHumanRequests: z.boolean().default(true),
+  forwardReasoning: z.boolean().default(false),
+  forwardInputCommands: z.boolean().default(true),
+  forwardArtifacts: z.boolean().default(false),
+  timeout: z.number().default(0),
+  maxResponseLength: z.number().default(10000),
+  minContextLength: z.number().default(1000),
+}).prefault({});
+
+export type SubAgentConfig = z.input<typeof SubAgentConfigSchema>;
+export type ParsedSubAgentConfig = z.output<typeof SubAgentConfigSchema>;
+
 export const AgentConfigSchema = z.object({
   agentType: z.string(),
   displayName: z.string(),
@@ -51,21 +68,7 @@ export const AgentConfigSchema = z.object({
   minimumRunning: z.number().default(0),
   idleTimeout: z.number().default(0), // In seconds
   maxRunTime: z.number().default(0), // In seconds
-  subAgent: z.object({
-
-
-    forwardChatOutput: z.boolean().default(false),
-    forwardStatusMessages: z.boolean().default(true),
-    forwardSystemOutput: z.boolean().default(false),
-    forwardHumanRequests: z.boolean().default(true),
-    forwardReasoning: z.boolean().default(false),
-    forwardInputCommands: z.boolean().default(true),
-    forwardArtifacts: z.boolean().default(false),
-    timeout: z.number().default(0),
-    maxResponseLength: z.number().default(10000),
-    minContextLength: z.number().default(1000),
-  }).prefault({}),
-  allowedSubAgents: z.array(z.string()).default([]),
+  subAgent: SubAgentConfigSchema,
   todos: z.object({
     copyToChild: z.boolean().default(true),
     initialItems: z.array(TodoItemSchema).default([]),

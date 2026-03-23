@@ -1,7 +1,7 @@
 import {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
 import Agent from "../Agent.js";
-import {runSubAgent} from "../runSubAgent.ts";
+import SubAgentService from "../services/SubAgentService.ts";
 
 const name = "agent_run";
 const displayName = "Agent/runAgent";
@@ -17,7 +17,9 @@ export async function execute(
   }: z.output<typeof inputSchema>,
   parentAgent: Agent,
 ) {
-  const result = await runSubAgent(
+  const subAgentService = parentAgent.requireServiceByType(SubAgentService);
+
+  const result = await subAgentService.runSubAgent(
     {
       agentType,
       headless: parentAgent.headless,
@@ -25,9 +27,8 @@ export async function execute(
         from: "Parent agent tool: agent_run",
         message: `/work ${message}${context ? `\n\nImportant Context:\n${context}` : ''}`,
       },
+      parentAgent
     },
-    parentAgent,
-    true // Auto-cleanup
   );
 
   return { type: 'json' as const, data: {

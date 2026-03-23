@@ -1,4 +1,4 @@
-import {runSubAgent} from "../../runSubAgent.ts";
+import {SubAgentService} from "../../index.ts";
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {
@@ -24,15 +24,19 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
   const isBg = args["--bg"] === true;
   const agentType = args["--type"];
 
-  await runSubAgent({
+  const subAgentService = agent.requireServiceByType(SubAgentService);
+
+  await subAgentService.runSubAgent({
     agentType,
     background: isBg,
     headless: agent.headless,
     input: {
       from: "Parent agent command: /agent run",
       message: `/work ${remainder}`,
-    }
-  }, agent, true);
+    },
+    parentAgent: agent,
+    autoCleanup: true
+  });
 
   return isBg ? "Agent started in background." : "Sub-agent completed successfully.";
 }
