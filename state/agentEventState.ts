@@ -107,7 +107,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
       } break;
       case "input.received": {
         this.events.push(event);
-        const activityMessage = `Running command ${intelligentTruncate(event.input.message, 256)}`
+        const activityMessage = `Running command ${intelligentTruncate(event.input.message, {maxLength: 256, maxLines: 1})}`
 
         this.inputQueue.push({
           request: event,
