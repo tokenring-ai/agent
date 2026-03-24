@@ -10,7 +10,7 @@ import {AgentEventState} from "../../state/agentEventState";
 import {CommandHistoryState} from "../../state/commandHistoryState";
 import {HookCallback, AfterAgentInputSuccess, BeforeAgentInput} from '@tokenring-ai/lifecycle/util/hooks';
 import type {HookSubscription} from '@tokenring-ai/lifecycle/types';
-import {SubAgentService} from '../../services/SubAgentService.js';
+import SubAgentService from '../../services/SubAgentService.js';
 
 const mockConfig = AgentConfigSchema.parse({
   agentType: 'integration-test',
@@ -249,7 +249,7 @@ describe('Agent Integration Tests', () => {
 
     it('should handle missing services gracefully', () => {
       // SubAgentService is not added to the app, so it will be undefined
-      const missingService = agent.getServiceByType(SubAgentService as any);
+      const missingService = agent.getServiceByType(SubAgentService);
       expect(missingService).toBeUndefined();
     });
   });

@@ -46,8 +46,8 @@ describe('AgentManager', () => {
     app.addServices(manager);
     
     // Add test configurations
-    manager.addAgentConfigs('test', mockConfig);
-    manager.addAgentConfigs('background', {
+    manager.addAgentConfigs(mockConfig);
+    manager.addAgentConfigs({
       ...mockConfig,
       agentType: 'background',
       displayName: 'Background Agent',
@@ -115,8 +115,8 @@ describe('AgentManager', () => {
     });
 
     it('should get agent types like pattern', () => {
-      const entries = manager.getAgentTypesLike('test');
-      expect(entries).toContain('test');
+      const entries = manager.getAgentTypesLike('te*');
+      expect(entries[0][0]).toEqual('test');
     });
   });
 

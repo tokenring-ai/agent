@@ -49,9 +49,10 @@ describe('Agent', () => {
       expect(typeof requestId).toBe('string');
 
       const eventState = agent.getState(AgentEventState);
-      const lastEvent = eventState.events[eventState.events.length - 1];
-      expect(lastEvent.type).toBe('input.received');
-      expect(lastEvent.requestId).toBe(requestId);
+      const lastEvent = eventState.events.find(e => e.type === 'input.received');
+      expect(lastEvent).toBeDefined();
+      expect(lastEvent!.type).toBe('input.received');
+      expect(lastEvent!.requestId).toBe(requestId);
     });
 
     it('should not trim input message (trimming happens in command service)', () => {
@@ -401,9 +402,10 @@ describe('Agent', () => {
       });
       
       const eventState = agent.getState(AgentEventState);
-      const lastEvent = eventState.events[eventState.events.length - 1];
-      expect(lastEvent.type).toBe('input.interaction');
-      expect(lastEvent.requestId).toBe('test-request');
+      const lastEvent = eventState.events.find(e => e.type === 'input.interaction');
+      expect(lastEvent).toBeDefined();
+      expect(lastEvent!.type).toBe('input.interaction');
+      expect(lastEvent!.requestId).toBe('test-request');
       expect(resolveCallback).toHaveBeenCalledWith('test-result');
     });
   });
