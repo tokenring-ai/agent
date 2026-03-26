@@ -1,4 +1,4 @@
-import AgentCommandService from "../services/AgentCommandService.js";
+import AgentCommandService from "../services/AgentCommandService.ts";
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
 
 const description = "Runs the agents work handler with the message";

@@ -1,4 +1,4 @@
-import Agent from "../Agent.js";
+import Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
 import type {InputAttachment} from "../AgentEvents.ts";
 import type {AgentCommandArgumentSchema, AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";

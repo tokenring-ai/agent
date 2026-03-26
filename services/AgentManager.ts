@@ -4,7 +4,7 @@ import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {setTimeout as delay} from "node:timers/promises";
-import Agent from "../Agent.js";
+import Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
 import {AfterSubAgentResponse} from "../hooks.ts";
 import {type RunSubAgentOptions, SubAgentService} from "../index.ts";
@@ -17,8 +17,8 @@ import {
   type AgentCreationContext,
   type TokenRingAgentCommand,
 } from "../types.js";
-import {formatAgentId} from "../util/formatAgentId.js";
-import AgentCommandService from "./AgentCommandService.js";
+import {formatAgentId} from "../util/formatAgentId.ts";
+import AgentCommandService from "./AgentCommandService.ts";
 
 export default class AgentManager implements TokenRingService {
   readonly name = "AgentManager";

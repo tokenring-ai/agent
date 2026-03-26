@@ -1,7 +1,6 @@
 import type {HookSubscription} from "@tokenring-ai/lifecycle/types";
 import {AfterAgentInputSuccess, HookCallback} from "@tokenring-ai/lifecycle/util/hooks";
-import {TodoState} from "../state/todoState.js";
-import Agent from "../Agent.js";
+import {TodoState} from "../state/todoState.ts";
 
 const name = "todoCompletionCheck";
 const displayName = "Todo/Completion Check";

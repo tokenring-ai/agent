@@ -12,11 +12,11 @@ import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {v4 as uuid} from "uuid";
-import Agent from "../Agent.js";
+import Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
 import type {InputAttachment, ParsedAgentCancelledResponse, ParsedAgentErrorResponse, ParsedAgentResponse, ParsedAgentSuccessResponse} from "../AgentEvents.ts";
 import {AgentEventState, agentMessages, type InputQueueItem} from "../state/agentEventState.ts";
-import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../types.js";
+import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../types.ts";
 import {parseAgentCommandInput} from "../util/parseAgentCommandInput.ts";
 
 export default class AgentCommandService implements TokenRingService {
@@ -66,7 +66,7 @@ export default class AgentCommandService implements TokenRingService {
         throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
       }
     } else if (!message.startsWith("/")) {
-      message = `${this.defaultCommand} ${message}`
+      message = `${this.defaultCommand} ${message}`;
     }
 
     let commandInput = message.slice(1); // Remove leading '/'
@@ -86,7 +86,7 @@ export default class AgentCommandService implements TokenRingService {
       return result ? result.trim() : "Command completed successfully";
     }
     const firstWord = commandInput.split(/\s+/)[0];
-    const matchingCommands = this.agentCommands.getItemEntriesLike(`${firstWord}*`)
+    const matchingCommands = this.agentCommands.getItemEntriesLike(`${firstWord}*`);
     if (matchingCommands.length > 0) {
       throw new CommandFailedError(`
 Unknown command: /${firstWord}. 

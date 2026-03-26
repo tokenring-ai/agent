@@ -1,7 +1,6 @@
 import {AfterAgentInputSuccess} from "@tokenring-ai/lifecycle/util/hooks";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import todoCompletionCheckHook from './todoCompletionCheck.js';
-import {TodoState} from "../state/todoState.js";
+import todoCompletionCheckHook from './todoCompletionCheck.ts';
 
 // Mock Agent
 const createMockAgent = () => ({

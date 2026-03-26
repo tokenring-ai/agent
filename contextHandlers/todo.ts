@@ -1,5 +1,5 @@
 import {type ContextHandlerOptions, ContextItem} from "@tokenring-ai/chat/schema";
-import {TodoState} from "../state/todoState.js";
+import {TodoState} from "../state/todoState.ts";
 
 import {formatTodoList} from "../util/todo.ts";
 

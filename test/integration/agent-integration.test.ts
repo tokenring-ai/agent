@@ -1,16 +1,16 @@
 import TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import AgentLifecycleService from '@tokenring-ai/lifecycle/AgentLifecycleService';
+import type {HookSubscription} from '@tokenring-ai/lifecycle/types';
+import {AfterAgentInputSuccess, BeforeAgentInput, HookCallback} from '@tokenring-ai/lifecycle/util/hooks';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Agent from '../../Agent.ts';
 import {AgentConfigSchema} from "../../schema";
 import AgentCommandService from '../../services/AgentCommandService.ts';
-import AgentLifecycleService from '@tokenring-ai/lifecycle/AgentLifecycleService';
 import AgentManager from '../../services/AgentManager.ts';
+import SubAgentService from '../../services/SubAgentService.ts';
 import {AgentEventState} from "../../state/agentEventState";
 import {CommandHistoryState} from "../../state/commandHistoryState";
-import {HookCallback, AfterAgentInputSuccess, BeforeAgentInput} from '@tokenring-ai/lifecycle/util/hooks';
-import type {HookSubscription} from '@tokenring-ai/lifecycle/types';
-import SubAgentService from '../../services/SubAgentService.js';
 
 const mockConfig = AgentConfigSchema.parse({
   agentType: 'integration-test',

@@ -9,8 +9,8 @@ import hooks from "./hooks.ts";
 import packageJSON from "./package.json" with {type: "json"};
 import agentRPC from "./rpc/agent.ts";
 import {AgentPackageConfigSchema} from "./schema.ts";
-import AgentCommandService from "./services/AgentCommandService.js";
-import AgentManager from "./services/AgentManager.js";
+import AgentCommandService from "./services/AgentCommandService.ts";
+import AgentManager from "./services/AgentManager.ts";
 import SubAgentService from "./services/SubAgentService.ts";
 import tools from "./tools.ts";
 

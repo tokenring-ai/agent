@@ -1,6 +1,6 @@
 import {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
-import Agent from "../Agent.js";
+import Agent from "../Agent.ts";
 import SubAgentService from "../services/SubAgentService.ts";
 
 const name = "agent_run";

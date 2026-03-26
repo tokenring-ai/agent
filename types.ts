@@ -1,6 +1,6 @@
 import {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
-import z, {ZodTypeAny} from "zod";
-import Agent from "./Agent.js";
+import z, {ZodType} from "zod";
+import Agent from "./Agent.ts";
 import {InputAttachment} from "./AgentEvents.ts";
 
 export type TokenRingBaseAgentCommand = {
@@ -158,7 +158,7 @@ export type TokenRingAgentCommand<InputSchema extends AgentCommandInputSchema = 
     execute(input: AgentCommandInputType<InputSchema>): Promise<string> | string;
   };
 
-export abstract class AgentStateSlice<SerializationSchema extends ZodTypeAny> extends SerializableStateSlice<SerializationSchema> {
+export abstract class AgentStateSlice<SerializationSchema extends ZodType> extends SerializableStateSlice<SerializationSchema> {
   abstract show(): string[];
 
   transferStateFromParent(agent: Agent) {}

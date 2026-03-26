@@ -1,8 +1,8 @@
 import {TokenRingToolDefinition, type TokenRingToolResult} from "@tokenring-ai/chat/schema";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {z} from "zod";
-import Agent from "../Agent.js";
-import {TodoState} from "../state/todoState.js";
+import Agent from "../Agent.ts";
+import {TodoState} from "../state/todoState.ts";
 import {formatTodoList} from "../util/todo.ts";
 
 const name = "todo";

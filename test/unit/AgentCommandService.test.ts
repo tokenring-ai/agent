@@ -1,12 +1,9 @@
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import AgentCommandService from '../../services/AgentCommandService.ts';
-import type {TokenRingAgentCommand} from '../../types.js';
-import createTestingAgent from "../createTestingAgent";
-import {CommandFailedError} from "../../AgentError.js";
+import type {TokenRingAgentCommand} from '../../types.ts';
 
 const mockApp = createTestingApp();
-const mockAgent = createTestingAgent(mockApp);
 
 // Mock commands with proper input schema
 const mockCommand: TokenRingAgentCommand = {

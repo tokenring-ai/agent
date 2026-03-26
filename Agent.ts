@@ -13,13 +13,13 @@ import {
   OutputArtifactSchema,
   QuestionInteractionSchema,
 } from "./AgentEvents.js";
-import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.js";
+import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.ts";
 import {AgentConfig, ParsedAgentConfig} from "./schema.ts";
-import AgentCommandService from "./services/AgentCommandService.js";
+import AgentCommandService from "./services/AgentCommandService.ts";
 import {AgentEventState} from "./state/agentEventState.ts";
-import {CommandHistoryState} from "./state/commandHistoryState.js";
+import {CommandHistoryState} from "./state/commandHistoryState.ts";
 import {TodoState} from "./state/todoState.ts";
-import {AgentCheckpointData, AgentStateSlice} from "./types.js";
+import {AgentCheckpointData, AgentStateSlice} from "./types.ts";
 
 export default class Agent {
   readonly id: string = generateHumanId();
