@@ -29,6 +29,39 @@ complete agent framework that integrates seamlessly with the TokenRing ecosystem
 bun install @tokenring-ai/agent
 ```
 
+## Exports
+
+The package exports the following:
+
+```typescript
+// Main exports
+import Agent from "@tokenring-ai/agent";
+import AgentManager from "@tokenring-ai/agent";
+import AgentCommandService from "@tokenring-ai/agent";
+import SubAgentService from "@tokenring-ai/agent";
+
+// Type exports
+import type {RunSubAgentOptions, RunSubAgentResult} from "@tokenring-ai/agent";
+
+// Service exports
+import AgentManager from "@tokenring-ai/agent/services/AgentManager";
+import AgentCommandService from "@tokenring-ai/agent/services/AgentCommandService";
+import SubAgentService from "@tokenring-ai/agent/services/SubAgentService";
+
+// State exports
+import {AgentEventState} from "@tokenring-ai/agent/state/agentEventState";
+import {CommandHistoryState} from "@tokenring-ai/agent/state/commandHistoryState";
+import {TodoState} from "@tokenring-ai/agent/state/todoState";
+import {SubAgentState} from "@tokenring-ai/agent/state/subAgentState";
+
+// Schema exports
+import {AgentConfigSchema, AgentPackageConfigSchema} from "@tokenring-ai/agent/schema";
+
+// Type exports
+import type {AgentCheckpointData, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import type {RunSubAgentOptions, RunSubAgentResult} from "@tokenring-ai/agent";
+```
+
 ## Dependencies
 
 - `@tokenring-ai/chat` - Chat service integration
@@ -250,14 +283,21 @@ await agent.runCommand("Hello, agent!");
 commandService.addAgentCommands({
   name: "myCommand",
   description: "My custom command",
-  execute: async (input, agent) => {
-    return `Processed: ${input}`;
+  inputSchema: {
+    remainder: {
+      name: "message",
+      description: "Message to process",
+      required: true,
+    }
   },
-  help: "# /myCommand\n\nMy custom command help text"
+  execute: async ({remainder, agent}) => {
+    return `Processed: ${remainder}`;
+  },
+  help: "# /myCommand\\n\\nMy custom command help text"
 });
 ```
 
-**Command Processing:**
+**Command Processing**:
 
 - Automatic slash command parsing
 - Default chat command fallback (`/chat send`) for plain text
@@ -266,7 +306,7 @@ commandService.addAgentCommands({
 - Error handling for unknown commands with suggestions
 - Support for command attachments
 
-**Key Methods:**
+**Key Methods**:
 
 | Method                                             | Description                   |
 |----------------------------------------------------|-------------------------------|
@@ -275,6 +315,66 @@ commandService.addAgentCommands({
 | `getCommandEntries()`                              | Get all command entries       |
 | `getCommand(name)`                                 | Get specific command by name  |
 | `executeAgentCommand(agent, message, attachments)` | Execute command               |
+
+### SubAgentService Service
+
+Service for managing sub-agent execution and permissions:
+
+```typescript
+import SubAgentService from "@tokenring-ai/agent/services/SubAgentService";
+
+const subAgentService = new SubAgentService(app);
+
+// Run a sub-agent with forwarding options
+const result = await subAgentService.runSubAgent({
+  agentType: "worker",
+  headless: true,
+  input: {
+    from: "parent",
+    message: "/work Process this data"
+  },
+  parentAgent: agent,
+  options: {
+    forwardChatOutput: true,
+    forwardSystemOutput: true,
+    forwardHumanRequests: true,
+  },
+  autoCleanup: true,
+  checkPermissions: true,
+});
+
+console.log(result.status, result.response);
+```
+
+**Key Methods**:
+
+| Method                                             | Description                                      |
+|----------------------------------------------------|--------------------------------------------------|
+| `attach(agent, creationContext)`                   | Attach to agent and configure permissions        |
+| `runSubAgent(options)`                             | Run sub-agent with configurable forwarding       |
+
+**RunSubAgentOptions**:
+
+| Option                   | Type                       | Default | Description                              |
+|--------------------------|----------------------------|---------|------------------------------------------|
+| `agentType`              | `string`                   | -       | The type of agent to create              |
+| `headless`               | `boolean`                  | -       | Whether to run in headless mode          |
+| `input`                  | `InputMessage`             | -       | The command to send to the agent         |
+| `parentAgent`            | `Agent`                    | -       | The parent agent instance                |
+| `background`             | `boolean`                  | false   | Run in background and return immediately |
+| `options`                | `Partial<ParsedSubAgentConfig>` | {}    | Configuration options for sub-agent      |
+| `autoCleanup`            | `boolean`                  | true    | Auto-delete child agent when done        |
+| `checkPermissions`       | `boolean`                  | true    | Check parent agent permissions           |
+
+**RunSubAgentResult**:
+
+```typescript
+interface RunSubAgentResult {
+  status: "success" | "error" | "cancelled";
+  response: string;
+  childAgent?: Agent; // Only if autoCleanup is false
+}
+```
 
 ## Usage Examples
 
@@ -448,61 +548,42 @@ await subAgent.handleInput({from: "parent", message: "Process this data"});
 await agentManager.deleteAgent(subAgent.id, "Cleanup");
 ```
 
-### Advanced Sub-Agent Execution
+**Note**: Sub-agent permissions are managed by `SubAgentService`. The `allowedSubAgents` config is resolved from wildcard patterns to actual agent types during agent attachment.
+
+### Using SubAgentService Directly
+
+For more advanced sub-agent execution with fine-grained control:
 
 ```typescript
-import {runSubAgent} from "@tokenring-ai/agent/runSubAgent";
+import SubAgentService from "@tokenring-ai/agent/services/SubAgentService";
 
-// Run sub-agent with custom options
-const result = await runSubAgent({
+const subAgentService = agent.getServiceByType(SubAgentService);
+
+// Run sub-agent with custom forwarding options
+const result = await subAgentService.runSubAgent({
   agentType: "code-assistant",
   headless: true,
   input: {
     from: "parent",
     message: "/work Analyze this code: function test() { return true; }"
   },
-  background: false,
-  forwardChatOutput: true,
-  forwardSystemOutput: true,
-  forwardReasoning: false,
-  forwardHumanRequests: true,
-  forwardInputCommands: true,
-  forwardArtifacts: false,
-  timeout: 60,
-  maxResponseLength: 500,
-  minContextLength: 300
-}, agent, true);
+  parentAgent: agent,
+  options: {
+    forwardChatOutput: true,
+    forwardSystemOutput: true,
+    forwardReasoning: false,
+    forwardHumanRequests: true,
+    forwardInputCommands: true,
+    forwardArtifacts: false,
+    timeout: 60,
+    maxResponseLength: 500,
+    minContextLength: 300
+  },
+  autoCleanup: true,
+  checkPermissions: true,
+});
 
 console.log("Result:", result.status, result.response);
-```
-
-**RunSubAgent Options:**
-
-| Option                   | Type                       | Default | Description                              |
-|--------------------------|----------------------------|---------|------------------------------------------|
-| `agentType`              | `string`                   | -       | The type of agent to create              |
-| `headless`               | `boolean`                  | -       | Whether to run in headless mode          |
-| `input`                  | `InputMessage`             | -       | The command to send to the agent         |
-| `background`             | `boolean`                  | false   | Run in background and return immediately |
-| `forwardChatOutput`      | `boolean`                  | true    | Forward chat output to parent            |
-| `forwardSystemOutput`    | `boolean`                  | true    | Forward system output to parent          |
-| `forwardHumanRequests`   | `boolean`                  | true    | Forward human requests to parent         |
-| `forwardReasoning`       | `boolean`                  | false   | Forward reasoning output to parent       |
-| `forwardInputCommands`   | `boolean`                  | true    | Forward input commands to parent         |
-| `forwardArtifacts`       | `boolean`                  | false   | Forward artifacts to parent              |
-| `timeout`                | `number`                   | 0       | Sub-agent timeout in seconds             |
-| `maxResponseLength`      | `number`                   | 10000   | Max response length in characters        |
-| `minContextLength`       | `number`                   | 1000    | Minimum context length in characters     |
-| `disablePermissionCheck` | `boolean`                  | false   | Disable sub-agent permission checks      |
-
-**RunSubAgent Result:**
-
-```typescript
-interface RunSubAgentResult {
-  status: "success" | "error" | "cancelled";
-  response: string;
-  childAgent?: Agent; // Only if autoCleanup is false
-}
 ```
 
 ### Human Interface Requests
@@ -842,20 +923,24 @@ The agent package includes built-in tools:
 
 ### RPC Endpoints
 
-| Endpoint                    | Type     | Request Params                     | Response                   |
-|-----------------------------|----------|------------------------------------|----------------------------|
-| `getAgent`                  | query    | `{agentId}`                        | Agent details              |
-| `getAgentEvents`            | query    | `{agentId, fromPosition}`          | Events from position       |
-| `streamAgentEvents`         | stream   | `{agentId, fromPosition}`          | Streaming events           |
-| `listAgents`                | query    | `{}`                               | Array of agent information |
-| `getAgentTypes`             | query    | `{}`                               | Array of agent types       |
-| `createAgent`               | mutation | `{agentType, headless}`            | Created agent details      |
-| `deleteAgent`               | mutation | `{agentId, reason}`                | Success status             |
-| `sendInput`                 | mutation | `{agentId, message, attachments?}` | Request ID                 |
-| `sendInteractionResponse`   | mutation | `{agentId, requestId, response}`   | Success status             |
-| `abortCurrentOperation`     | mutation | `{agentId, message}`               | Success status             |
-| `getCommandHistory`         | query    | `{agentId}`                        | Command history            |
-| `getAvailableCommands`      | query    | `{agentId}`                        | Available command names    |
+| Endpoint                    | Type     | Request Params                                          | Response                              |
+|-----------------------------|----------|---------------------------------------------------------|---------------------------------------|
+| `getAgent`                  | query    | `{agentId}`                                             | Agent details                         |
+| `getAgentEvents`            | query    | `{agentId, fromPosition}`                               | Events from position                  |
+| `streamAgentEvents`         | stream   | `{agentId, fromPosition}`                               | Streaming events                      |
+| `listAgents`                | query    | `{}`                                                    | Array of agent information            |
+| `getAgentTypes`             | query    | `{}`                                                    | Array of agent types                  |
+| `createAgent`               | mutation | `{agentType, headless}`                                 | Created agent details                 |
+| `deleteAgent`               | mutation | `{agentId, reason}`                                     | Success status                        |
+| `sendInput`                 | mutation | `{agentId, input: {from, message, attachments?}}`       | Request ID                            |
+| `sendInteractionResponse`   | mutation | `{agentId, response: {requestId, interactionId, result}}` | Success status                      |
+| `abortCurrentOperation`     | mutation | `{agentId, message}`                                    | Success status                        |
+| `getCommandHistory`         | query    | `{agentId}`                                             | Command history                       |
+| `getAvailableCommands`      | query    | `{agentId}`                                             | Available command names               |
+| `getAvailableSubAgents`     | query    | `{agentId}`                                             | Array of available sub-agent types    |
+| `getEnabledSubAgents`       | query    | `{agentId}`                                             | Array of enabled sub-agent types      |
+| `enableSubAgents`           | mutation | `{agentId, agents: string[]}`                           | Success status                        |
+| `disableSubAgents`          | mutation | `{agentId, agents: string[]}`                           | Success status                        |
 
 ## State Management
 
@@ -891,10 +976,11 @@ Agents support multiple state slices for different concerns:
 
 - `commands`: Array of command strings
 
-**TodoState:**
+**TodoState**:
 
 - `todos`: Array of TodoItem
-- `transferStateFromParent(parentAgent)`: Copy todos from parent
+- `transferStateFromParent(parentAgent)`: Copy todos from parent (if `todos.copyToChild` is enabled)
+- Constructor accepts `ParsedAgentConfig` to initialize with todo configuration
 
 **SubAgentState:**
 
@@ -1099,8 +1185,8 @@ pkg/agent/
 ├── package.json                      # Package configuration
 ├── commands.ts                       # Built-in command exports
 ├── tools.ts                          # Tool exports
-├── runSubAgent.ts                    # Sub-agent execution helper
 ├── contextHandlers.ts                # Context handler exports
+├── hooks.ts                          # Lifecycle hook definitions
 ├── commands/                         # Built-in commands
 │   ├── agent/
 │   │   ├── types.ts                  # Agent types command
@@ -1120,7 +1206,8 @@ pkg/agent/
 │   └── help.ts                       # Help system
 ├── services/                         # Core services
 │   ├── AgentManager.ts               # Agent management service
-│   └── AgentCommandService.ts        # Command execution service
+│   ├── AgentCommandService.ts        # Command execution service
+│   └── SubAgentService.ts            # Sub-agent execution service
 ├── state/                            # State management
 │   ├── agentEventState.ts            # Event state management
 │   ├── commandHistoryState.ts        # Command history tracking
@@ -1137,7 +1224,10 @@ pkg/agent/
 │   ├── agent.ts                      # Agent RPC implementation
 │   └── schema.ts                     # RPC schema definitions
 ├── util/                             # Utilities
-│   └── formatAgentId.ts              # Agent ID formatting
+│   ├── formatAgentCommandUsage.ts    # Command usage formatting
+│   ├── formatAgentId.ts              # Agent ID formatting
+│   ├── parseAgentCommandInput.ts     # Command input parsing
+│   └── todo.ts                       # Todo utilities
 └── test/                             # Test files
     └── unit/
         ├── commands/
@@ -1145,6 +1235,7 @@ pkg/agent/
         │   └── work.test.ts
         ├── agent.test.ts
         ├── AgentCommandService.test.ts
+        ├── AgentLifecycleService.test.ts
         └── AgentManager.test.ts
 ```
 

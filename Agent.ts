@@ -2,7 +2,7 @@ import TokenRingApp from "@tokenring-ai/app";
 import StateManager from "@tokenring-ai/app/StateManager";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import {generateHumanId} from "@tokenring-ai/utility/string/generateHumanId";
-import {setTimeout} from "timers/promises";
+import {setTimeout as delay} from "timers/promises";
 import {v4 as uuid} from "uuid";
 import {z} from "zod";
 import {
@@ -234,7 +234,7 @@ export default class Agent {
 
         return await Promise.race([
           resultPromise,
-          setTimeout(delayMs).then(() => getDefaultQuestionValue(event.question))
+          delay(delayMs).then(() => getDefaultQuestionValue(event.question))
         ]);
       }
 

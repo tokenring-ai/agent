@@ -1,10 +1,9 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
-import {ChatService} from "@tokenring-ai/chat";
 import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import {setTimeout} from "node:timers/promises";
+import {setTimeout as delay} from "node:timers/promises";
 import Agent from "../Agent.js";
 import {CommandFailedError} from "../AgentError.ts";
 import {AfterSubAgentResponse} from "../hooks.ts";
@@ -30,7 +29,7 @@ export default class AgentManager implements TokenRingService {
 
   async run(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
-      await setTimeout(this.cleanupCheckIntervalMs, null,  { signal });
+      await delay(this.cleanupCheckIntervalMs, null, {signal});
       try {
         await this.checkAndDeleteIdleAgents();
       } catch (error) {
