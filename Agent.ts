@@ -18,7 +18,6 @@ import {AgentConfig, ParsedAgentConfig} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.ts";
 import {AgentEventState} from "./state/agentEventState.ts";
 import {CommandHistoryState} from "./state/commandHistoryState.ts";
-import {TodoState} from "./state/todoState.ts";
 import {AgentCheckpointData, AgentStateSlice} from "./types.ts";
 
 export default class Agent {
@@ -50,7 +49,6 @@ export default class Agent {
 
     this.initializeState(AgentEventState, {});
     this.initializeState(CommandHistoryState, {});
-    this.initializeState(TodoState, config);
   }
 
   get headless() {

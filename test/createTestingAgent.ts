@@ -1,11 +1,9 @@
 import TokenRingApp from "@tokenring-ai/app";
-import type {ChatAgentConfigSchema} from "@tokenring-ai/chat/schema";
-import {z} from "zod";
 
 // Create a mock agent
 import Agent from "../Agent";
 import {AgentManager} from "../index";
-import {AgentConfigSchema, type ParsedAgentConfig} from "../schema";
+import {AgentConfigSchema} from "../schema";
 
 const config = AgentConfigSchema.parse({
   agentType: "mock-agent",
@@ -22,10 +20,6 @@ const config = AgentConfigSchema.parse({
   minimumRunning: 0,
   subAgent: {
     allowedSubAgents: [],
-  },
-  todos: {
-    copyToChild: true,
-    initialItems: [],
   },
 });
 

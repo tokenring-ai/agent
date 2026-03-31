@@ -1,13 +1,5 @@
 import z from "zod";
 
-export const TodoStatusSchema = z.enum(["pending", "in_progress", "completed"]);
-export const TodoItemSchema = z.object({
-  id: z.string(),
-  content: z.string(),
-  status: TodoStatusSchema,
-});
-export type TodoItem = z.infer<typeof TodoItemSchema>;
-
 export const AgentCommandConfigSchema = z.object({
   /** Custom command name (defaults to agentType if not provided) */
   name: z.string().optional(),
@@ -69,10 +61,6 @@ export const AgentConfigSchema = z.object({
   idleTimeout: z.number().default(0), // In seconds
   maxRunTime: z.number().default(0), // In seconds
   subAgent: SubAgentConfigSchema,
-  todos: z.object({
-    copyToChild: z.boolean().default(false),
-    initialItems: z.array(TodoItemSchema).default([]),
-  }).prefault({}),
 });
 
 export const AgentPackageConfigSchema = z.object({
