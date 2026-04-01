@@ -89,10 +89,14 @@ export default class AgentCommandService implements TokenRingService {
     const matchingCommands = this.agentCommands.getItemEntriesLike(`${firstWord}*`);
     if (matchingCommands.length > 0) {
       throw new CommandFailedError(`
-Unknown command: /${firstWord}. 
+Unknown command: ${message} 
 
 Possible matching commands: 
-${markdownList(matchingCommands.map((cmd) => cmd[1].description).sort())}
+${ markdownList(
+    matchingCommands.map((cmd) => 
+       `/${cmd[1].name} - ${cmd[1].description}`
+    ).sort()
+)}
 
 Type /help for a list of commands.`
       );
