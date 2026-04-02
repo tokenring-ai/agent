@@ -50,6 +50,7 @@ export type ParsedTextQuestion = z.output<typeof TextQuestionSchema>;
 export const TreeSelectQuestionSchema = z.object({
   type: z.literal("treeSelect"),
   label: z.string(),
+  description: z.string().optional(),
   minimumSelections: z.number().optional(),
   maximumSelections: z.number().optional(),
   defaultValue: z.array(z.string()).default([]),
