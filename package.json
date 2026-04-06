@@ -1,7 +1,7 @@
 {
   "name": "@tokenring-ai/agent",
   "version": "0.2.0",
-  "description": "Agent package for TokenRing Coder.",
+  "description": "Central orchestrator for managing AI agents, tools, commands, and state persistence.",
   "dependencies": {
     "@tokenring-ai/chat": "0.2.0",
     "zod": "^4.3.6",
