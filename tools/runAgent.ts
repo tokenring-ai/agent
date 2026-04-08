@@ -23,10 +23,10 @@ export async function execute(
     {
       agentType,
       headless: parentAgent.headless,
-      input: {
-        from: "Parent agent tool: agent_run",
-        message: `/work ${message}${context ? `\n\nImportant Context:\n${context}` : ''}`,
-      },
+      from: "Parent agent tool: agent_run",
+      steps: [
+        `${message}${context ? `\n\nImportant Context:\n${context}` : ''}`
+      ],
       parentAgent
     },
   );

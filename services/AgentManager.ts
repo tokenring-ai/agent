@@ -1,23 +1,16 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
-import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
+import {ChatService} from "@tokenring-ai/chat";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {setTimeout as delay} from "node:timers/promises";
 import Agent from "../Agent.ts";
-import {CommandFailedError} from "../AgentError.ts";
-import {AfterSubAgentResponse} from "../hooks.ts";
-import {type RunSubAgentOptions, SubAgentService} from "../index.ts";
 import {ParsedAgentConfig} from "../schema.ts";
 import {AgentEventState} from "../state/agentEventState.ts";
-import {
-  AgentCheckpointData,
-  type AgentCommandInputSchema,
-  type AgentCommandInputType,
-  type AgentCreationContext,
-  type TokenRingAgentCommand,
-} from "../types.js";
+import {AgentCheckpointData, type AgentCreationContext,} from "../types.js";
 import {formatAgentId} from "../util/formatAgentId.ts";
+import {createAgentCommand} from "../util/createAgentCommand.ts";
+import {createAgentTool} from "../util/createAgentTool.ts";
 import AgentCommandService from "./AgentCommandService.ts";
 
 export default class AgentManager implements TokenRingService {
@@ -48,90 +41,7 @@ export default class AgentManager implements TokenRingService {
   addAgentConfigs(...configs: ParsedAgentConfig[])  {
     for (const config of configs) {
       this.agentConfigRegistry.register(config.agentType, config);
-
-      // Register as command if configured
-      if (config.command) {
-        this.registerAgentCommand(config);
-      }
     }
-  };
-
-  /**
-   * Register an agent as a callable command
-   */
-  private registerAgentCommand(config: ParsedAgentConfig) {
-    const commandConfig = config.command!;
-    const commandName = commandConfig.name || config.agentType;
-    const commandDescription = `${commandConfig.description || config.description}`;
-    const inputSchema = {
-      remainder: {
-        name: 'message',
-        description: `Message to send to the ${config.agentType} agent`,
-        required: true,
-      }
-    } as const satisfies AgentCommandInputSchema;
-    
-    const agentCommand: TokenRingAgentCommand<typeof inputSchema> = {
-      name: commandName,
-      description: commandDescription,
-      inputSchema,
-      execute: async ({remainder, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> => {
-        const subAgentService = agent.requireServiceByType(SubAgentService);
-        const request: RunSubAgentOptions = {
-          agentType: config.agentType,
-          background: commandConfig.background,
-          headless: agent.headless,
-          input: {
-            from: `Parent agent command: /${commandName}`,
-            message: `/work ${remainder}`
-          },
-          parentAgent: agent,
-          options: {
-            forwardChatOutput: commandConfig.forwardChatOutput,
-            forwardSystemOutput: commandConfig.forwardSystemOutput,
-            forwardHumanRequests: commandConfig.forwardHumanRequests,
-            forwardReasoning: commandConfig.forwardReasoning,
-            forwardInputCommands: commandConfig.forwardInputCommands,
-            forwardArtifacts: commandConfig.forwardArtifacts,
-          },
-          checkPermissions: false
-        };
-
-        const result = await subAgentService.runSubAgent(request);
-
-        if (commandConfig.background) {
-          return `Agent ${config.agentType} started in background.`;
-        }
-
-        const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-        lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
-
-        if (result.status === "success") {
-          return result.response || "Agent completed successfully.";
-        } else if (result.status === "cancelled") {
-          throw new CommandFailedError(`Agent was cancelled: ${result.response}`);
-        } else {
-          throw new CommandFailedError(`Agent error: ${result.response}`);
-        }
-      },
-      help: commandConfig.help ?? `# /${commandName}
-
-## Description
-${commandDescription}
-
-## Usage
-/${commandName} <message>
-
-Runs the "${config.agentType}" agent with the provided message.
-
-## Examples
-/${commandName} analyze the codebase
-/${commandName} help me write a test`
-    };
-
-    // Try to register with AgentCommandService immediately, or wait for it to be available
-    const commandService = this.app.requireService(AgentCommandService);
-    commandService.addAgentCommands(agentCommand);
   }
 
   async spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig> = {}) {

@@ -88,7 +88,6 @@ export default createRPCEndpoint(AgentRpcSchema, {
       displayName: config.displayName,
       description: config.description,
       category: config.category,
-      callable: config.callable,
     }));
   },
 

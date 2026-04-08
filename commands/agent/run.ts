@@ -33,12 +33,11 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
     agentType,
     background: isBg,
     headless: agent.headless,
-    input: {
-      from: "Parent agent command: /agent run",
-      message: `/work ${remainder}`,
-    },
+    from: "Parent agent command: /agent run",
+    steps: [remainder],
     parentAgent: agent,
-    autoCleanup: true
+    autoCleanup: true,
+    checkPermissions: false,
   }
   const result = await subAgentService.runSubAgent(request);
 

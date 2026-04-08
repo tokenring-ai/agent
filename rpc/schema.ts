@@ -79,7 +79,6 @@ export default {
         displayName: z.string(),
         description: z.string(),
         category: z.string().optional(),
-        callable: z.boolean().optional(),
       }))
     },
     createAgent: {

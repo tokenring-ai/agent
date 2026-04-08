@@ -11,6 +11,8 @@ import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 import {AgentEventState, agentMessages} from "../state/agentEventState.ts";
 
+export type SubAgentStep = string | Pick<InputMessage, 'message' | 'attachments'>;
+
 export type RunSubAgentOptions = {
   /** The type of agent to create */
   agentType: string;
@@ -18,8 +20,8 @@ export type RunSubAgentOptions = {
   background?: boolean;
   /** Whether to run the agent in headless mode */
   headless: boolean;
-  /** The command to send to the agent */
-  input: InputMessage;
+  /** The source of the input */
+  from: string
   /** Runtime options for the agent */
   options?: Partial<ParsedSubAgentConfig>;
   /** The parent agent instance */
@@ -28,6 +30,8 @@ export type RunSubAgentOptions = {
   autoCleanup?: boolean;
   /** Whether to check the permissions of the parent agent before running the sub-agent */
   checkPermissions?: boolean;
+  /** The command to send to the agent */
+  steps: SubAgentStep[];
 };
 
 export interface RunSubAgentResult {
@@ -123,7 +127,8 @@ export default class SubAgentService implements TokenRingService {
       agentType,
       background,
       headless,
-      input,
+      from,
+      steps,
       options = {},
       parentAgent,
       autoCleanup = true,
@@ -143,6 +148,10 @@ export default class SubAgentService implements TokenRingService {
       minContextLength,
       allowedSubAgents
     } = deepMerge(options, parentAgent.getState(SubAgentState).config);
+
+    if (steps.length === 0) {
+      throw new Error("An empty steps array was provided for sub-agent execution, which is not allowed.");
+    }
 
     const agentManager = parentAgent.requireServiceByType(AgentManager);
 
@@ -181,7 +190,14 @@ export default class SubAgentService implements TokenRingService {
       await childAgent.waitForState(AgentEventState, (state) => state.idle);
       const eventCursor = childAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
-      const requestId = childAgent.handleInput(input);
+      let requestId: string;
+      for (const step of steps) {
+        const inputMessage = {
+          from,
+          ...(typeof step === "string" ? {message: step} : step)
+        };
+        requestId = childAgent.handleInput(inputMessage);
+      }
 
       if (background) {
         return {

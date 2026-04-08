@@ -21,7 +21,6 @@ const mockConfig = AgentConfigSchema.parse({
   initialCommands: [],
   createMessage: "Agent created",
   headless: true,
-  callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
   minimumRunning: 0,
