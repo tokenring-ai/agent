@@ -8,18 +8,12 @@ export default {
   name: "Agent RPC",
   path: "/rpc/agent",
   methods: {
-    getAgent: {
+    getAgentConfig: {
       type: "query",
       input: z.object({
         agentId: z.string()
       }),
-      result: z.object({
-        id: z.string(),
-        displayName: z.string(),
-        description: z.string(),
-        debugEnabled: z.boolean(),
-        config: z.object(omit(AgentConfigSchema.shape, ["workHandler"]))
-      })
+      result: AgentConfigSchema
     },
     getAgentEvents: {
       type: "query",

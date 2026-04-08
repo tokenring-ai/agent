@@ -1,6 +1,5 @@
 import TokenRingApp from "@tokenring-ai/app";
 import {createRPCEndpoint} from "@tokenring-ai/rpc/createRPCEndpoint";
-import omit from "@tokenring-ai/utility/object/omit";
 import Agent from "../Agent.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import AgentManager from "../services/AgentManager.ts";
@@ -10,16 +9,10 @@ import {SubAgentState} from "../state/subAgentState.ts";
 import AgentRpcSchema from "./schema.ts";
 
 export default createRPCEndpoint(AgentRpcSchema, {
-  getAgent(args, app: TokenRingApp) {
+  getAgentConfig(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
-    return {
-      id: agent.id,
-      displayName: agent.displayName,
-      description: agent.config.description,
-      debugEnabled: agent.config.debug,
-      config: omit(agent.config, ["workHandler"]),
-    };
+    return agent.config;
   },
 
   getAgentEvents(args, app) {

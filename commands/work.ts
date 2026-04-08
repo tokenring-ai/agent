@@ -1,3 +1,4 @@
+import interpolateString from "@tokenring-ai/utility/string/interpolateString";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
 
@@ -13,7 +14,18 @@ const inputSchema = {
 async function execute({remainder: prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   /* If the agent has a custom workflow defined, use it */
   if (agent.config.workHandler) {
-    const result = await agent.config.workHandler(prompt, agent);
+    const replacementFunctions = {
+      PROMPT: () => prompt,
+    }
+
+    const agentCommandService = agent.requireServiceByType(AgentCommandService);
+    const signal = agent.getAbortSignal();
+    let result : string | undefined;
+    for (const message of agent.config.workHandler) {
+      if (signal.aborted) return "Agent was aborted during work.";
+
+      result = await agentCommandService.executeAgentCommand(agent, interpolateString(message, replacementFunctions));
+    }
     return typeof result === 'string' ? result : "Work completed successfully";
   } else {
     return await agent.requireServiceByType(AgentCommandService).executeAgentCommand(agent, prompt);

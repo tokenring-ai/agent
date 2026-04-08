@@ -47,10 +47,7 @@ export const AgentConfigSchema = z.object({
   description: z.string(),
   category: z.string(),
   debug: z.boolean().default(false),
-  workHandler: z.function({
-    input: z.tuple([z.string(), z.any()]),
-    output: z.any()
-  }).optional(),
+  workHandler: z.array(z.string()).optional(),
   initialCommands: z.array(z.string()).default([]),
   createMessage: z.string().default("Agent Created"),
   headless: z.boolean().default(false),
@@ -64,9 +61,15 @@ export const AgentConfigSchema = z.object({
 });
 
 export const AgentPackageConfigSchema = z.object({
-  app: z.array(AgentConfigSchema.loose()).optional(),
-  user: z.array(AgentConfigSchema.loose()).optional(),
+  agents: z.record(
+    z.string(),
+    AgentConfigSchema.omit({
+      agentType: true
+    }).loose()
+  ).default({}),
 });
+
+export type AgentPackageConfig = z.input<typeof AgentPackageConfigSchema>;
 
 export type AgentConfig = z.input<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;

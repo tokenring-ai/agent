@@ -12,11 +12,6 @@ import AgentManager from "./services/AgentManager.ts";
 import SubAgentService from "./services/SubAgentService.ts";
 import tools from "./tools.ts";
 
-const packageConfigSchema = z.object({
-  agents: AgentPackageConfigSchema
-})
-
-
 export default {
   name: packageJSON.name,
   displayName: "Agent Core",
@@ -33,12 +28,11 @@ export default {
     app.addServices(agentCommandService);
 
     const agentManager = new AgentManager(app);
-    if (config.agents.app) {
-      agentManager.addAgentConfigs(...config.agents.app);
-    }
-    if (config.agents.user) {
-      agentManager.addAgentConfigs(...config.agents.user);
-    }
+    agentManager.addAgentConfigs(
+      ...Object.entries(config.agents).map(
+        ([agentType, agentConfig]) => ({agentType, ...agentConfig})
+      )
+    );
     app.addServices(agentManager);
 
     app.addServices(new SubAgentService(app));
@@ -47,5 +41,5 @@ export default {
       rpcService.registerEndpoint(agentRPC);
     });
   },
-  config: packageConfigSchema
-} satisfies TokenRingPlugin<typeof packageConfigSchema>;
+  config: AgentPackageConfigSchema
+} satisfies TokenRingPlugin<typeof AgentPackageConfigSchema>;
