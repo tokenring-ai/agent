@@ -1,12 +1,6 @@
 import intelligentTruncate from "@tokenring-ai/utility/string/intelligentTruncate";
 import {z} from "zod";
-import {
-  AgentEventEnvelope,
-  AgentEventEnvelopeSchema,
-  InputExecutionStateSchema,
-  type ParsedAgentStatus,
-  type ParsedInputReceived
-} from "../AgentEvents.js";
+import {AgentEventEnvelope, AgentEventEnvelopeSchema, InputExecutionStateSchema, type ParsedAgentStatus, type ParsedInputReceived} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
 
 export const agentMessages = {
@@ -42,7 +36,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
 
   events: AgentEventEnvelope[] = [];
 
-  constructor({}: {}) {
+  constructor() {
     super("AgentEventState", serializationSchema);
   }
 
@@ -201,7 +195,8 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
           break;
         default:
           // noinspection JSUnusedLocalSymbols
-          const foo: never = event;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const _foo: never = event;
           break;
       }
     }

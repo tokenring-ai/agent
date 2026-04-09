@@ -2,7 +2,6 @@ import {TokenRingPlugin} from "@tokenring-ai/app";
 import {ChatService, type TokenRingToolDefinition} from "@tokenring-ai/chat";
 import {RpcService} from "@tokenring-ai/rpc";
 import agentCommands from "./commands.ts";
-import contextHandlers from "./contextHandlers.ts";
 import packageJSON from "./package.json" with {type: "json"};
 import agentRPC from "./rpc/agent.ts";
 import {AgentPackageConfigSchema} from "./schema.ts";
@@ -22,7 +21,6 @@ export default {
   install(app, config) {
     app.waitForService(ChatService, chatService => {
       chatService.addTools(tools);
-      chatService.registerContextHandlers(contextHandlers);
     });
 
     const agentCommandService = new AgentCommandService(app);

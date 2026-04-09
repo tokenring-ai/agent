@@ -53,7 +53,7 @@ export function createAgentCommand(name: string, commandConfig: AgentCommandConf
       }
 
       const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-      lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
+      await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
 
       if (result.status === "success") {
         return result.response || "Agent completed successfully.";

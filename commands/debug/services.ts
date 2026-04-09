@@ -14,7 +14,7 @@ const inputSchema = {
   }
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): string {
   const limit = args["--limit"];
   const logs = agent.app.logs.slice(-limit);
 

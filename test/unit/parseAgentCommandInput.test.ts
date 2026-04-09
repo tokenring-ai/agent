@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest";
-import {parseAgentCommandInput} from "../../util/parseAgentCommandInput.ts";
-import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../../types.ts";
 import {CommandFailedError} from "../../AgentError.ts";
+import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../../types.ts";
+import {parseAgentCommandInput} from "../../util/parseAgentCommandInput.ts";
 
 describe("parseAgentCommandInput", () => {
   it("accepts apostrophes inside a remainder", () => {

@@ -2,7 +2,7 @@ import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} 
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute({agent}: AgentCommandInputType<typeof inputSchema>): string {
   const checkpoint = agent.generateCheckpoint();
 
   return `### Agent Checkpoint Dump

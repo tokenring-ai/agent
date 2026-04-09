@@ -1,12 +1,12 @@
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import {AgentCommandInputSchema, TokenRingAgentCommand,} from "../../types.ts";
 
-// @ts-ignore
+// @ts-expect-error - This is a markdown file
 import markdownSample from './markdown.sample.md' with {type: 'text'};
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-async function execute({}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  return markdownSample;
+function execute(): string {
+  return markdownSample as string;
 }
 
 export default {

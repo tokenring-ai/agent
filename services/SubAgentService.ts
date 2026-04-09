@@ -93,7 +93,7 @@ export default class SubAgentService implements TokenRingService {
    * @param agent - The agent to attach to
    * @param creationContext - The agent creation context
    */
-  attach(agent: Agent, creationContext: AgentCreationContext): void {
+  attach(agent: Agent, _creationContext: AgentCreationContext): void {
     // Get the allowed sub-agents from the agent config (may include wildcards)
     const config = agent.getAgentConfigSlice('subAgent', SubAgentConfigSchema);
 
@@ -135,7 +135,7 @@ export default class SubAgentService implements TokenRingService {
       checkPermissions = true,
     }: RunSubAgentOptions,
   ): Promise<RunSubAgentResult> {
-    let {
+    const {
       forwardChatOutput,
       forwardReasoning,
       forwardStatusMessages,
@@ -337,10 +337,11 @@ export default class SubAgentService implements TokenRingService {
               case "input.interaction":
                 /* ignored */
                 break;
-              default:
+              default: {
                 // noinspection JSUnusedLocalSymbols
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const foo: never = event;
-                break;
+              } break;
             }
           }
 

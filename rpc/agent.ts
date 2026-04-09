@@ -32,7 +32,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
     let position = args.fromPosition;
 
     for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
-      let events = state.events.slice(position);
+      const events = state.events.slice(position);
       position = state.events.length;
       yield {
         events,

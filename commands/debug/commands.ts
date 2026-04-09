@@ -39,7 +39,7 @@ export function formatCommandUsage<Schema extends AgentCommandInputSchema>(
   return lines.join("\n");
 }
 
-async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute({agent}: AgentCommandInputType<typeof inputSchema>): string {
   const commandService = agent.requireServiceByType(AgentCommandService);
 
   const commandList = commandService.getCommandEntries()

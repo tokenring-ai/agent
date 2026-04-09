@@ -134,9 +134,11 @@ export function getDefaultQuestionValue<T extends ParsedTextQuestion | ParsedFor
       return field.defaultValue as ResultTypeForQuestion<T>;
     case 'fileSelect':
       return field.defaultValue as ResultTypeForQuestion<T>;
-    default:
+    default: {
       // noinspection JSUnusedLocalSymbols
-      const foo: never = field;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _foo: never = field;
       throw new Error(`Unsupported field type`);
+    }
   }
 }

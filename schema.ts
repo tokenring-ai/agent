@@ -1,5 +1,4 @@
 import z from "zod";
-import type {AgentCommandInputSchema} from "./types.ts";
 
 export const AgentCommandConfigSchema = z.object({
   /** Custom command description (defaults to agent description if not provided) */

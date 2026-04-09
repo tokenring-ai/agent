@@ -75,7 +75,7 @@ export default class AgentCommandService implements TokenRingService {
       commandInput = commandInput.slice(5);
     }
 
-    let match = this.agentCommands.getLongestPrefixMatch(commandInput);
+    const match = this.agentCommands.getLongestPrefixMatch(commandInput);
 
     if (match) {
       if (isHelpCommand) {
@@ -114,7 +114,7 @@ Type /help for a list of commands.`
     return command.execute(parsedInput);
   }
 
-  async attach(agent: Agent) {
+  attach(agent: Agent) {
     agent.runBackgroundTask(async (signal) => this.runAgentLoop(agent, signal));
   }
 

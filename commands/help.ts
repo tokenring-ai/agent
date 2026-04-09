@@ -12,7 +12,7 @@ const inputSchema = {
   }
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({remainder, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute({remainder, agent}: AgentCommandInputType<typeof inputSchema>): string {
   const command = remainder;
   if (command) {
     return getHelpOnCommand(command, agent);

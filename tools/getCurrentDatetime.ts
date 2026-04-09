@@ -7,7 +7,7 @@ const displayName = "Agent/getCurrentDatetime";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export function execute({}: z.output<typeof inputSchema>, agent: Agent): TokenRingToolResult {
+export function execute(_args: z.output<typeof inputSchema>, _agent: Agent): TokenRingToolResult {
   const now = new Date();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

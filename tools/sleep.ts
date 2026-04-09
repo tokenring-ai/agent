@@ -9,7 +9,7 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 
 export async function execute(
   { seconds }: z.output<typeof inputSchema>,
-  agent: Agent
+  _agent: Agent
 ): Promise<TokenRingToolResult> {
   await new Promise(resolve => setTimeout(resolve, seconds * 1000));
 

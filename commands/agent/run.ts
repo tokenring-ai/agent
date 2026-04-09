@@ -42,7 +42,7 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
   const result = await subAgentService.runSubAgent(request);
 
   const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-  lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
+  await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
 
   if (isBg) {
     return `Agent ${agentType} started in background.`;

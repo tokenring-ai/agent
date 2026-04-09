@@ -161,7 +161,7 @@ export type TokenRingAgentCommand<InputSchema extends AgentCommandInputSchema = 
 export abstract class AgentStateSlice<SerializationSchema extends ZodType> extends SerializableStateSlice<SerializationSchema> {
   abstract show(): string[];
 
-  transferStateFromParent(agent: Agent) {}
+  transferStateFromParent(_agent: Agent) {}
 }
 
 export type AgentCreationContext = {

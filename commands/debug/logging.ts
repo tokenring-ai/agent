@@ -12,7 +12,7 @@ const inputSchema = {
   ]
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): string {
   const enabled = positionals.enabled;
 
   if (enabled === "on") {

@@ -67,7 +67,7 @@ export function createAgentTool(toolName: string, toolConfig: AgentToolConfig, c
       const result = await subAgentService.runSubAgent(request);
 
       const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-      lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
+      await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
 
       if (result.status === "success") {
         return result.response || "Agent completed successfully.";

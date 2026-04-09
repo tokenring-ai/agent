@@ -84,7 +84,7 @@ export default class Agent {
       return schema.parse(this.config[key as keyof AgentConfig]);
     } catch (error) {
       throw new Error(
-        `Invalid config value for key "${key}": ${(error as Error).message}`,
+        `Invalid config value for key "${key}": ${(error as Error).message}`, { cause: error }
       );
     }
   }

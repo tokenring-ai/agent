@@ -2,7 +2,7 @@ import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} 
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-async function execute({}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute(): string {
   throw new Error("This is an error thrown by the chat handler");
 }
 
