@@ -1,5 +1,21 @@
 import z from "zod";
 
+export const SubAgentConfigSchema = z.object({
+  forwardChatOutput: z.boolean().default(false),
+  forwardStatusMessages: z.boolean().default(true),
+  forwardSystemOutput: z.boolean().default(false),
+  forwardHumanRequests: z.boolean().default(true),
+  forwardReasoning: z.boolean().default(false),
+  forwardInputCommands: z.boolean().default(true),
+  forwardArtifacts: z.boolean().default(false),
+  timeout: z.number().default(0),
+  maxResponseLength: z.number().default(10000),
+  minContextLength: z.number().default(1000),
+})
+
+export type SubAgentConfig = z.input<typeof SubAgentConfigSchema>;
+export type ParsedSubAgentConfig = z.output<typeof SubAgentConfigSchema>;
+
 export const AgentCommandConfigSchema = z.object({
   /** Custom command description (defaults to agent description if not provided) */
   description: z.string().optional(),
@@ -15,20 +31,10 @@ export const AgentCommandConfigSchema = z.object({
   help: z.string().optional(),
   /** Whether to run in background mode by default */
   background: z.boolean().default(false),
-  /** Whether to forward chat output */
-  forwardChatOutput: z.boolean().default(true),
-  /** Whether to forward system output */
-  forwardSystemOutput: z.boolean().default(true),
-  /** Whether to forward human requests */
-  forwardHumanRequests: z.boolean().default(true),
-  /** Whether to forward reasoning output */
-  forwardReasoning: z.boolean().default(false),
-  /** Whether to forward input commands */
-  forwardInputCommands: z.boolean().default(true),
-  /** Whether to forward artifacts */
-  forwardArtifacts: z.boolean().default(false),
   /** The steps to execute */
   steps: z.array(z.string()).min(1),
+  /** The subagent configuration */
+  subAgent: SubAgentConfigSchema.prefault({}),
 });
 export type AgentCommandConfig = z.infer<typeof AgentCommandConfigSchema>;
 
@@ -44,39 +50,12 @@ export const AgentToolConfigSchema = z.object({
   description: z.string(),
   /** Tool Input Schema */
   inputArguments: z.record(z.string(), AgentToolInputArgumentSchema),
-  /** Whether to forward chat output */
-  forwardChatOutput: z.boolean().default(true),
-  /** Whether to forward system output */
-  forwardSystemOutput: z.boolean().default(true),
-  /** Whether to forward human requests */
-  forwardHumanRequests: z.boolean().default(true),
-  /** Whether to forward reasoning output */
-  forwardReasoning: z.boolean().default(false),
-  /** Whether to forward input commands */
-  forwardInputCommands: z.boolean().default(true),
-  /** Whether to forward artifacts */
-  forwardArtifacts: z.boolean().default(false),
   /** The steps to execute */
   steps: z.array(z.string()).min(1),
+  /** The subagent configuration */
+  subAgent: SubAgentConfigSchema.prefault({}),
 });
 export type AgentToolConfig = z.infer<typeof AgentToolConfigSchema>;
-
-export const SubAgentConfigSchema = z.object({
-  allowedSubAgents: z.array(z.string()).default([]),
-  forwardChatOutput: z.boolean().default(false),
-  forwardStatusMessages: z.boolean().default(true),
-  forwardSystemOutput: z.boolean().default(false),
-  forwardHumanRequests: z.boolean().default(true),
-  forwardReasoning: z.boolean().default(false),
-  forwardInputCommands: z.boolean().default(true),
-  forwardArtifacts: z.boolean().default(false),
-  timeout: z.number().default(0),
-  maxResponseLength: z.number().default(10000),
-  minContextLength: z.number().default(1000),
-}).prefault({});
-
-export type SubAgentConfig = z.input<typeof SubAgentConfigSchema>;
-export type ParsedSubAgentConfig = z.output<typeof SubAgentConfigSchema>;
 
 export const AgentConfigSchema = z.object({
   agentType: z.string(),
@@ -94,7 +73,6 @@ export const AgentConfigSchema = z.object({
   minimumRunning: z.number().default(0),
   idleTimeout: z.number().default(0), // In seconds
   maxRunTime: z.number().default(0), // In seconds
-  subAgent: SubAgentConfigSchema,
 });
 
 export const AgentPackageConfigSchema = z.object({

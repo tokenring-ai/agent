@@ -1,12 +1,9 @@
 import Agent from "@tokenring-ai/agent/Agent";
 import {type InputMessage, type ParsedInteractionRequest} from "@tokenring-ai/agent/AgentEvents";
-import {type ParsedSubAgentConfig, SubAgentConfigSchema,} from "@tokenring-ai/agent/schema";
+import {type ParsedSubAgentConfig,} from "@tokenring-ai/agent/schema";
 import AgentManager from "@tokenring-ai/agent/services/AgentManager";
-import {SubAgentState} from "@tokenring-ai/agent/state/subAgentState";
-import type {AgentCreationContext} from "@tokenring-ai/agent/types";
 import TokenRingApp from "@tokenring-ai/app";
 import {TokenRingService} from "@tokenring-ai/app/types";
-import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 import {AgentEventState, agentMessages} from "../state/agentEventState.ts";
@@ -23,7 +20,7 @@ export type RunSubAgentOptions = {
   /** The source of the input */
   from: string
   /** Runtime options for the agent */
-  options?: Partial<ParsedSubAgentConfig>;
+  options: ParsedSubAgentConfig;
   /** The parent agent instance */
   parentAgent: Agent;
   /** Whether to automatically clean up the child agent when done */
@@ -84,32 +81,6 @@ export default class SubAgentService implements TokenRingService {
   }
 
   /**
-   * Attaches to an agent and configures sub-agent permissions.
-   *
-   * This method looks up the allowed sub-agents from the agent's configuration
-   * and resolves any wildcard patterns to actual agent types, similar to how
-   * ChatService looks up tools with wildcard matching.
-   *
-   * @param agent - The agent to attach to
-   * @param creationContext - The agent creation context
-   */
-  attach(agent: Agent, _creationContext: AgentCreationContext): void {
-    // Get the allowed sub-agents from the agent config (may include wildcards)
-    const config = agent.getAgentConfigSlice('subAgent', SubAgentConfigSchema);
-
-    const agentManager = agent.requireServiceByType(AgentManager);
-
-    // Resolve wildcards to actual agent types
-    const resolvedAllowedAgents = agentManager.getAgentTypesLike(config.allowedSubAgents).map(([type]) => type);
-
-    // Initialize the SubAgentState with resolved allowed agents
-    agent.initializeState(SubAgentState, {
-      ...config,
-      allowedSubAgents: resolvedAllowedAgents
-    });
-  }
-
-  /**
    * Runs a sub-agent with configurable options for output forwarding.
    *
    * @param agentType - The type of sub-agent to run
@@ -129,7 +100,7 @@ export default class SubAgentService implements TokenRingService {
       headless,
       from,
       steps,
-      options = {},
+      options,
       parentAgent,
       autoCleanup = true,
       checkPermissions = true,
@@ -146,18 +117,13 @@ export default class SubAgentService implements TokenRingService {
       timeout: timeoutSeconds,
       maxResponseLength,
       minContextLength,
-      allowedSubAgents
-    } = deepMerge(options, parentAgent.getState(SubAgentState).config);
+    } = options;
 
     if (steps.length === 0) {
       throw new Error("An empty steps array was provided for sub-agent execution, which is not allowed.");
     }
 
     const agentManager = parentAgent.requireServiceByType(AgentManager);
-
-    if (checkPermissions && !allowedSubAgents.includes(agentType)) {
-      throw new Error(`Sub-agent type "${agentType}" is not allowed for this agent.`);
-    }
 
     parentAgent.setCurrentActivity(`Running sub-agent: ${agentType}`);
     const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType, {headless});

@@ -35,14 +35,7 @@ export function createAgentCommand(name: string, commandConfig: AgentCommandConf
         from: `Parent agent command: /${name}`,
         steps,
         parentAgent: agent,
-        options: {
-          forwardChatOutput: commandConfig.forwardChatOutput,
-          forwardSystemOutput: commandConfig.forwardSystemOutput,
-          forwardHumanRequests: commandConfig.forwardHumanRequests,
-          forwardReasoning: commandConfig.forwardReasoning,
-          forwardInputCommands: commandConfig.forwardInputCommands,
-          forwardArtifacts: commandConfig.forwardArtifacts,
-        },
+        options: commandConfig.subAgent,
         checkPermissions: false
       };
 

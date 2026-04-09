@@ -11,7 +11,6 @@ import {SubAgentService} from "../index.ts";
  */
 import {type AgentToolConfig, ParsedAgentConfig} from "../schema.ts";
 import type {RunSubAgentOptions} from "../services/SubAgentService.ts";
-import {SubAgentState} from "../state/subAgentState.ts";
 
 export function createAgentTool(toolName: string, toolConfig: AgentToolConfig, config: ParsedAgentConfig) {
   const toolDescription = `${toolConfig.description || config.description}`;
@@ -27,17 +26,7 @@ export function createAgentTool(toolName: string, toolConfig: AgentToolConfig, c
     displayName: toolConfig.displayName,
     description: toolDescription,
     inputSchema,
-    adjustActivation: (enabled, agent) => {
-      if (enabled) {
-        const allowedSubAgents = agent.getState(SubAgentState).config.allowedSubAgents;
 
-        if (! allowedSubAgents.includes(config.agentType)) {
-          agent.warningMessage(`De-activated tool ${toolName} because it is not an allowed sub-agent for the ${agent.config.agentType} agent.`);
-          return false;
-        }
-      }
-      return enabled;
-    },
     execute: async (args, agent): Promise<string> => {
       const replacements: Record<string, () => string> = {};
       for (const key of Object.keys(toolConfig.inputArguments)) {
@@ -54,14 +43,7 @@ export function createAgentTool(toolName: string, toolConfig: AgentToolConfig, c
         from: `Parent agent tool: /${toolName}`,
         steps,
         parentAgent: agent,
-        options: {
-          forwardChatOutput: toolConfig.forwardChatOutput,
-          forwardSystemOutput: toolConfig.forwardSystemOutput,
-          forwardHumanRequests: toolConfig.forwardHumanRequests,
-          forwardReasoning: toolConfig.forwardReasoning,
-          forwardInputCommands: toolConfig.forwardInputCommands,
-          forwardArtifacts: toolConfig.forwardArtifacts,
-        },
+        options: toolConfig.subAgent
       };
 
       const result = await subAgentService.runSubAgent(request);

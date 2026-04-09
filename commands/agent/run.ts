@@ -15,6 +15,49 @@ const inputSchema = {
       description: "The type of agent to run",
       required: true,
     },
+    "--forwardChatOutput": {
+      type: "flag",
+      description: "Forward chat output from the sub-agent",
+    },
+    "--forwardStatusMessages": {
+      type: "flag",
+      description: "Forward status messages from the sub-agent",
+    },
+    "--forwardSystemOutput": {
+      type: "flag",
+      description: "Forward system output from the sub-agent",
+    },
+    "--forwardHumanRequests": {
+      type: "flag",
+      description: "Forward human requests from the sub-agent",
+    },
+    "--forwardReasoning": {
+      type: "flag",
+      description: "Forward reasoning output from the sub-agent",
+    },
+    "--forwardInputCommands": {
+      type: "flag",
+      description: "Forward input commands from the sub-agent",
+    },
+    "--forwardArtifacts": {
+      type: "flag",
+      description: "Forward artifacts from the sub-agent",
+    },
+    "--timeout": {
+      type: "number",
+      description: "Timeout in milliseconds for the sub-agent (0 = no timeout)",
+      defaultValue: 0
+    },
+    "--maxResponseLength": {
+      type: "number",
+      description: "Maximum response length from the sub-agent",
+      defaultValue: 10000
+    },
+    "--minContextLength": {
+      type: "number",
+      description: "Minimum context length for the sub-agent",
+      defaultValue: 1000
+    },
   },
   remainder: {
     name: "message",
@@ -27,6 +70,19 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
   const isBg = args["--bg"] === true;
   const agentType = args["--type"];
 
+  const subAgentOptions = {
+    forwardChatOutput: !!args["--forwardChatOutput"],
+    forwardStatusMessages: !!args["--forwardStatusMessages"],
+    forwardSystemOutput: !!args["--forwardSystemOutput"],
+    forwardHumanRequests: !!args["--forwardHumanRequests"],
+    forwardReasoning: !!args["--forwardReasoning"],
+    forwardInputCommands: !!args["--forwardInputCommands"],
+    forwardArtifacts: !!args["--forwardArtifacts"],
+    timeout: args["--timeout"],
+    maxResponseLength: args["--maxResponseLength"],
+    minContextLength: args["--minContextLength"],
+  };
+
   const subAgentService = agent.requireServiceByType(SubAgentService);
 
   const request: RunSubAgentOptions = {
@@ -38,7 +94,8 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
     parentAgent: agent,
     autoCleanup: true,
     checkPermissions: false,
-  }
+    options: subAgentOptions,
+  };
   const result = await subAgentService.runSubAgent(request);
 
   const lifecycleService = agent.getServiceByType(AgentLifecycleService);
