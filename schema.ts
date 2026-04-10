@@ -11,7 +11,7 @@ export const SubAgentConfigSchema = z.object({
   timeout: z.number().default(0),
   maxResponseLength: z.number().default(10000),
   minContextLength: z.number().default(1000),
-})
+});
 
 export type SubAgentConfig = z.input<typeof SubAgentConfigSchema>;
 export type ParsedSubAgentConfig = z.output<typeof SubAgentConfigSchema>;
@@ -20,13 +20,17 @@ export const AgentCommandConfigSchema = z.object({
   /** Custom command description (defaults to agent description if not provided) */
   description: z.string().optional(),
   /** Command input schema */
-  commandSchema: z.object({
-    remainder: z.object({
-      name: z.string().default('prompt'),
-      description: z.string().default(`Prompt to send to the agent`),
-      required: z.boolean().default(true),
-    }).prefault({}),
-  }).prefault({}),
+  commandSchema: z
+    .object({
+      remainder: z
+        .object({
+          name: z.string().default("prompt"),
+          description: z.string().default(`Prompt to send to the agent`),
+          required: z.boolean().default(true),
+        })
+        .prefault({}),
+    })
+    .prefault({}),
   /** Custom help text for the command */
   help: z.string().optional(),
   /** Whether to run in background mode by default */
@@ -40,7 +44,7 @@ export type AgentCommandConfig = z.infer<typeof AgentCommandConfigSchema>;
 
 export const AgentToolInputArgumentSchema = z.object({
   description: z.string(),
-  defaultValue: z.string().optional()
+  defaultValue: z.string().optional(),
 });
 
 export const AgentToolConfigSchema = z.object({
@@ -66,22 +70,26 @@ export const AgentConfigSchema = z.object({
   initialCommands: z.array(z.string()).default([]),
   createMessage: z.string().default("Agent Created"),
   headless: z.boolean().default(false),
-  callable: z.object({
-    commands: z.record(z.string(), AgentCommandConfigSchema).default({}),
-    tools: z.record(z.string(), AgentToolConfigSchema).default({}),
-  }).prefault({}),
+  callable: z
+    .object({
+      commands: z.record(z.string(), AgentCommandConfigSchema).default({}),
+      tools: z.record(z.string(), AgentToolConfigSchema).default({}),
+    })
+    .prefault({}),
   minimumRunning: z.number().default(0),
   idleTimeout: z.number().default(0), // In seconds
   maxRunTime: z.number().default(0), // In seconds
 });
 
 export const AgentPackageConfigSchema = z.object({
-  agents: z.record(
-    z.string(),
-    AgentConfigSchema.omit({
-      agentType: true
-    }).loose()
-  ).default({}),
+  agents: z
+    .record(
+      z.string(),
+      AgentConfigSchema.omit({
+        agentType: true,
+      }).loose(),
+    )
+    .default({}),
 });
 
 export type AgentPackageConfig = z.input<typeof AgentPackageConfigSchema>;

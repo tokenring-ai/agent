@@ -1,14 +1,16 @@
-import Agent from "@tokenring-ai/agent/Agent";
-import {type InputMessage, type ParsedInteractionRequest} from "@tokenring-ai/agent/AgentEvents";
-import {type ParsedSubAgentConfig,} from "@tokenring-ai/agent/schema";
+import type Agent from "@tokenring-ai/agent/Agent";
+import type {InputMessage, ParsedInteractionRequest,} from "@tokenring-ai/agent/AgentEvents";
+import type {ParsedSubAgentConfig} from "@tokenring-ai/agent/schema";
 import AgentManager from "@tokenring-ai/agent/services/AgentManager";
-import TokenRingApp from "@tokenring-ai/app";
-import {TokenRingService} from "@tokenring-ai/app/types";
+import type TokenRingApp from "@tokenring-ai/app";
+import type {TokenRingService} from "@tokenring-ai/app/types";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import trimMiddle from "@tokenring-ai/utility/string/trimMiddle";
 import {AgentEventState, agentMessages} from "../state/agentEventState.ts";
 
-export type SubAgentStep = string | Pick<InputMessage, 'message' | 'attachments'>;
+export type SubAgentStep =
+  | string
+  | Pick<InputMessage, "message" | "attachments">;
 
 export type RunSubAgentOptions = {
   /** The type of agent to create */
@@ -18,15 +20,13 @@ export type RunSubAgentOptions = {
   /** Whether to run the agent in headless mode */
   headless: boolean;
   /** The source of the input */
-  from: string
+  from: string;
   /** Runtime options for the agent */
   options: ParsedSubAgentConfig;
   /** The parent agent instance */
   parentAgent: Agent;
   /** Whether to automatically clean up the child agent when done */
   autoCleanup?: boolean;
-  /** Whether to check the permissions of the parent agent before running the sub-agent */
-  checkPermissions?: boolean;
   /** The command to send to the agent */
   steps: SubAgentStep[];
 };
@@ -45,22 +45,27 @@ type PendingChildQuestion = {
   interaction: Extract<ParsedInteractionRequest, { type: "question" }>;
 };
 
-function getPendingChildQuestion(state: AgentEventState, requestId: string): PendingChildQuestion | null {
+function getPendingChildQuestion(
+  state: AgentEventState,
+  requestId: string,
+): PendingChildQuestion | null {
   const currentItem = state.currentlyExecutingInputItem;
   if (!currentItem || currentItem.request.requestId !== requestId) return null;
 
   const interaction = currentItem.executionState.availableInteractions.find(
     (
-      availableInteraction
-    ): availableInteraction is Extract<ParsedInteractionRequest, { type: "question" }> =>
-      availableInteraction.type === "question"
+      availableInteraction,
+    ): availableInteraction is Extract<
+      ParsedInteractionRequest,
+      { type: "question" }
+    > => availableInteraction.type === "question",
   );
 
   if (!interaction) return null;
 
   return {
     requestId: currentItem.request.requestId,
-    interaction
+    interaction,
   };
 }
 
@@ -93,19 +98,16 @@ export default class SubAgentService implements TokenRingService {
    * @param checkPermissions - Whether to check the permissions of the parent agent before running the sub-agent (default: true)
    * @returns Promise resolving to the execution result
    */
-  async runSubAgent(
-    {
-      agentType,
-      background,
-      headless,
-      from,
-      steps,
-      options,
-      parentAgent,
-      autoCleanup = true,
-      checkPermissions = true,
-    }: RunSubAgentOptions,
-  ): Promise<RunSubAgentResult> {
+  async runSubAgent({
+                      agentType,
+                      background,
+                      headless,
+                      from,
+                      steps,
+                      options,
+                      parentAgent,
+                      autoCleanup = true
+                    }: RunSubAgentOptions): Promise<RunSubAgentResult> {
     const {
       forwardChatOutput,
       forwardReasoning,
@@ -120,47 +122,65 @@ export default class SubAgentService implements TokenRingService {
     } = options;
 
     if (steps.length === 0) {
-      throw new Error("An empty steps array was provided for sub-agent execution, which is not allowed.");
+      throw new Error(
+        "An empty steps array was provided for sub-agent execution, which is not allowed.",
+      );
     }
 
     const agentManager = parentAgent.requireServiceByType(AgentManager);
 
     parentAgent.setCurrentActivity(`Running sub-agent: ${agentType}`);
-    const childAgent = await agentManager.spawnSubAgent(parentAgent, agentType, {headless});
+    const childAgent = await agentManager.spawnSubAgent(
+      parentAgent,
+      agentType,
+      {headless},
+    );
 
     let timeoutExceeded = false;
 
     const listenerAbortController = new AbortController();
     const listenerSignal = listenerAbortController.signal;
 
-    const timer = timeoutSeconds > 0 ? setTimeout(() => {
-      timeoutExceeded = true;
-      childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
-      listenerAbortController.abort();
-    }, timeoutSeconds * 1000) : null;
+    const timer =
+      timeoutSeconds > 0
+        ? setTimeout(() => {
+          timeoutExceeded = true;
+          childAgent.abortCurrentOperation(
+            `Sub-agent timed out after ${timeoutSeconds} seconds.`,
+          );
+          listenerAbortController.abort();
+        }, timeoutSeconds * 1000)
+        : null;
 
     let removeParentAbortListener = () => {
     };
     if (!background) {
       const parentAbortSignal = parentAgent.getAbortSignal();
       const onParentAbort = () => {
-        childAgent.abortCurrentOperation(String(parentAbortSignal.reason ?? "Parent agent aborted sub-agent."));
+        childAgent.abortCurrentOperation(
+          String(parentAbortSignal.reason ?? "Parent agent aborted sub-agent."),
+        );
         listenerAbortController.abort(parentAbortSignal.reason);
       };
 
-      parentAbortSignal.addEventListener("abort", onParentAbort, {once: true});
-      removeParentAbortListener = () => parentAbortSignal.removeEventListener("abort", onParentAbort);
+      parentAbortSignal.addEventListener("abort", onParentAbort, {
+        once: true,
+      });
+      removeParentAbortListener = () =>
+        parentAbortSignal.removeEventListener("abort", onParentAbort);
     }
 
     try {
       await childAgent.waitForState(AgentEventState, (state) => state.idle);
-      const eventCursor = childAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
+      const eventCursor = childAgent
+        .getState(AgentEventState)
+        .getEventCursorFromCurrentPosition();
 
       let requestId: string;
       for (const step of steps) {
         const inputMessage = {
           from,
-          ...(typeof step === "string" ? {message: step} : step)
+          ...(typeof step === "string" ? {message: step} : step),
         };
         requestId = childAgent.handleInput(inputMessage);
       }
@@ -173,7 +193,10 @@ export default class SubAgentService implements TokenRingService {
         };
       }
 
-      async function forwardChildEventsToParent(): Promise<{ status: "error" | "cancelled" | "success", response: string }> {
+      async function forwardChildEventsToParent(): Promise<{
+        status: "error" | "cancelled" | "success";
+        response: string;
+      }> {
         const response = [];
         const mirroredInteractionIds = new Set<string>();
 
@@ -182,8 +205,10 @@ export default class SubAgentService implements TokenRingService {
             const currentItem = parentState.currentlyExecutingInputItem;
             if (!currentItem) return;
 
-            currentItem.executionState.availableInteractions = currentItem.executionState.availableInteractions
-              .filter((interaction) => interaction.interactionId !== interactionId);
+            currentItem.executionState.availableInteractions =
+              currentItem.executionState.availableInteractions.filter(
+                (interaction) => interaction.interactionId !== interactionId,
+              );
             currentItem.interactionCallbacks.delete(interactionId);
           });
           mirroredInteractionIds.delete(interactionId);
@@ -195,40 +220,63 @@ export default class SubAgentService implements TokenRingService {
           }
         };
 
-        const mirrorInteractionToParent = (pendingQuestion: PendingChildQuestion) => {
+        const mirrorInteractionToParent = (
+          pendingQuestion: PendingChildQuestion,
+        ) => {
           parentAgent.mutateState(AgentEventState, (parentState) => {
             const currentItem = parentState.currentlyExecutingInputItem;
             if (!currentItem) {
-              throw new Error("Cannot forward a sub-agent interaction when the parent agent has no active input.");
+              throw new Error(
+                "Cannot forward a sub-agent interaction when the parent agent has no active input.",
+              );
             }
 
-            if (!currentItem.executionState.availableInteractions.some(
-              (interaction) => interaction.interactionId === pendingQuestion.interaction.interactionId
-            )) {
-              currentItem.executionState.availableInteractions.push(pendingQuestion.interaction);
+            if (
+              !currentItem.executionState.availableInteractions.some(
+                (interaction) =>
+                  interaction.interactionId ===
+                  pendingQuestion.interaction.interactionId,
+              )
+            ) {
+              currentItem.executionState.availableInteractions.push(
+                pendingQuestion.interaction,
+              );
             }
 
-            currentItem.interactionCallbacks.set(pendingQuestion.interaction.interactionId, (result) => {
-              const childState = childAgent.getState(AgentEventState);
-              const activeInteraction = getPendingChildQuestion(childState, pendingQuestion.requestId);
-              if (!activeInteraction || activeInteraction.interaction.interactionId !== pendingQuestion.interaction.interactionId) {
-                return;
-              }
+            currentItem.interactionCallbacks.set(
+              pendingQuestion.interaction.interactionId,
+              (result) => {
+                const childState = childAgent.getState(AgentEventState);
+                const activeInteraction = getPendingChildQuestion(
+                  childState,
+                  pendingQuestion.requestId,
+                );
+                if (
+                  !activeInteraction ||
+                  activeInteraction.interaction.interactionId !==
+                  pendingQuestion.interaction.interactionId
+                ) {
+                  return;
+                }
 
-              childAgent.sendInteractionResponse({
-                requestId: pendingQuestion.requestId,
-                interactionId: pendingQuestion.interaction.interactionId,
-                result
-              });
-            });
+                childAgent.sendInteractionResponse({
+                  requestId: pendingQuestion.requestId,
+                  interactionId: pendingQuestion.interaction.interactionId,
+                  result,
+                });
+              },
+            );
           });
 
           mirroredInteractionIds.add(pendingQuestion.interaction.interactionId);
         };
 
-        let lastActivity = agentMessages.noTasks
+        let lastActivity = agentMessages.noTasks;
 
-        for await (const state of childAgent.subscribeStateAsync(AgentEventState, listenerSignal)) {
+        for await (const state of childAgent.subscribeStateAsync(
+          AgentEventState,
+          listenerSignal,
+        )) {
           for (const event of state.yieldEventsByCursor(eventCursor)) {
             switch (event.type) {
               case "output.chat":
@@ -257,7 +305,7 @@ export default class SubAgentService implements TokenRingService {
                   eventState.events.push(event);
                 });
                 break;
-              case 'input.received':
+              case "input.received":
                 if (forwardInputCommands) {
                   parentAgent.chatOutput(`
 ### ${childAgent.config.displayName} (@${agentType})
@@ -270,7 +318,7 @@ export default class SubAgentService implements TokenRingService {
                   const truncatedResponse = trimMiddle(
                     response.length > 0 ? response.join("") : event.message,
                     minContextLength,
-                    maxResponseLength
+                    maxResponseLength,
                   );
                   return {
                     status: event.status,
@@ -283,7 +331,9 @@ export default class SubAgentService implements TokenRingService {
                 if (forwardStatusMessages) {
                   if (lastActivity !== event.currentActivity) {
                     lastActivity = event.currentActivity;
-                    parentAgent.chatOutput(`\n***${event.currentActivity}***\n`);
+                    parentAgent.chatOutput(
+                      `\n***${event.currentActivity}***\n`,
+                    );
                   }
                 }
                 break;
@@ -305,15 +355,15 @@ export default class SubAgentService implements TokenRingService {
                 break;
               default: {
                 // noinspection JSUnusedLocalSymbols
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const foo: never = event;
-              } break;
+                const _foo: never = event;
+              }
+                break;
             }
           }
 
           const pendingQuestion = getPendingChildQuestion(state, requestId);
           const activeInteractionIds = new Set(
-            pendingQuestion ? [pendingQuestion.interaction.interactionId] : []
+            pendingQuestion ? [pendingQuestion.interaction.interactionId] : [],
           );
 
           for (const interactionId of mirroredInteractionIds) {
@@ -325,11 +375,17 @@ export default class SubAgentService implements TokenRingService {
           if (!pendingQuestion) continue;
 
           if (!forwardHumanRequests) {
-            childAgent.abortCurrentOperation("Sub-agent requested user interaction, but interaction forwarding is disabled.");
+            childAgent.abortCurrentOperation(
+              "Sub-agent requested user interaction, but interaction forwarding is disabled.",
+            );
             continue;
           }
 
-          if (!mirroredInteractionIds.has(pendingQuestion.interaction.interactionId)) {
+          if (
+            !mirroredInteractionIds.has(
+              pendingQuestion.interaction.interactionId,
+            )
+          ) {
             mirrorInteractionToParent(pendingQuestion);
           }
         }
@@ -337,7 +393,7 @@ export default class SubAgentService implements TokenRingService {
         clearMirroredInteractions();
         return {
           status: "cancelled",
-          response: "Child agent was aborted"
+          response: "Child agent was aborted",
         };
       }
 
@@ -351,13 +407,13 @@ export default class SubAgentService implements TokenRingService {
             status: "cancelled",
             response: `Agent timed out after ${timeoutSeconds} seconds.`,
             childAgent: autoCleanup ? undefined : childAgent,
-          }
+          };
         }
         return {
           status: "error",
           response: "Child agent did not produce a result",
           childAgent: autoCleanup ? undefined : childAgent,
-        }
+        };
       }
       return {
         ...childResult,
@@ -366,7 +422,10 @@ export default class SubAgentService implements TokenRingService {
     } catch (err) {
       return {
         status: "error",
-        response: formatLogMessages(["Error running sub-agent: ", err as Error]),
+        response: formatLogMessages([
+          "Error running sub-agent: ",
+          err as Error,
+        ]),
         childAgent: autoCleanup ? undefined : childAgent,
       };
     } finally {
@@ -375,7 +434,10 @@ export default class SubAgentService implements TokenRingService {
       listenerAbortController.abort();
       // Clean up the agent if auto-cleanup is enabled
       if (autoCleanup && !background) {
-        await agentManager.deleteAgent(childAgent.id, "Parent agent triggered auto-cleanup of sub-agent.");
+        await agentManager.deleteAgent(
+          childAgent.id,
+          "Parent agent triggered auto-cleanup of sub-agent.",
+        );
       }
     }
   }

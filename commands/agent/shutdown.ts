@@ -1,5 +1,5 @@
 import AgentManager from "../../services/AgentManager.ts";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {
   positionals: [
@@ -7,15 +7,21 @@ const inputSchema = {
       name: "agentId",
       description: "Optional agent id to shut down",
       required: false,
-    }
-  ]
+    },
+  ],
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({
+                         positionals,
+                         agent,
+                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const agentId = positionals.agentId ?? agent.id;
   const agentManager = agent.requireServiceByType(AgentManager);
 
-  await agentManager.deleteAgent(agentId, "Agent was shut down with /agent shutdown command");
+  await agentManager.deleteAgent(
+    agentId,
+    "Agent was shut down with /agent shutdown command",
+  );
   return `Agent ${agentId} shut down.`;
 }
 

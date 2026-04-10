@@ -16,11 +16,11 @@ export const AgentStoppedSchema = z.object({
 export const OutputArtifactSchema = z.object({
   type: z.literal("output.artifact"),
   name: z.string(),
-  encoding: z.enum(["text","base64"]),
+  encoding: z.enum(["text", "base64"]),
   mimeType: z.string(),
   body: z.string(),
   timestamp: z.number(),
-})
+});
 
 export type Artifact = z.input<typeof OutputArtifactSchema>;
 
@@ -55,22 +55,22 @@ export const OutputErrorSchema = z.object({
 export const AttachmentSchema = z.object({
   type: z.literal("attachment"),
   name: z.string(),
-  encoding: z.enum(["text","base64","href"]),
+  encoding: z.enum(["text", "base64", "href"]),
   mimeType: z.string(),
   body: z.string(),
   timestamp: z.number(),
-})
+});
 
 export const InputMessageSchema = z.object({
   from: z.string(),
   message: z.string(),
   attachments: z.array(AttachmentSchema).optional(),
-})
+});
 
 export type InputMessage = z.input<typeof InputMessageSchema>;
 
 /* A question request is a request that immediately requires an answer from the user for a single form field
-* This is used for functionality such as when the user needs to immediately select a model or provider */
+ * This is used for functionality such as when the user needs to immediately select a model or provider */
 export const InteractionResponseSchema = z.object({
   type: z.literal("input.interaction"),
   timestamp: z.number(),
@@ -93,10 +93,10 @@ export const QuestionInteractionSchema = z.object({
   message: z.string(),
   question: QuestionSchema,
   optional: z.boolean().default(false),
-  autoSubmitAt: z.number().optional()
-})
+  autoSubmitAt: z.number().optional(),
+});
 
-export const InteractionSchema = z.discriminatedUnion('type', [
+export const InteractionSchema = z.discriminatedUnion("type", [
   FollowupInteractionSchema,
   QuestionInteractionSchema,
 ]);
@@ -123,7 +123,9 @@ export const AgentCancelledResponseSchema = z.object({
   message: z.string(),
 });
 
-export type ParsedAgentCancelledResponse = z.output<typeof AgentCancelledResponseSchema>;
+export type ParsedAgentCancelledResponse = z.output<
+  typeof AgentCancelledResponseSchema
+>;
 
 export const AgentErrorResponseSchema = z.object({
   type: z.literal("agent.response"),
@@ -133,7 +135,9 @@ export const AgentErrorResponseSchema = z.object({
   message: z.string(),
 });
 
-export type ParsedAgentErrorResponse = z.output<typeof AgentErrorResponseSchema>;
+export type ParsedAgentErrorResponse = z.output<
+  typeof AgentErrorResponseSchema
+>;
 
 export const AgentSuccessResponseSchema = z.object({
   type: z.literal("agent.response"),
@@ -144,13 +148,15 @@ export const AgentSuccessResponseSchema = z.object({
   attachments: z.array(AttachmentSchema).optional(),
 });
 
-export type ParsedAgentSuccessResponse = z.output<typeof AgentSuccessResponseSchema>;
+export type ParsedAgentSuccessResponse = z.output<
+  typeof AgentSuccessResponseSchema
+>;
 
 export const InputExecutionStateSchema = z.object({
   type: z.literal("input.execution"),
   timestamp: z.number(),
   requestId: z.string(),
-  status: z.enum(['queued', "running", "finished"]),
+  status: z.enum(["queued", "running", "finished"]),
   currentActivity: z.string().optional(),
   availableInteractions: z.array(InteractionSchema).optional(),
 });
@@ -158,17 +164,16 @@ export const InputExecutionStateSchema = z.object({
 export const AgentResponseSchema = z.discriminatedUnion("status", [
   AgentCancelledResponseSchema,
   AgentErrorResponseSchema,
-  AgentSuccessResponseSchema
+  AgentSuccessResponseSchema,
 ]);
 
 export type ParsedAgentResponse = z.output<typeof AgentResponseSchema>;
-
 
 export const InputCancelSchema = z.object({
   type: z.literal("cancel"),
   timestamp: z.number(),
   requestId: z.string(),
-})
+});
 
 export type InputReceived = z.input<typeof InputReceivedSchema>;
 
@@ -177,16 +182,17 @@ export const AgentStatusSchema = z.object({
   status: z.enum(["starting", "running", "shutdown"]),
   timestamp: z.number(),
   inputExecutionQueue: z.array(z.string()),
-  currentActivity: z.string()
+  currentActivity: z.string(),
 });
-
 
 export type ParsedAgentStatus = z.output<typeof AgentStatusSchema>;
 export type InteractionRequest = z.input<typeof InteractionSchema>;
-export type ParsedInteractionRequest = z.output<typeof InteractionSchema>
+export type ParsedInteractionRequest = z.output<typeof InteractionSchema>;
 
 export type InteractionResponse = z.input<typeof InteractionResponseSchema>;
-export type ParsedInteractionResponse = z.output<typeof InteractionResponseSchema>;
+export type ParsedInteractionResponse = z.output<
+  typeof InteractionResponseSchema
+>;
 
 export type QuestionResponse = z.output<typeof QuestionInteractionSchema>;
 

@@ -1,22 +1,28 @@
-import TokenRingApp from "@tokenring-ai/app";
-import {TokenRingService} from "@tokenring-ai/app/types";
+import type TokenRingApp from "@tokenring-ai/app";
+import type {TokenRingService} from "@tokenring-ai/app/types";
 import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
 import {
   AfterAgentInputCancelled,
   AfterAgentInputError,
   AfterAgentInputHandled,
   AfterAgentInputSuccess,
-  BeforeAgentInput
+  BeforeAgentInput,
 } from "@tokenring-ai/lifecycle/util/hooks";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {v4 as uuid} from "uuid";
-import Agent from "../Agent.ts";
+import type Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
-import type {InputAttachment, ParsedAgentCancelledResponse, ParsedAgentErrorResponse, ParsedAgentResponse, ParsedAgentSuccessResponse} from "../AgentEvents.ts";
-import {AgentEventState, agentMessages, type InputQueueItem} from "../state/agentEventState.ts";
-import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../types.ts";
+import type {
+  InputAttachment,
+  ParsedAgentCancelledResponse,
+  ParsedAgentErrorResponse,
+  ParsedAgentResponse,
+  ParsedAgentSuccessResponse,
+} from "../AgentEvents.ts";
+import {AgentEventState, agentMessages, type InputQueueItem,} from "../state/agentEventState.ts";
+import type {AgentCommandInputSchema, TokenRingAgentCommand,} from "../types.ts";
 import {parseAgentCommandInput} from "../util/parseAgentCommandInput.ts";
 
 export default class AgentCommandService implements TokenRingService {
@@ -33,24 +39,29 @@ export default class AgentCommandService implements TokenRingService {
   constructor(private readonly app: TokenRingApp) {
   }
 
-  addAgentCommands(...commands: (TokenRingAgentCommand<any> | TokenRingAgentCommand<any>[])[]) {
+  addAgentCommands(
+    ...commands: (TokenRingAgentCommand<any> | TokenRingAgentCommand<any>[])[]
+  ) {
     for (const command of commands.flat()) {
       this.agentCommands.register(command.name, command);
       for (const alias of command.aliases ?? []) {
         this.agentCommands.register(alias, command);
       }
-
     }
   }
 
-  async executeAgentCommand(agent: Agent, message: string, attachments: InputAttachment[] = []): Promise<string> {
+  async executeAgentCommand(
+    agent: Agent,
+    message: string,
+    attachments: InputAttachment[] = [],
+  ): Promise<string> {
     const signal = agent.getAbortSignal();
     if (signal.aborted) {
       throw new CommandFailedError("Command execution aborted");
     }
 
     message = message.trim();
-    if (message === '') {
+    if (message === "") {
       message = "/help";
     } else if (message.startsWith("@")) {
       const agentMention = message.slice(1);
@@ -60,10 +71,14 @@ export default class AgentCommandService implements TokenRingService {
         if (agentName && prompt) {
           message = `/agent run ${agentName} ${prompt}`;
         } else {
-          throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
+          throw new CommandFailedError(
+            `Invalid agent invocation: ${agentMention}`,
+          );
         }
       } else {
-        throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
+        throw new CommandFailedError(
+          `Invalid agent invocation: ${agentMention}`,
+        );
       }
     } else if (!message.startsWith("/")) {
       message = `${this.defaultCommand} ${message}`;
@@ -82,55 +97,53 @@ export default class AgentCommandService implements TokenRingService {
         return match.item.help;
       }
 
-      const result = await this.executeParsedCommand(match.item, match.remainder, attachments, agent);
+      const result = await this.executeParsedCommand(
+        match.item,
+        match.remainder,
+        attachments,
+        agent,
+      );
       return result ? result.trim() : "Command completed successfully";
     }
     const firstWord = commandInput.split(/\s+/)[0];
-    const matchingCommands = this.agentCommands.getItemEntriesLike(`${firstWord}*`);
+    const matchingCommands = this.agentCommands.getItemEntriesLike(
+      `${firstWord}*`,
+    );
     if (matchingCommands.length > 0) {
       throw new CommandFailedError(`
 Unknown command: ${message} 
 
 Possible matching commands: 
-${ markdownList(
-    matchingCommands.map((cmd) => 
-       `/${cmd[1].name} - ${cmd[1].description}`
-    ).sort()
+${markdownList(
+        matchingCommands
+          .map((cmd) => `/${cmd[1].name} - ${cmd[1].description}`)
+          .sort(),
 )}
 
-Type /help for a list of commands.`
-      );
+Type /help for a list of commands.`);
     }
-    throw new CommandFailedError(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
-  }
-
-  private async executeParsedCommand<Schema extends AgentCommandInputSchema>(
-    command: TokenRingAgentCommand<Schema>,
-    input: string,
-    attachments: InputAttachment[],
-    agent: Agent,
-  ) {
-    const parsedInput = parseAgentCommandInput(command, input, attachments, agent);
-    return command.execute(parsedInput);
-  }
-
-  attach(agent: Agent) {
-    agent.runBackgroundTask(async (signal) => this.runAgentLoop(agent, signal));
+    throw new CommandFailedError(
+      `Unknown command: /${firstWord}. Type /help for a list of commands.`,
+    );
   }
 
   async runAgentLoop(agent: Agent, signal: AbortSignal): Promise<void> {
     const handleAbort = () => {
-      agent.getState(AgentEventState).inputQueue.forEach(item => item.abortController?.abort());
+      agent
+        .getState(AgentEventState)
+        .inputQueue.forEach((item) => {
+        item.abortController.abort()
+      });
     };
 
-    signal.addEventListener('abort', handleAbort);
+    signal.addEventListener("abort", handleAbort);
 
-    await agent.waitForState(AgentEventState, state => state.events.some(
-      event => event.type === "agent.created"
-    ))
+    await agent.waitForState(AgentEventState, (state) =>
+      state.events.some((event) => event.type === "agent.created"),
+    );
 
     agent.mutateState(AgentEventState, (state) => {
-      state.status = "running"
+      state.status = "running";
       state.currentActivity = agentMessages.noTasks;
 
       if (agent.config.initialCommands.length > 0) {
@@ -140,17 +153,20 @@ Type /help for a list of commands.`
             requestId: uuid(),
             input: {
               from: "Agent startup commands",
-              message: initialCommand
+              message: initialCommand,
             },
-            timestamp: Date.now()
-          })
+            timestamp: Date.now(),
+          });
         }
       }
 
       state.pushAgentStatus();
     });
 
-    for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
+    for await (const state of agent.subscribeStateAsync(
+      AgentEventState,
+      signal,
+    )) {
       if (state.currentlyExecutingInputItem) continue;
       if (state.inputQueue.length === 0) continue;
 
@@ -173,10 +189,29 @@ Type /help for a list of commands.`
     }
     agent.mutateState(AgentEventState, (state) => {
       state.status = "shutdown";
-      state.currentActivity = agentMessages.agentShutdown
+      state.currentActivity = agentMessages.agentShutdown;
       state.pushAgentStatus();
-      signal.removeEventListener('abort', handleAbort);
-    })
+      signal.removeEventListener("abort", handleAbort);
+    });
+  }
+
+  attach(agent: Agent) {
+    agent.runBackgroundTask(async (signal) => this.runAgentLoop(agent, signal));
+  }
+
+  private executeParsedCommand<Schema extends AgentCommandInputSchema>(
+    command: TokenRingAgentCommand<Schema>,
+    input: string,
+    attachments: InputAttachment[],
+    agent: Agent,
+  ) {
+    const parsedInput = parseAgentCommandInput(
+      command,
+      input,
+      attachments,
+      agent,
+    );
+    return command.execute(parsedInput);
   }
 
   private async processAgentInput(agent: Agent, item: InputQueueItem) {
@@ -189,53 +224,74 @@ Type /help for a list of commands.`
     let response: ParsedAgentResponse;
 
     try {
-      await agentLifecycleService?.executeHooks(new BeforeAgentInput(item.request), agent);
+      await agentLifecycleService?.executeHooks(
+        new BeforeAgentInput(item.request),
+        agent,
+      );
 
-      const message = await agentCommandService.executeAgentCommand(agent, input.message, input.attachments);
+      const message = await agentCommandService.executeAgentCommand(
+        agent,
+        input.message,
+        input.attachments,
+      );
 
       response = {
-        type: 'agent.response',
+        type: "agent.response",
         timestamp: Date.now(),
         requestId,
-        status: 'success',
+        status: "success",
         message: message.trim(),
-      } satisfies ParsedAgentSuccessResponse
+      } satisfies ParsedAgentSuccessResponse;
 
-      await agentLifecycleService?.executeHooks(new AfterAgentInputSuccess(item.request, response), agent);
+      await agentLifecycleService?.executeHooks(
+        new AfterAgentInputSuccess(item.request, response),
+        agent,
+      );
     } catch (err) {
       if (signal.aborted) {
         response = {
-          type: 'agent.response',
+          type: "agent.response",
           timestamp: Date.now(),
           requestId,
-          status: 'cancelled',
-          message: 'Command execution cancelled',
+          status: "cancelled",
+          message: "Command execution cancelled",
         } satisfies ParsedAgentCancelledResponse;
 
-        await agentLifecycleService?.executeHooks(new AfterAgentInputCancelled(item.request, response), agent);
+        await agentLifecycleService?.executeHooks(
+          new AfterAgentInputCancelled(item.request, response),
+          agent,
+        );
       } else {
-        const message = err instanceof CommandFailedError ? err.message : formatLogMessages([err as Error]);
+        const message =
+          err instanceof CommandFailedError
+            ? err.message
+            : formatLogMessages([err as Error]);
 
         response = {
-          type: 'agent.response',
+          type: "agent.response",
           timestamp: Date.now(),
           requestId,
-          status: 'error',
+          status: "error",
           message,
         } satisfies ParsedAgentErrorResponse;
 
-        await agentLifecycleService?.executeHooks(new AfterAgentInputError(item.request, response), agent);
+        await agentLifecycleService?.executeHooks(
+          new AfterAgentInputError(item.request, response),
+          agent,
+        );
       }
     }
 
     agent.mutateState(AgentEventState, (s) => {
       s.emit(response);
-    })
+    });
 
     // Abort to cleanup any leftover tasks
     item.abortController.abort();
 
-    await agentLifecycleService?.executeHooks(new AfterAgentInputHandled(item.request, response), agent);
-
+    await agentLifecycleService?.executeHooks(
+      new AfterAgentInputHandled(item.request, response),
+      agent,
+    );
   }
 }

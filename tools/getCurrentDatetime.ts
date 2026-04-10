@@ -1,13 +1,24 @@
-import {TokenRingToolDefinition, type TokenRingToolResult} from "@tokenring-ai/chat/schema";
+import type {TokenRingToolDefinition, TokenRingToolResult,} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
-import Agent from "../Agent.ts";
+import type Agent from "../Agent.ts";
 
 const name = "get_current_datetime";
 const displayName = "Agent/getCurrentDatetime";
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
-export function execute(_args: z.output<typeof inputSchema>, _agent: Agent): TokenRingToolResult {
+export function execute(
+  _args: z.output<typeof inputSchema>,
+  _agent: Agent,
+): TokenRingToolResult {
   const now = new Date();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -19,7 +30,8 @@ Timezone: ${timezone}
   `;
 }
 
-const description = "Returns the current date, time, day of week, and the user's local timezone.\n" +
+const description =
+  "Returns the current date, time, day of week, and the user's local timezone.\n" +
   "Use this tool any time you need to determine what date and time it is.\n" +
   "Do not rely on your internal knowledge of what date and time it is, " +
   "since that date and time is when you were ***trained***, and is not reflective of the current date and time";

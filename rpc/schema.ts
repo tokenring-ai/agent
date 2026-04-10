@@ -1,4 +1,4 @@
-import {RPCSchema} from "@tokenring-ai/rpc/types";
+import type {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
 import {AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema,} from "../AgentEvents.ts";
 import {AgentConfigSchema} from "../schema.ts";
@@ -10,31 +10,31 @@ export default {
     getAgentConfig: {
       type: "query",
       input: z.object({
-        agentId: z.string()
+        agentId: z.string(),
       }),
-      result: AgentConfigSchema
+      result: AgentConfigSchema,
     },
     getAgentEvents: {
       type: "query",
       input: z.object({
         agentId: z.string(),
-        fromPosition: z.number()
+        fromPosition: z.number(),
       }),
       result: z.object({
         events: z.array(AgentEventEnvelopeSchema),
-        position: z.number()
-      })
+        position: z.number(),
+      }),
     },
     streamAgentEvents: {
       type: "stream",
       input: z.object({
         agentId: z.string(),
-        fromPosition: z.number()
+        fromPosition: z.number(),
       }),
       result: z.object({
         events: z.array(AgentEventEnvelopeSchema),
-        position: z.number()
-      })
+        position: z.number(),
+      }),
     },
     /*
     getAgentExecutionState: {
@@ -62,23 +62,27 @@ export default {
     listAgents: {
       type: "query",
       input: z.object({}),
-      result: z.array(z.object({
-        id: z.string(),
-        displayName: z.string(),
-        description: z.string(),
-        idle: z.boolean(),
-        currentActivity: z.string()
-      }))
+      result: z.array(
+        z.object({
+          id: z.string(),
+          displayName: z.string(),
+          description: z.string(),
+          idle: z.boolean(),
+          currentActivity: z.string(),
+        }),
+      ),
     },
     getAgentTypes: {
       type: "query",
       input: z.object({}),
-      result: z.array(z.object({
-        type: z.string(),
-        displayName: z.string(),
-        description: z.string(),
-        category: z.string().optional(),
-      }))
+      result: z.array(
+        z.object({
+          type: z.string(),
+          displayName: z.string(),
+          description: z.string(),
+          category: z.string().optional(),
+        }),
+      ),
     },
     createAgent: {
       type: "mutation",
@@ -90,17 +94,17 @@ export default {
         id: z.string(),
         displayName: z.string(),
         description: z.string(),
-      })
+      }),
     },
     deleteAgent: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        reason: z.string()
+        reason: z.string(),
       }),
       result: z.object({
         success: z.boolean(),
-      })
+      }),
     },
     sendInput: {
       type: "mutation",
@@ -110,17 +114,17 @@ export default {
       }),
       result: z.object({
         requestId: z.string(),
-      })
+      }),
     },
     sendInteractionResponse: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        response: InteractionResponseSchema
+        response: InteractionResponseSchema,
       }),
       result: z.object({
         success: z.boolean(),
-      })
+      }),
     },
     abortCurrentOperation: {
       type: "mutation",
@@ -130,7 +134,7 @@ export default {
       }),
       result: z.object({
         success: z.boolean(),
-      })
+      }),
     },
     getCommandHistory: {
       type: "query",
@@ -146,5 +150,5 @@ export default {
       }),
       result: z.array(z.string()),
     },
-  }
+  },
 } satisfies RPCSchema;

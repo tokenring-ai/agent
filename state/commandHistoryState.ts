@@ -1,11 +1,16 @@
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {z} from "zod";
 import {AgentStateSlice} from "../types.ts";
 
-const serializationSchema = z.object({
-  commands: z.array(z.string()).default([])
-}).prefault({});
+const serializationSchema = z
+  .object({
+    commands: z.array(z.string()).default([]),
+  })
+  .prefault({});
 
-export class CommandHistoryState extends AgentStateSlice<typeof serializationSchema> {
+export class CommandHistoryState extends AgentStateSlice<
+  typeof serializationSchema
+> {
   commands: string[] = [];
 
   constructor({commands}: { commands?: string[] }) {
@@ -14,7 +19,7 @@ export class CommandHistoryState extends AgentStateSlice<typeof serializationSch
   }
 
   reset(): void {
-          this.commands = [];
+    this.commands = [];
   }
 
   serialize(): z.output<typeof serializationSchema> {
@@ -27,10 +32,9 @@ export class CommandHistoryState extends AgentStateSlice<typeof serializationSch
     this.commands = data.commands;
   }
 
-  show(): string[] {
-    return [
-      `Commands: ${this.commands.length}`,
-      ...this.commands.slice(-5).map((cmd, i) => `  [${this.commands.length - 5 + i + 1}] ${cmd}`)
-    ];
+  show(): string {
+    const recent = this.commands.slice(-5);
+    return `Commands: ${this.commands.length}
+${markdownList(recent.map((cmd, i) => `[${this.commands.length - 5 + i + 1}] ${cmd}`))}`.trim();
   }
 }

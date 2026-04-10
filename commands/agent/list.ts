@@ -1,5 +1,5 @@
 import AgentManager from "../../services/AgentManager.ts";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
@@ -11,9 +11,15 @@ function execute({agent}: AgentCommandInputType<typeof inputSchema>): string {
     return "No running agents.";
   }
 
-  return "**Running agents:**\n" +
-    agents.map(a => `- **${a.displayName}** (${a.id.slice(0, 8)}): ${a.config.description}`)
-      .join("\n");
+  return (
+    "**Running agents:**\n" +
+    agents
+      .map(
+        (a) =>
+          `- **${a.displayName}** (${a.id.slice(0, 8)}): ${a.config.description}`,
+      )
+      .join("\n")
+  );
 }
 
 export default {

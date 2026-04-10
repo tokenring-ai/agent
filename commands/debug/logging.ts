@@ -1,18 +1,21 @@
 import {CommandFailedError} from "../../AgentError.ts";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
 const inputSchema = {
   positionals: [
     {
-      name: 'enabled',
+      name: "enabled",
       description: "Use 'on' or 'off' to control debug logging",
       required: true,
     },
-  ]
+  ],
 } as const satisfies AgentCommandInputSchema;
 
-function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): string {
+function execute({
+                   positionals,
+                   agent,
+                 }: AgentCommandInputType<typeof inputSchema>): string {
   const enabled = positionals.enabled;
 
   if (enabled === "on") {
@@ -23,7 +26,10 @@ function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>
     return "Debug logging disabled";
   } else {
     throw new CommandFailedError(
-      formatAgentCommandUsageError(command, `Invalid argument: ${enabled}. Use 'on' or 'off'`),
+      formatAgentCommandUsageError(
+        command,
+        `Invalid argument: ${enabled}. Use 'on' or 'off'`,
+      ),
     );
   }
 }

@@ -1,5 +1,5 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {
   args: {
@@ -10,11 +10,14 @@ const inputSchema = {
       defaultValue: 50,
       minimum: 1,
       maximum: 1000,
-    }
-  }
+    },
+  },
 } as const satisfies AgentCommandInputSchema;
 
-function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): string {
+function execute({
+                   args,
+                   agent,
+                 }: AgentCommandInputType<typeof inputSchema>): string {
   const limit = args["--limit"];
   const logs = agent.app.logs.slice(-limit);
 
@@ -23,9 +26,12 @@ function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): stri
   }
 
   return `***Showing last ${logs.length} log entries***:
-${markdownList(logs.map(log =>
-  `[${new Date(log.timestamp).toISOString()}] ${log.level.toUpperCase()}: ${log.message}`
-))}`;
+${markdownList(
+    logs.map(
+      (log) =>
+        `[${new Date(log.timestamp).toISOString()}] ${log.level.toUpperCase()}: ${log.message}`,
+    ),
+  )}`;
 }
 
 export default {

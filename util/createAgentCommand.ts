@@ -11,21 +11,30 @@ import type {AgentCommandConfig, ParsedAgentConfig} from "../schema.ts";
 import type {RunSubAgentOptions} from "../services/SubAgentService.ts";
 import type {AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
 
-export function createAgentCommand(name: string, commandConfig: AgentCommandConfig, config: ParsedAgentConfig): TokenRingAgentCommand<any> {
+export function createAgentCommand(
+  name: string,
+  commandConfig: AgentCommandConfig,
+  config: ParsedAgentConfig,
+): TokenRingAgentCommand<any> {
   const description = `${commandConfig.description || config.description}`;
 
   return {
     name,
     description,
     inputSchema: commandConfig.commandSchema,
-    execute: async (args: AgentCommandInputType<typeof commandConfig.commandSchema>): Promise<string> => {
+    execute: async (
+      args: AgentCommandInputType<typeof commandConfig.commandSchema>,
+    ): Promise<string> => {
       const {agent} = args;
       const replacements: Record<string, () => string> = {};
       if (commandConfig.commandSchema.remainder) {
-        replacements[commandConfig.commandSchema.remainder.name] = () => args.remainder ?? "undefined";
+        replacements[commandConfig.commandSchema.remainder.name] = () =>
+          args.remainder ?? "undefined";
       }
 
-      const steps = commandConfig.steps.map(step => interpolateString(step, replacements));
+      const steps = commandConfig.steps.map((step) =>
+        interpolateString(step, replacements),
+      );
 
       const subAgentService = agent.requireServiceByType(SubAgentService);
       const request: RunSubAgentOptions = {
@@ -35,8 +44,7 @@ export function createAgentCommand(name: string, commandConfig: AgentCommandConf
         from: `Parent agent command: /${name}`,
         steps,
         parentAgent: agent,
-        options: commandConfig.subAgent,
-        checkPermissions: false
+        options: commandConfig.subAgent
       };
 
       const result = await subAgentService.runSubAgent(request);
@@ -46,7 +54,10 @@ export function createAgentCommand(name: string, commandConfig: AgentCommandConf
       }
 
       const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-      await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
+      await lifecycleService?.executeHooks(
+        new AfterSubAgentResponse(request, result),
+        agent,
+      );
 
       if (result.status === "success") {
         return result.response || "Agent completed successfully.";
@@ -56,12 +67,14 @@ export function createAgentCommand(name: string, commandConfig: AgentCommandConf
         throw new CommandFailedError(`Agent error: ${result.response}`);
       }
     },
-    help: commandConfig.help ?? `${description}
+    help:
+      commandConfig.help ??
+      `${description}
 
 ## Usage
 /${name} <${commandConfig.commandSchema.remainder.name}>
 
 Runs the "${config.agentType}" agent with the provided message.
-`.trim()
+`.trim(),
   };
 }

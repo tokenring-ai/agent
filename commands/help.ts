@@ -1,18 +1,21 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import Agent from "../Agent.ts";
+import type Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
 
 const description = "Show this help message" as const;
 const inputSchema = {
   remainder: {
     name: "command",
     description: "Optional command name to show help for",
-  }
+  },
 } as const satisfies AgentCommandInputSchema;
 
-function execute({remainder, agent}: AgentCommandInputType<typeof inputSchema>): string {
+function execute({
+                   remainder,
+                   agent,
+                 }: AgentCommandInputType<typeof inputSchema>): string {
   const command = remainder;
   if (command) {
     return getHelpOnCommand(command, agent);
@@ -24,15 +27,17 @@ function execute({remainder, agent}: AgentCommandInputType<typeof inputSchema>):
   const lines = [
     "**Available chat commands:**",
     markdownList(
-      Array.from(commands).sort(
-        (a,b) => a[0].localeCompare(b[0])
-      ).map(([cmdName, command]) => `/${command.name} - ${command.description}`)
-    )
+      Array.from(commands)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(
+          ([_cmdName, command]) => `/${command.name} - ${command.description}`,
+        ),
+    ),
   ];
 
   lines.push(
     "",
-    "Use /help <command> to get detailed help for a specific command."
+    "Use /help <command> to get detailed help for a specific command.",
   );
 
   return lines.join("\n");

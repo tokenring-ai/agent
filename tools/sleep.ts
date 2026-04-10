@@ -1,17 +1,25 @@
-import {TokenRingToolDefinition, type TokenRingToolResult} from "@tokenring-ai/chat/schema";
+import type {TokenRingToolDefinition, TokenRingToolResult,} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
-import Agent from "../Agent.ts";
+import type Agent from "../Agent.ts";
 
 const name = "sleep";
 const displayName = "Agent/sleep";
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 export async function execute(
-  { seconds }: z.output<typeof inputSchema>,
-  _agent: Agent
+  {seconds}: z.output<typeof inputSchema>,
+  _agent: Agent,
 ): Promise<TokenRingToolResult> {
-  await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+  await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
   const now = new Date();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -25,7 +33,8 @@ Timezone: ${timezone}
   `;
 }
 
-const description = "Sleeps for a specified number of seconds, then returns the current date and time.\n" +
+const description =
+  "Sleeps for a specified number of seconds, then returns the current date and time.\n" +
   "Useful for introducing delays in agent workflows or waiting before performing actions.";
 
 const inputSchema = z.object({

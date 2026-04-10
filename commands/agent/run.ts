@@ -2,7 +2,7 @@ import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
 import {CommandFailedError} from "../../AgentError.ts";
 import {AfterSubAgentResponse} from "../../hooks.ts";
 import {type RunSubAgentOptions, SubAgentService} from "../../index.ts";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
 
 const inputSchema = {
   args: {
@@ -46,27 +46,31 @@ const inputSchema = {
     "--timeout": {
       type: "number",
       description: "Timeout in milliseconds for the sub-agent (0 = no timeout)",
-      defaultValue: 0
+      defaultValue: 0,
     },
     "--maxResponseLength": {
       type: "number",
       description: "Maximum response length from the sub-agent",
-      defaultValue: 10000
+      defaultValue: 10000,
     },
     "--minContextLength": {
       type: "number",
       description: "Minimum context length for the sub-agent",
-      defaultValue: 1000
+      defaultValue: 1000,
     },
   },
   remainder: {
     name: "message",
     description: "The message to send to the agent",
     required: true,
-  }
+  },
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({remainder, args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({
+                         remainder,
+                         args,
+                         agent,
+                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const isBg = args["--bg"] === true;
   const agentType = args["--type"];
 
@@ -93,13 +97,15 @@ async function execute({remainder, args, agent}: AgentCommandInputType<typeof in
     steps: [remainder],
     parentAgent: agent,
     autoCleanup: true,
-    checkPermissions: false,
     options: subAgentOptions,
   };
   const result = await subAgentService.runSubAgent(request);
 
   const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-  await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
+  await lifecycleService?.executeHooks(
+    new AfterSubAgentResponse(request, result),
+    agent,
+  );
 
   if (isBg) {
     return `Agent ${agentType} started in background.`;

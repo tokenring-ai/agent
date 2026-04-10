@@ -1,6 +1,12 @@
 import intelligentTruncate from "@tokenring-ai/utility/string/intelligentTruncate";
 import {z} from "zod";
-import {AgentEventEnvelope, AgentEventEnvelopeSchema, InputExecutionStateSchema, type ParsedAgentStatus, type ParsedInputReceived} from "../AgentEvents.js";
+import {
+  type AgentEventEnvelope,
+  AgentEventEnvelopeSchema,
+  type InputExecutionStateSchema,
+  type ParsedAgentStatus,
+  type ParsedInputReceived,
+} from "../AgentEvents.js";
 import {AgentStateSlice} from "../types.ts";
 
 export const agentMessages = {
@@ -9,24 +15,33 @@ export const agentMessages = {
   agentShutdown: "Agent is shut down",
 };
 
-const serializationSchema = z.object({
-  events: z.array(AgentEventEnvelopeSchema).default([])
-}).prefault({});
+const serializationSchema = z
+  .object({
+    events: z.array(AgentEventEnvelopeSchema).default([]),
+  })
+  .prefault({});
 
 export type AgentEventCursor = {
-  position: number,
-}
+  position: number;
+};
 
 export type InputQueueItem = {
-  request: ParsedInputReceived,
-  executionState: Required<Omit<z.output<typeof InputExecutionStateSchema>, "type" | "timestamp" | "requestId">>,
-  interactionCallbacks: Map<string, (data: any) => void>,
+  request: ParsedInputReceived;
+  executionState: Required<
+    Omit<
+      z.output<typeof InputExecutionStateSchema>,
+      "type" | "timestamp" | "requestId"
+    >
+  >;
+  interactionCallbacks: Map<string, (data: any) => void>;
   abortController: AbortController;
-}
+};
 
-export class AgentEventState extends AgentStateSlice<typeof serializationSchema> {
+export class AgentEventState extends AgentStateSlice<
+  typeof serializationSchema
+> {
   status: ParsedAgentStatus["status"] = "starting";
-  currentActivity = agentMessages.agentStarting
+  currentActivity = agentMessages.agentStarting;
   inputQueue: InputQueueItem[] = [];
   currentlyExecutingInputItem: InputQueueItem | null = null;
 
@@ -44,11 +59,13 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
     this.events.push({
       type: "agent.status",
       timestamp: Date.now(),
-      inputExecutionQueue: this.inputQueue.map(item => item.request.requestId),
+      inputExecutionQueue: this.inputQueue.map(
+        (item) => item.request.requestId,
+      ),
       status: this.status,
-      currentActivity: this.currentActivity
+      currentActivity: this.currentActivity,
     });
-  };
+  }
 
   pushInputExecution(item: InputQueueItem): void {
     this.emit({
@@ -66,42 +83,57 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
       case "input.execution": {
         this.events.push(event);
         if (event.status === "finished") {
-          this.inputQueue = this.inputQueue.filter(item => item.request.requestId !== event.requestId);
-          if (this.currentlyExecutingInputItem?.request.requestId === event.requestId) {
+          this.inputQueue = this.inputQueue.filter(
+            (item) => item.request.requestId !== event.requestId,
+          );
+          if (
+            this.currentlyExecutingInputItem?.request.requestId ===
+            event.requestId
+          ) {
             this.currentlyExecutingInputItem = null;
           }
           if (this.inputQueue.length === 0) {
             this.currentActivity = agentMessages.noTasks;
           }
         } else {
-          if (this.currentlyExecutingInputItem?.request.requestId === event.requestId) {
-            this.currentlyExecutingInputItem.executionState.status = event.status;
+          if (
+            this.currentlyExecutingInputItem?.request.requestId ===
+            event.requestId
+          ) {
+            this.currentlyExecutingInputItem.executionState.status =
+              event.status;
             if (event.currentActivity) {
-              this.currentlyExecutingInputItem.executionState.currentActivity = event.currentActivity;
+              this.currentlyExecutingInputItem.executionState.currentActivity =
+                event.currentActivity;
             }
             if (event.availableInteractions) {
-              this.currentlyExecutingInputItem.executionState.availableInteractions = event.availableInteractions;
+              this.currentlyExecutingInputItem.executionState.availableInteractions =
+                event.availableInteractions;
             }
-            this.currentActivity = this.currentlyExecutingInputItem.executionState.currentActivity;
+            this.currentActivity =
+              this.currentlyExecutingInputItem.executionState.currentActivity;
           } else {
-            throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
+            throw new Error(
+              "Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded",
+            );
           }
 
           /*const inputQueueItem = this.inputQueue.find(item => item.request.requestId === event.requestId);
-          if (inputQueueItem) {
-            inputQueueItem.executionState.status = event.status;
-            inputQueueItem.executionState.currentActivity = event.currentActivity ?? inputQueueItem.executionState.currentActivity;
-            inputQueueItem.executionState.availableInteractions = event.availableInteractions ?? inputQueueItem.executionState.availableInteractions;
-          } else {
-            throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
-          }*/
+        if (inputQueueItem) {
+          inputQueueItem.executionState.status = event.status;
+          inputQueueItem.executionState.currentActivity = event.currentActivity ?? inputQueueItem.executionState.currentActivity;
+          inputQueueItem.executionState.availableInteractions = event.availableInteractions ?? inputQueueItem.executionState.availableInteractions;
+        } else {
+          throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
+        }*/
           //this.currentActivity = this.currentlyExecutingInputItem?.executionState.currentActivity ?? this.currentActivity
         }
         this.pushAgentStatus();
-      } break;
+      }
+        break;
       case "input.received": {
         this.events.push(event);
-        const activityMessage = `Running command ${intelligentTruncate(event.input.message, {maxLength: 256, maxLines: 1})}`
+        const activityMessage = `Running command ${intelligentTruncate(event.input.message, {maxLength: 256, maxLines: 1})}`;
 
         this.inputQueue.push({
           request: event,
@@ -109,7 +141,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
           executionState: {
             status: "queued",
             currentActivity: activityMessage,
-            availableInteractions: []
+            availableInteractions: [],
           },
           abortController: new AbortController(),
         });
@@ -119,35 +151,49 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
           requestId: event.requestId,
           status: "queued",
           currentActivity: activityMessage,
-          availableInteractions: []
+          availableInteractions: [],
         });
         this.pushAgentStatus();
-      } break;
-      case 'input.interaction': {
-        const inputQueueItem = this.inputQueue.find(item => item.request.requestId === event.requestId);
+      }
+        break;
+      case "input.interaction": {
+        const inputQueueItem = this.inputQueue.find(
+          (item) => item.request.requestId === event.requestId,
+        );
         if (inputQueueItem) {
-          const callback = inputQueueItem.interactionCallbacks.get(event.interactionId);
+          const callback = inputQueueItem.interactionCallbacks.get(
+            event.interactionId,
+          );
           if (callback) {
             this.events.push(event);
-            inputQueueItem.executionState.availableInteractions = inputQueueItem.executionState.availableInteractions
-              .filter((interaction) => interaction.interactionId !== event.interactionId);
+            inputQueueItem.executionState.availableInteractions =
+              inputQueueItem.executionState.availableInteractions.filter(
+                (interaction) =>
+                  interaction.interactionId !== event.interactionId,
+              );
             this.events.push({
               type: "input.execution",
               timestamp: Date.now(),
               requestId: inputQueueItem.request.requestId,
               status: inputQueueItem.executionState.status,
               currentActivity: inputQueueItem.executionState.currentActivity,
-              availableInteractions: inputQueueItem.executionState.availableInteractions
+              availableInteractions:
+              inputQueueItem.executionState.availableInteractions,
             });
             this.pushAgentStatus();
             callback(event.result);
           } else {
-            throw new Error(`No callback registered for interaction ${event.interactionId}`);
+            throw new Error(
+              `No callback registered for interaction ${event.interactionId}`,
+            );
           }
         } else {
-          throw new Error("Input interaction received outside of a currently executing task in the Agent event loop, and will be discarded");
+          throw new Error(
+            "Input interaction received outside of a currently executing task in the Agent event loop, and will be discarded",
+          );
         }
-      } break;
+      }
+        break;
       default:
         this.events.push(event);
         break;
@@ -156,7 +202,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
 
   serialize(): z.output<typeof serializationSchema> {
     return {
-      events: this.events
+      events: this.events,
     };
   }
 
@@ -175,14 +221,14 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
         case "agent.stopped":
         case "cancel":
         case "input.execution":
-          break
+          break;
         case "agent.response":
           receivedEvents.delete(event.requestId);
-          this.events.push({...event, timestamp: Date.now()})
+          this.events.push({...event, timestamp: Date.now()});
           break;
         case "input.received":
           receivedEvents.add(event.requestId);
-          this.events.push({...event, timestamp: Date.now()})
+          this.events.push({...event, timestamp: Date.now()});
           break;
         case "output.info":
         case "output.warning":
@@ -191,13 +237,14 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
         case "output.reasoning":
         case "output.artifact":
         case "input.interaction":
-          this.events.push({...event, timestamp: Date.now()})
+          this.events.push({...event, timestamp: Date.now()});
           break;
-        default:
+        default: {
           // noinspection JSUnusedLocalSymbols
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _foo: never = event;
           break;
+        }
       }
     }
 
@@ -205,26 +252,27 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
       this.emit({
         type: "agent.response",
         requestId: requestId,
-        status: 'cancelled',
-        message: "Command was in a mid-execution state during checkpoint restore and was cancelled.",
+        status: "cancelled",
+        message:
+          "Command was in a mid-execution state during checkpoint restore and was cancelled.",
         timestamp: Date.now(),
       });
     }
   }
 
-  show(): string[] {
-    return [
-      `Events: ${this.events.length}`,
-    ];
+  show(): string {
+    return `Events: ${this.events.length}`;
   }
 
   getEventCursorFromCurrentPosition(): AgentEventCursor {
     return {
-      position: this.events.length
-    }
+      position: this.events.length,
+    };
   }
 
-  * yieldEventsByCursor(cursor: AgentEventCursor): Generator<AgentEventEnvelope> {
+  * yieldEventsByCursor(
+    cursor: AgentEventCursor,
+  ): Generator<AgentEventEnvelope> {
     for (; cursor.position < this.events.length; cursor.position++) {
       yield this.events[cursor.position];
     }
