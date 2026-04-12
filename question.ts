@@ -159,7 +159,6 @@ export function getDefaultQuestionValue<
       return field.defaultValue as ResultTypeForQuestion<T>;
     default: {
       // noinspection JSUnusedLocalSymbols
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _foo: never = field;
       throw new Error(`Unsupported field type`);
     }

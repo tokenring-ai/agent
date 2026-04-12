@@ -1,7 +1,7 @@
 import type Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
-import type {InputAttachment} from "../AgentEvents.ts";
-import type {AgentCommandArgumentSchema, AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
+import type {BaseAttachment} from "../AgentEvents.ts";
+import type {AgentCommandArgumentSchema, AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
 import {formatAgentCommandUsageError} from "./formatAgentCommandUsage.ts";
 
 function tokenizeInput(input: string): string[] {
@@ -191,7 +191,7 @@ function findMatchingArgument(
 export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
   command: TokenRingAgentCommand<Schema>,
   input: string,
-  attachments: InputAttachment[],
+  attachments: BaseAttachment[],
   agent: Agent,
 ): AgentCommandInputType<Schema> {
   try {

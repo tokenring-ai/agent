@@ -12,8 +12,9 @@ import {
   InteractionSchema,
   type OutputArtifactSchema,
   type QuestionInteractionSchema,
+  type ToolCallResult, ToolCallResultSchema,
 } from "./AgentEvents.js";
-import {getDefaultQuestionValue, type ResultTypeForQuestion,} from "./question.ts";
+import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.ts";
 import type {AgentConfig, ParsedAgentConfig} from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.ts";
 import {AgentEventState} from "./state/agentEventState.ts";
@@ -411,6 +412,14 @@ export default class Agent {
       body,
       timestamp: Date.now(),
     });
+  }
+
+  toolCallResult(result: Omit<ToolCallResult, "type" | "timestamp">) {
+    this.emit(ToolCallResultSchema.parse({
+      type: "toolCall",
+      ...result,
+      timestamp: Date.now(),
+    }));
   }
 
   sendInteractionResponse = (

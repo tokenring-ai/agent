@@ -1,5 +1,5 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
 
 const description = "Show current chat settings." as const;
 const inputSchema = {} as const satisfies AgentCommandInputSchema;

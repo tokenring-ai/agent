@@ -1,4 +1,4 @@
-import type {AgentCommandArgumentSchema, AgentCommandInputSchema, TokenRingAgentCommand,} from "../types.ts";
+import type {AgentCommandArgumentSchema, AgentCommandInputSchema, TokenRingAgentCommand} from "../types.ts";
 
 function formatUsageToken(
   argumentName: string,

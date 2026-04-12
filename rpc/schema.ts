@@ -1,6 +1,6 @@
 import type {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
-import {AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema,} from "../AgentEvents.ts";
+import {AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema} from "../AgentEvents.ts";
 import {AgentConfigSchema} from "../schema.ts";
 
 export default {

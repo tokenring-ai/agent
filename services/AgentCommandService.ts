@@ -15,14 +15,14 @@ import {v4 as uuid} from "uuid";
 import type Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
 import type {
-  InputAttachment,
+  BaseAttachment,
   ParsedAgentCancelledResponse,
   ParsedAgentErrorResponse,
   ParsedAgentResponse,
   ParsedAgentSuccessResponse,
 } from "../AgentEvents.ts";
-import {AgentEventState, agentMessages, type InputQueueItem,} from "../state/agentEventState.ts";
-import type {AgentCommandInputSchema, TokenRingAgentCommand,} from "../types.ts";
+import {AgentEventState, agentMessages, type InputQueueItem} from "../state/agentEventState.ts";
+import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../types.ts";
 import {parseAgentCommandInput} from "../util/parseAgentCommandInput.ts";
 
 export default class AgentCommandService implements TokenRingService {
@@ -53,7 +53,7 @@ export default class AgentCommandService implements TokenRingService {
   async executeAgentCommand(
     agent: Agent,
     message: string,
-    attachments: InputAttachment[] = [],
+    attachments: BaseAttachment[] = [],
   ): Promise<string> {
     const signal = agent.getAbortSignal();
     if (signal.aborted) {
@@ -202,7 +202,7 @@ Type /help for a list of commands.`);
   private executeParsedCommand<Schema extends AgentCommandInputSchema>(
     command: TokenRingAgentCommand<Schema>,
     input: string,
-    attachments: InputAttachment[],
+    attachments: BaseAttachment[],
     agent: Agent,
   ) {
     const parsedInput = parseAgentCommandInput(

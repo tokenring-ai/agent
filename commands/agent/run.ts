@@ -2,7 +2,7 @@ import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
 import {CommandFailedError} from "../../AgentError.ts";
 import {AfterSubAgentResponse} from "../../hooks.ts";
 import {type RunSubAgentOptions, SubAgentService} from "../../index.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
 
 const inputSchema = {
   args: {
@@ -19,25 +19,25 @@ const inputSchema = {
       type: "flag",
       description: "Forward chat output from the sub-agent",
     },
-    "--forwardStatusMessages": {
+    "--noStatusMessages": {
       type: "flag",
-      description: "Forward status messages from the sub-agent",
+      description: "Do not forward status messages from the sub-agent",
     },
     "--forwardSystemOutput": {
       type: "flag",
       description: "Forward system output from the sub-agent",
     },
-    "--forwardHumanRequests": {
+    "--noHumanRequests": {
       type: "flag",
-      description: "Forward human requests from the sub-agent",
+      description: "Do not forward human requests from the sub-agent",
     },
     "--forwardReasoning": {
       type: "flag",
       description: "Forward reasoning output from the sub-agent",
     },
-    "--forwardInputCommands": {
+    "--noInputCommands": {
       type: "flag",
-      description: "Forward input commands from the sub-agent",
+      description: "Do not forward input commands from the sub-agent",
     },
     "--forwardArtifacts": {
       type: "flag",
@@ -58,6 +58,10 @@ const inputSchema = {
       description: "Minimum context length for the sub-agent",
       defaultValue: 1000,
     },
+    "--neverFail": {
+      type: "flag",
+      description: "Ignore errors from the sub-agent, printing them as warnings instead of failing the command",
+    },
   },
   remainder: {
     name: "message",
@@ -76,11 +80,11 @@ async function execute({
 
   const subAgentOptions = {
     forwardChatOutput: !!args["--forwardChatOutput"],
-    forwardStatusMessages: !!args["--forwardStatusMessages"],
+    forwardStatusMessages: !args["--noStatusMessages"],
     forwardSystemOutput: !!args["--forwardSystemOutput"],
-    forwardHumanRequests: !!args["--forwardHumanRequests"],
+    forwardHumanRequests: !args["--noHumanRequests"],
     forwardReasoning: !!args["--forwardReasoning"],
-    forwardInputCommands: !!args["--forwardInputCommands"],
+    forwardInputCommands: !args["--noInputCommands"],
     forwardArtifacts: !!args["--forwardArtifacts"],
     timeout: args["--timeout"],
     maxResponseLength: args["--maxResponseLength"],
@@ -111,7 +115,7 @@ async function execute({
     return `Agent ${agentType} started in background.`;
   }
 
-  if (result.status === "success") {
+  if (result.status === "success" || args["--neverFail"]) {
     return result.response || "Agent completed successfully.";
   } else if (result.status === "cancelled") {
     throw new CommandFailedError(`Agent was cancelled: ${result.response}`);

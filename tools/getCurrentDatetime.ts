@@ -1,4 +1,4 @@
-import type {TokenRingToolDefinition, TokenRingToolResult,} from "@tokenring-ai/chat/schema";
+import type {TokenRingToolDefinition, TokenRingToolResult} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
 import type Agent from "../Agent.ts";
 

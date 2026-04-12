@@ -13,17 +13,6 @@ export const AgentStoppedSchema = z.object({
   timestamp: z.number(),
 });
 
-export const OutputArtifactSchema = z.object({
-  type: z.literal("output.artifact"),
-  name: z.string(),
-  encoding: z.enum(["text", "base64"]),
-  mimeType: z.string(),
-  body: z.string(),
-  timestamp: z.number(),
-});
-
-export type Artifact = z.input<typeof OutputArtifactSchema>;
-
 export const OutputChatSchema = z.object({
   type: z.literal("output.chat"),
   timestamp: z.number(),
@@ -52,22 +41,75 @@ export const OutputErrorSchema = z.object({
   message: z.string(),
 });
 
-export const AttachmentSchema = z.object({
-  type: z.literal("attachment"),
+export const BaseAttachmentSchema = z.object({
   name: z.string(),
-  encoding: z.enum(["text", "base64", "href"]),
-  mimeType: z.string(),
+  description: z.string().optional(),
+  encoding: z.enum([
+    "text",
+    "base64",
+    "href"
+  ]),
+  mimeType: z.enum([
+    "application/json",
+    "text/plain",
+    "text/markdown",
+    "text/html",
+    "text/x-diff",
+    "image/png",
+    "image/jpeg",
+    "message/rfc822"
+  ]),
   body: z.string(),
+});
+
+export const allowedMimeTypes = BaseAttachmentSchema.shape.mimeType.enum;
+
+export type BaseAttachment = z.output<typeof BaseAttachmentSchema>;
+
+export const AttachmentSchema = BaseAttachmentSchema.extend({
+  type: z.literal("attachment"),
   timestamp: z.number(),
 });
+
+export type AttachmentMessage = z.output<typeof AttachmentSchema>;
+
+export const OutputArtifactSchema = BaseAttachmentSchema.extend({
+  type: z.literal("output.artifact"),
+  timestamp: z.number(),
+});
+
+export type Artifact = z.input<typeof OutputArtifactSchema>;
+
 
 export const InputMessageSchema = z.object({
   from: z.string(),
   message: z.string(),
-  attachments: z.array(AttachmentSchema).optional(),
+  attachments: z.array(BaseAttachmentSchema).optional(),
+  timestamp: z.never().optional()
 });
 
 export type InputMessage = z.input<typeof InputMessageSchema>;
+
+export const ToolCallAttachmentSchema = BaseAttachmentSchema.extend({
+  sendToLLM: z.boolean().default(true)
+});
+
+export type ToolCallAttachment = z.input<typeof ToolCallAttachmentSchema>;
+export type ParsedToolCallAttachment = z.output<typeof ToolCallAttachmentSchema>;
+
+export const ToolCallResultSchema = z.object({
+  type: z.literal("toolCall"),
+  timestamp: z.number(),
+  name: z.string(),
+  args: z.record(z.string(), z.unknown()),
+  summary: z.string(), //Markdown string, i.e. Bash(ls -la foo)
+  result: z.string(),
+  actions: z.array(z.string()).optional(), // Markdown list of items
+  attachments: z.array(ToolCallAttachmentSchema).optional()
+});
+
+export type ToolCallResult = z.input<typeof ToolCallResultSchema>;
+export type ParsedToolCallResult = z.output<typeof ToolCallResultSchema>;
 
 /* A question request is a request that immediately requires an answer from the user for a single form field
  * This is used for functionality such as when the user needs to immediately select a model or provider */
@@ -211,6 +253,7 @@ export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   InputCancelSchema,
   InputExecutionStateSchema,
   InteractionResponseSchema,
+  ToolCallResultSchema
 ]);
 
 export type AgentEventEnvelope = z.output<typeof AgentEventEnvelopeSchema>;

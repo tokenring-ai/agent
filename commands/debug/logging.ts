@@ -1,5 +1,5 @@
 import {CommandFailedError} from "../../AgentError.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
 import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
 
 const inputSchema = {

@@ -1,5 +1,5 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
 
 const inputSchema = {
   args: {

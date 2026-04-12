@@ -137,6 +137,7 @@ export default class AgentManager implements TokenRingService {
     state: AgentCheckpointData["state"] = {},
   ) {
     const shutdownController = new AbortController();
+
     const agent = new Agent(
       this.app,
       state,
@@ -151,7 +152,11 @@ export default class AgentManager implements TokenRingService {
     };
 
     for (const service of this.app.getServices()) {
-      service.attach?.(agent, creationContext);
+      try {
+        service.attach?.(agent, creationContext);
+      } catch (err) {
+        agent.errorMessage("Agent throw error during creation: ", err as Error)
+      }
     }
 
     let message = agent.config.createMessage;

@@ -1,5 +1,5 @@
 import type Agent from "@tokenring-ai/agent/Agent";
-import type {InputMessage, ParsedInteractionRequest,} from "@tokenring-ai/agent/AgentEvents";
+import type {InputMessage, ParsedInteractionRequest} from "@tokenring-ai/agent/AgentEvents";
 import type {ParsedSubAgentConfig} from "@tokenring-ai/agent/schema";
 import AgentManager from "@tokenring-ai/agent/services/AgentManager";
 import type TokenRingApp from "@tokenring-ai/app";
@@ -332,7 +332,7 @@ export default class SubAgentService implements TokenRingService {
                   if (lastActivity !== event.currentActivity) {
                     lastActivity = event.currentActivity;
                     parentAgent.chatOutput(
-                      `\n***${event.currentActivity}***\n`,
+                      `\n- ***${event.currentActivity}***\n`,
                     );
                   }
                 }
@@ -351,6 +351,7 @@ export default class SubAgentService implements TokenRingService {
               case "cancel":
               case "input.execution":
               case "input.interaction":
+              case "toolCall":
                 /* ignored */
                 break;
               default: {

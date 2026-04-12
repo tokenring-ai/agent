@@ -2,7 +2,7 @@ import markdownList from "@tokenring-ai/utility/string/markdownList";
 import type Agent from "../Agent.ts";
 import {CommandFailedError} from "../AgentError.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "../types.ts";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
 
 const description = "Show this help message" as const;
 const inputSchema = {
