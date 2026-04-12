@@ -8,8 +8,6 @@
     "@tokenring-ai/lifecycle": "0.2.0",
     "@tokenring-ai/utility": "0.2.0",
     "@tokenring-ai/app": "0.2.0",
-    "eventemitter3": "^5.0.4",
-    "glob-gitignore": "^1.0.15",
     "uuid": "^13.0.0",
     "@tokenring-ai/rpc": "0.2.0"
   },
