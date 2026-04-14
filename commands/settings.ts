@@ -18,6 +18,7 @@ ${activeServiceNames.length > 0 ? markdownList(activeServiceNames) : "[No servic
 ${
     Array.from(agent.stateManager.slices())
       .map(slice => `***${slice.name}***:\n${slice.show()}\n`)
+      .join("\n")
   }`;
 
 }

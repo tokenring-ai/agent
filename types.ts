@@ -1,4 +1,5 @@
 import {SerializableStateSlice} from "@tokenring-ai/app/StateManager";
+import type {MaybePromise} from "bun";
 import z, {type ZodType} from "zod";
 import type Agent from "./Agent.ts";
 import type {InputAttachment} from "./AgentEvents.ts";
@@ -181,11 +182,17 @@ export type AgentCommandInputType<Schema extends AgentCommandInputSchema> = {
   AgentCommandArgsInput<Schema> &
   AgentCommandAttachmentsInput<Schema>;
 
+export type TokenRingAgentCommandResult = {
+  message: string;
+  details?: string[];
+  attachments?: InputAttachment[];
+};
+
 export type TokenRingAgentCommand<
   InputSchema extends AgentCommandInputSchema = AgentCommandInputSchema,
 > = TokenRingBaseAgentCommand & {
   inputSchema: InputSchema;
-  execute(input: AgentCommandInputType<InputSchema>): Promise<string> | string;
+  execute(input: AgentCommandInputType<InputSchema>): MaybePromise<TokenRingAgentCommandResult|string>;
 };
 
 export abstract class AgentStateSlice<

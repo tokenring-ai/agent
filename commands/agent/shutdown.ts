@@ -11,14 +11,14 @@ const inputSchema = {
   ],
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({
+function execute({
                          positionals,
                          agent,
-                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+                       }: AgentCommandInputType<typeof inputSchema>) : string {
   const agentId = positionals.agentId ?? agent.id;
   const agentManager = agent.requireServiceByType(AgentManager);
 
-  await agentManager.deleteAgent(
+  agentManager.deleteAgent(
     agentId,
     "Agent was shut down with /agent shutdown command",
   );

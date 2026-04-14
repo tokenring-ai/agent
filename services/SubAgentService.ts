@@ -130,7 +130,7 @@ export default class SubAgentService implements TokenRingService {
     const agentManager = parentAgent.requireServiceByType(AgentManager);
 
     parentAgent.setCurrentActivity(`Running sub-agent: ${agentType}`);
-    const childAgent = await agentManager.spawnSubAgent(
+    const childAgent = agentManager.spawnSubAgent(
       parentAgent,
       agentType,
       {headless},
@@ -420,7 +420,7 @@ export default class SubAgentService implements TokenRingService {
         ...childResult,
         childAgent: autoCleanup ? undefined : childAgent,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       return {
         status: "error",
         response: formatLogMessages([
@@ -435,7 +435,7 @@ export default class SubAgentService implements TokenRingService {
       listenerAbortController.abort();
       // Clean up the agent if auto-cleanup is enabled
       if (autoCleanup && !background) {
-        await agentManager.deleteAgent(
+        agentManager.deleteAgent(
           childAgent.id,
           "Parent agent triggered auto-cleanup of sub-agent.",
         );

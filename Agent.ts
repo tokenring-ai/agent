@@ -12,7 +12,8 @@ import {
   InteractionSchema,
   type OutputArtifactSchema,
   type QuestionInteractionSchema,
-  type ToolCallResult, ToolCallResultSchema,
+  type ToolCallResult,
+  ToolCallResultSchema,
 } from "./AgentEvents.js";
 import {getDefaultQuestionValue, type ResultTypeForQuestion} from "./question.ts";
 import type {AgentConfig, ParsedAgentConfig} from "./schema.ts";
@@ -98,7 +99,7 @@ export default class Agent {
   ): z.infer<T> {
     try {
       return schema.parse(this.config[key as keyof AgentConfig]);
-    } catch (error) {
+    } catch (error: unknown) {
       throw new Error(
         `Invalid config value for key "${key}": ${(error as Error).message}`,
         {cause: error},
@@ -374,21 +375,21 @@ export default class Agent {
       timestamp: Date.now(),
     });
 
-  warningMessage = (...messages: string[]) =>
+  warningMessage = (...messages: Array<string | Error>) =>
     this.emit({
       type: "output.warning",
       message: formatLogMessages(messages),
       timestamp: Date.now(),
     });
 
-  errorMessage = (...messages: (string | Error)[]) =>
+  errorMessage = (...messages: Array<string | Error>) =>
     this.emit({
       type: "output.error",
       message: formatLogMessages(messages),
       timestamp: Date.now(),
     });
 
-  debugMessage = (...messages: string[]) => {
+  debugMessage = (...messages: Array<string | Error>) => {
     if (this.debugEnabled) {
       this.emit({
         type: "output.info",

@@ -357,7 +357,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
     };
 
     return parsedInput as AgentCommandInputType<Schema>;
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof CommandFailedError || error instanceof Error) {
       throw new CommandFailedError(
         formatAgentCommandUsageError(command, error.message),

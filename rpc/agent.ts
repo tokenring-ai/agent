@@ -96,8 +96,8 @@ export default createRPCEndpoint(AgentRpcSchema, {
     }));
   },
 
-  async createAgent(args, app) {
-    const agent = await app.requireService(AgentManager).spawnAgent({
+  createAgent(args, app) {
+    const agent = app.requireService(AgentManager).spawnAgent({
       agentType: args.agentType,
       headless: args.headless,
     });
@@ -108,8 +108,8 @@ export default createRPCEndpoint(AgentRpcSchema, {
     };
   },
 
-  async deleteAgent(args, app) {
-    await app
+  deleteAgent(args, app) {
+    app
       .requireService(AgentManager)
       .deleteAgent(args.agentId, args.reason);
     return {success: true};

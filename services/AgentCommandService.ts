@@ -22,7 +22,7 @@ import type {
   ParsedAgentSuccessResponse,
 } from "../AgentEvents.ts";
 import {AgentEventState, agentMessages, type InputQueueItem} from "../state/agentEventState.ts";
-import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../types.ts";
+import type {AgentCommandInputSchema, TokenRingAgentCommand, TokenRingAgentCommandResult} from "../types.ts";
 import {parseAgentCommandInput} from "../util/parseAgentCommandInput.ts";
 
 export default class AgentCommandService implements TokenRingService {
@@ -54,7 +54,7 @@ export default class AgentCommandService implements TokenRingService {
     agent: Agent,
     message: string,
     attachments: BaseAttachment[] = [],
-  ): Promise<string> {
+  ): Promise<TokenRingAgentCommandResult> {
     const signal = agent.getAbortSignal();
     if (signal.aborted) {
       throw new CommandFailedError("Command execution aborted");
@@ -94,7 +94,7 @@ export default class AgentCommandService implements TokenRingService {
 
     if (match) {
       if (isHelpCommand) {
-        return match.item.help;
+        return { message: match.item.help };
       }
 
       const result = await this.executeParsedCommand(
@@ -103,7 +103,8 @@ export default class AgentCommandService implements TokenRingService {
         attachments,
         agent,
       );
-      return result ? result.trim() : "Command completed successfully";
+
+      return typeof result === 'string' ? { message: result } : result;
     }
     const firstWord = commandInput.split(/\s+/)[0];
     const matchingCommands = this.agentCommands.getItemEntriesLike(
@@ -229,7 +230,7 @@ Type /help for a list of commands.`);
         agent,
       );
 
-      const message = await agentCommandService.executeAgentCommand(
+      const responseData = await agentCommandService.executeAgentCommand(
         agent,
         input.message,
         input.attachments,
@@ -240,14 +241,14 @@ Type /help for a list of commands.`);
         timestamp: Date.now(),
         requestId,
         status: "success",
-        message: message.trim(),
+        ...responseData,
       } satisfies ParsedAgentSuccessResponse;
 
       await agentLifecycleService?.executeHooks(
         new AfterAgentInputSuccess(item.request, response),
         agent,
       );
-    } catch (err) {
+    } catch (err: unknown) {
       if (signal.aborted) {
         response = {
           type: "agent.response",

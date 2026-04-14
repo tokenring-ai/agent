@@ -1,7 +1,6 @@
 import type TokenRingApp from "@tokenring-ai/app";
 import type {TokenRingService} from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
-import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {setTimeout as delay} from "node:timers/promises";
 import Agent from "../Agent.ts";
 import type {ParsedAgentConfig} from "../schema.ts";
@@ -23,8 +22,8 @@ export default class AgentManager implements TokenRingService {
     while (!signal.aborted) {
       await delay(this.cleanupCheckIntervalMs, null, {signal});
       try {
-        await this.checkAndDeleteIdleAgents();
-      } catch (error) {
+        this.checkAndDeleteIdleAgents();
+      } catch (error: unknown) {
         this.app.serviceError(this, "Error while housekeeping agents:", error);
       }
     }
@@ -154,21 +153,17 @@ export default class AgentManager implements TokenRingService {
     for (const service of this.app.getServices()) {
       try {
         service.attach?.(agent, creationContext);
-      } catch (err) {
-        agent.errorMessage("Agent throw error during creation: ", err as Error)
+      } catch (err: unknown) {
+        agent.errorMessage("Agent threw error during creation: ", err as Error)
       }
-    }
-
-    let message = agent.config.createMessage;
-    if (creationContext.items.length > 0) {
-      message += `\n${markdownList(creationContext.items)}`;
     }
 
     agent.mutateState(AgentEventState, (state) => {
       state.emit({
         type: "agent.created",
         timestamp: Date.now(),
-        message,
+        message: agent.config.createMessage,
+        details: creationContext.items
       });
     });
 
@@ -179,13 +174,13 @@ export default class AgentManager implements TokenRingService {
     return this.agents.get(id)?.agent ?? null;
   }
 
-  private async checkAndDeleteIdleAgents() {
+  private checkAndDeleteIdleAgents() {
     for (const [agentId, {agent}] of this.agents.entries()) {
       const idleTimeout = agent.config.idleTimeout;
       const maxRunTime = agent.config.maxRunTime;
       if (idleTimeout && agent.getIdleDuration() > idleTimeout * 1000) {
         try {
-          await this.deleteAgent(
+          this.deleteAgent(
             agentId,
             `Agent has been idle for ${agent.getIdleDuration() / 1000} seconds`,
           );
@@ -193,7 +188,7 @@ export default class AgentManager implements TokenRingService {
             this,
             `Agent ${agent.id} has been deleted due to inactivity.`,
           );
-        } catch (err) {
+        } catch (err: unknown) {
           this.app.serviceError(
             this,
             `Failed to delete idle agent ${agent.id}:`,
@@ -202,7 +197,7 @@ export default class AgentManager implements TokenRingService {
         }
       } else if (maxRunTime && agent.getRunDuration() > maxRunTime * 1000) {
         try {
-          await this.deleteAgent(
+          this.deleteAgent(
             agentId,
             `Agent has been running for ${agent.getRunDuration() / 1000} seconds`,
           );
@@ -210,7 +205,7 @@ export default class AgentManager implements TokenRingService {
             this,
             `Agent ${agent.id} has been deleted due to max runtime.`,
           );
-        } catch (err) {
+        } catch (err: unknown) {
           this.app.serviceError(
             this,
             `Failed to delete agent ${agent.id} due to max runtime:`,
@@ -232,7 +227,7 @@ export default class AgentManager implements TokenRingService {
             this,
             `Agent type ${agentType} has less than the minimum number of running agents. Starting new agent...`,
           );
-          await this.spawnAgent({agentType, headless: true});
+          this.spawnAgent({agentType, headless: true});
         }
       }
     }

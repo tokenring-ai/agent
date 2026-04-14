@@ -469,7 +469,7 @@ describe("parseAgentCommandInput", () => {
       try {
         parseAgentCommandInput(command, '', [], {} as any);
         expect.fail("Should have thrown");
-      } catch (error) {
+      } catch (error: unknown) {
         expect(error).toBeInstanceOf(CommandFailedError);
         const cmdError = error as CommandFailedError;
         expect(cmdError.message).toContain("/test");

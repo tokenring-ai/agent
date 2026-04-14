@@ -1,44 +1,36 @@
 import {z} from "zod";
 import {QuestionSchema} from "./question.ts";
 
-export const AgentCreatedSchema = z.object({
+export const BaseTextEventSchema = z.object({
+  message: z.string(),
+  details: z.array(z.string()).optional(),
+  timestamp: z.number(),
+})
+
+export const AgentCreatedSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.created"),
-  message: z.string(),
-  timestamp: z.number(),
 });
 
-export const AgentStoppedSchema = z.object({
+export const AgentStoppedSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.stopped"),
-  message: z.string(),
-  timestamp: z.number(),
 });
 
-export const OutputChatSchema = z.object({
+export const OutputChatSchema = BaseTextEventSchema.extend({
   type: z.literal("output.chat"),
-  timestamp: z.number(),
-  message: z.string(),
 });
 
-export const OutputReasoningSchema = z.object({
+export const OutputReasoningSchema = BaseTextEventSchema.extend({
   type: z.literal("output.reasoning"),
-  timestamp: z.number(),
-  message: z.string(),
 });
 
-export const OutputInfoSchema = z.object({
+export const OutputInfoSchema = BaseTextEventSchema.extend({
   type: z.literal("output.info"),
-  timestamp: z.number(),
-  message: z.string(),
 });
-export const OutputWarningSchema = z.object({
+export const OutputWarningSchema = BaseTextEventSchema.extend({
   type: z.literal("output.warning"),
-  timestamp: z.number(),
-  message: z.string(),
 });
-export const OutputErrorSchema = z.object({
+export const OutputErrorSchema = BaseTextEventSchema.extend({
   type: z.literal("output.error"),
-  timestamp: z.number(),
-  message: z.string(),
 });
 
 export const BaseAttachmentSchema = z.object({
@@ -91,7 +83,7 @@ export const InputMessageSchema = z.object({
 export type InputMessage = z.input<typeof InputMessageSchema>;
 
 export const ToolCallAttachmentSchema = BaseAttachmentSchema.extend({
-  sendToLLM: z.boolean().default(true)
+  sendToLLM: z.boolean().default(false)
 });
 
 export type ToolCallAttachment = z.input<typeof ToolCallAttachmentSchema>;
@@ -157,36 +149,30 @@ export const InputReceivedSchema = z.object({
 
 export type ParsedInputReceived = z.output<typeof InputReceivedSchema>;
 
-export const AgentCancelledResponseSchema = z.object({
+export const AgentCancelledResponseSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.response"),
-  timestamp: z.number(),
   requestId: z.string(),
   status: z.literal("cancelled"),
-  message: z.string(),
 });
 
 export type ParsedAgentCancelledResponse = z.output<
   typeof AgentCancelledResponseSchema
 >;
 
-export const AgentErrorResponseSchema = z.object({
+export const AgentErrorResponseSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.response"),
-  timestamp: z.number(),
   requestId: z.string(),
   status: z.literal("error"),
-  message: z.string(),
 });
 
 export type ParsedAgentErrorResponse = z.output<
   typeof AgentErrorResponseSchema
 >;
 
-export const AgentSuccessResponseSchema = z.object({
+export const AgentSuccessResponseSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.response"),
-  timestamp: z.number(),
   requestId: z.string(),
   status: z.literal("success"),
-  message: z.string(),
   attachments: z.array(AttachmentSchema).optional(),
 });
 
