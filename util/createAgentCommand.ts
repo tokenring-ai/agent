@@ -7,20 +7,17 @@ import {SubAgentService} from "../index.ts";
 /**
  * Register an agent as a callable command
  */
-import type {AgentCommandConfig, ParsedAgentConfig} from "../schema.ts";
+import type {ParsedAgentCommandConfig} from "../schema.ts";
 import type {RunSubAgentOptions} from "../services/SubAgentService.ts";
 import type {AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
 
 export function createAgentCommand(
   name: string,
-  commandConfig: AgentCommandConfig,
-  config: ParsedAgentConfig,
+  commandConfig: ParsedAgentCommandConfig,
 ): TokenRingAgentCommand<any> {
-  const description = `${commandConfig.description || config.description}`;
-
   return {
     name,
-    description,
+    description: commandConfig.description,
     inputSchema: commandConfig.commandSchema,
     execute: async (
       args: AgentCommandInputType<typeof commandConfig.commandSchema>,
@@ -38,7 +35,7 @@ export function createAgentCommand(
 
       const subAgentService = agent.requireServiceByType(SubAgentService);
       const request: RunSubAgentOptions = {
-        agentType: config.agentType,
+        agentType: commandConfig.agentType,
         background: commandConfig.background,
         headless: agent.headless,
         from: `Parent agent command: /${name}`,
@@ -50,7 +47,7 @@ export function createAgentCommand(
       const result = await subAgentService.runSubAgent(request);
 
       if (commandConfig.background) {
-        return `Agent ${config.agentType} started in background.`;
+        return `Agent ${commandConfig.agentType} started in background.`;
       }
 
       const lifecycleService = agent.getServiceByType(AgentLifecycleService);
@@ -69,12 +66,12 @@ export function createAgentCommand(
     },
     help:
       commandConfig.help ??
-      `${description}
+      `${commandConfig.description}
 
 ## Usage
 /${name} <${commandConfig.commandSchema.remainder.name}>
 
-Runs the "${config.agentType}" agent with the provided message.
+Runs the "${commandConfig.agentType}" agent with the provided message.
 `.trim(),
   };
 }

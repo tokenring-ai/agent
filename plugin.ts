@@ -1,5 +1,5 @@
 import type {TokenRingPlugin} from "@tokenring-ai/app";
-import {ChatService, type TokenRingToolDefinition} from "@tokenring-ai/chat";
+import {ChatService} from "@tokenring-ai/chat";
 import {RpcService} from "@tokenring-ai/rpc";
 import agentCommands from "./commands.ts";
 import packageJSON from "./package.json" with {type: "json"};
@@ -9,9 +9,7 @@ import AgentCommandService from "./services/AgentCommandService.ts";
 import AgentManager from "./services/AgentManager.ts";
 import SubAgentService from "./services/SubAgentService.ts";
 import tools from "./tools.ts";
-import type {TokenRingAgentCommand} from "./types.ts";
 import {createAgentCommand} from "./util/createAgentCommand.ts";
-import {createAgentTool} from "./util/createAgentTool.ts";
 
 export default {
   name: packageJSON.name,
@@ -20,7 +18,7 @@ export default {
   description: packageJSON.description,
   install(app, config) {
     app.waitForService(ChatService, (chatService) => {
-      chatService.addTools(tools);
+      chatService.addTools(...tools);
     });
 
     const agentCommandService = new AgentCommandService(app);
@@ -41,29 +39,13 @@ export default {
       rpcService.registerEndpoint(agentRPC);
     });
 
-    app.waitForService(AgentCommandService, (commandService) => {
-      const commands: TokenRingAgentCommand[] = [];
-      for (const config of agentConfigs) {
-        for (const [name, commandConfig] of Object.entries(
-          config.callable.commands,
-        )) {
-          commands.push(createAgentCommand(name, commandConfig, config));
-        }
+    for (const [name, commandConfig] of Object.entries(config.commands)) {
+      const agentType = commandConfig.agentType;
+      if (! agentManager.getAgentConfig(agentType)) {
+        throw new Error(`Error while processing command ${name}: Agent ${agentType} not found`);
       }
-      commandService.addAgentCommands(...commands);
-    });
-
-    app.waitForService(ChatService, (chatService) => {
-      const tools: Record<string, TokenRingToolDefinition<any>> = {};
-      for (const config of agentConfigs) {
-        for (const [name, toolConfig] of Object.entries(
-          config.callable.tools,
-        )) {
-          tools[name] = createAgentTool(name, toolConfig, config);
-        }
-      }
-      chatService.addTools(tools);
-    });
+      agentCommandService.addAgentCommands(createAgentCommand(name, commandConfig));
+    }
   },
   config: AgentPackageConfigSchema,
 } satisfies TokenRingPlugin<typeof AgentPackageConfigSchema>;

@@ -33,14 +33,14 @@ export default class AgentManager implements TokenRingService {
   }
   private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
 
-  getAgentConfigEntries = this.agentConfigRegistry.entries;
-  getAgentConfig = this.agentConfigRegistry.getItemByName;
-  getAgentTypes = this.agentConfigRegistry.getAllItemNames;
-  getAgentTypesLike = this.agentConfigRegistry.getItemEntriesLike;
+  getAgentConfigEntries = this.agentConfigRegistry.entriesArray;
+  getAgentConfig = this.agentConfigRegistry.get;
+  getAgentTypes = this.agentConfigRegistry.keysArray;
+  getAgentTypesLike = this.agentConfigRegistry.entriesLike;
 
   addAgentConfigs(...configs: ParsedAgentConfig[]) {
     for (const config of configs) {
-      this.agentConfigRegistry.register(config.agentType, config);
+      this.agentConfigRegistry.set(config.agentType, config);
     }
   }
 
@@ -48,7 +48,7 @@ export default class AgentManager implements TokenRingService {
     checkpoint: AgentCheckpointData,
     config: Partial<ParsedAgentConfig> = {},
   ) {
-    const agentConfig = this.agentConfigRegistry.requireItemByName(
+    const agentConfig = this.agentConfigRegistry.require(
       checkpoint.agentType,
     );
     return this.createAgent(
@@ -69,7 +69,7 @@ export default class AgentManager implements TokenRingService {
     headless: boolean;
   }): Agent {
     return this.spawnAgentFromConfig({
-      ...this.agentConfigRegistry.requireItemByName(agentType),
+      ...this.agentConfigRegistry.require(agentType),
       headless,
     });
   }
@@ -86,7 +86,7 @@ export default class AgentManager implements TokenRingService {
     agentType: string,
     config: Partial<ParsedAgentConfig>,
   ): Agent {
-    const agentConfig = this.agentConfigRegistry.requireItemByName(agentType);
+    const agentConfig = this.agentConfigRegistry.require(agentType);
     // Create a new agent of the specified type
     const newAgent = this.createAgent({
       ...agentConfig,
@@ -215,7 +215,7 @@ export default class AgentManager implements TokenRingService {
       }
     }
 
-    for (const [agentType, agentSpec] of this.agentConfigRegistry.entries()) {
+    for (const [agentType, agentSpec] of this.agentConfigRegistry.entriesArray()) {
       if (agentSpec.minimumRunning > 0) {
         let agentCount = 0;
         for (const {agent} of this.agents.values()) {

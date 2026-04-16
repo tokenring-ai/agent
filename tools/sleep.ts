@@ -3,7 +3,7 @@ import {z} from "zod";
 import type Agent from "../Agent.ts";
 
 const name = "sleep";
-const displayName = "Agent/sleep";
+const displayName = "Agent/Sleep";
 
 const DAYS = [
   "Sunday",

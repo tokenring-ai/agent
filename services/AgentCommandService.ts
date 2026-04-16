@@ -32,9 +32,9 @@ export default class AgentCommandService implements TokenRingService {
   private agentCommands = new KeyedRegistry<TokenRingAgentCommand<any>>();
   private readonly defaultCommand = "/chat send";
 
-  getCommandNames = this.agentCommands.getAllItemNames;
-  getCommandEntries = this.agentCommands.entries;
-  getCommand = this.agentCommands.getItemByName;
+  getCommandNames = this.agentCommands.keysArray;
+  getCommandEntries = this.agentCommands.entriesArray;
+  getCommand = this.agentCommands.get;
 
   constructor(private readonly app: TokenRingApp) {
   }
@@ -43,9 +43,9 @@ export default class AgentCommandService implements TokenRingService {
     ...commands: (TokenRingAgentCommand<any> | TokenRingAgentCommand<any>[])[]
   ) {
     for (const command of commands.flat()) {
-      this.agentCommands.register(command.name, command);
+      this.agentCommands.set(command.name, command);
       for (const alias of command.aliases ?? []) {
-        this.agentCommands.register(alias, command);
+        this.agentCommands.set(alias, command);
       }
     }
   }
@@ -107,7 +107,7 @@ export default class AgentCommandService implements TokenRingService {
       return typeof result === 'string' ? { message: result } : result;
     }
     const firstWord = commandInput.split(/\s+/)[0];
-    const matchingCommands = this.agentCommands.getItemEntriesLike(
+    const matchingCommands = this.agentCommands.entriesLike(
       `${firstWord}*`,
     );
     if (matchingCommands.length > 0) {

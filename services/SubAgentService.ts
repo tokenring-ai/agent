@@ -215,7 +215,7 @@ export default class SubAgentService implements TokenRingService {
         };
 
         const clearMirroredInteractions = () => {
-          for (const interactionId of [...mirroredInteractionIds]) {
+          for (const interactionId of mirroredInteractionIds.values()) {
             removeMirroredInteraction(interactionId);
           }
         };

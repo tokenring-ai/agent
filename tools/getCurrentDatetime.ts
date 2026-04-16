@@ -3,7 +3,7 @@ import {z} from "zod";
 import type Agent from "../Agent.ts";
 
 const name = "get_current_datetime";
-const displayName = "Agent/getCurrentDatetime";
+const displayName = "Agent/Get Current Date & Time";
 
 const DAYS = [
   "Sunday",
