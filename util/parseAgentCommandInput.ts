@@ -78,6 +78,21 @@ function tokenizeInput(input: string): string[] {
   return tokens;
 }
 
+function parseDateValue(
+  argumentName: string,
+  rawValue: string,
+): number {
+  const parsedDate = Date.parse(rawValue);
+  
+  if (isNaN(parsedDate)) {
+    throw new CommandFailedError(
+      `Argument ${argumentName} must be a valid date string (e.g., "2024-01-15", "January 15, 2024", "today", "yesterday").`,
+    );
+  }
+  
+  return parsedDate;
+}
+
 function parseArgumentValue(
   argumentName: string,
   argumentSchema: AgentCommandArgumentSchema,
@@ -119,6 +134,10 @@ function parseArgumentValue(
       argumentSchema.minimum,
       argumentSchema.maximum,
     );
+  }
+
+  if (argumentSchema.type === "date") {
+    return parseDateValue(argumentName, rawValue);
   }
 
   return validateStringRange(
@@ -281,6 +300,14 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
             argumentSchema.minimum,
             argumentSchema.maximum,
           );
+          continue;
+        }
+
+        if (
+          argumentSchema.type === "date" &&
+          argumentSchema.defaultValue !== undefined
+        ) {
+          parsedArgs[argumentName] = argumentSchema.defaultValue;
           continue;
         }
 

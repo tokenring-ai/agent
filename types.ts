@@ -48,6 +48,18 @@ export type AgentCommandArgumentSchema =
   type: "flag";
   description: string;
   required?: never;
+}
+  | {
+  type: "date";
+  description: string;
+  defaultValue?: number;
+  required?: false;
+}
+  | {
+  type: "date";
+  description: string;
+  defaultValue?: never;
+  required: true;
 };
 
 export type AgentCommandArgumentsSchema = Record<
@@ -97,7 +109,9 @@ type AgentCommandArgumentValue<Schema extends AgentCommandArgumentSchema> =
     ? boolean
     : Schema["type"] extends "number"
       ? number
-      : string;
+      : Schema["type"] extends "date"
+        ? number
+        : string;
 
 type AgentCommandArgumentHasDefault<Schema extends AgentCommandArgumentSchema> =
   Schema extends { defaultValue: AgentCommandArgumentValue<Schema> }
