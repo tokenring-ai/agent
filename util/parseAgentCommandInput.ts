@@ -190,13 +190,16 @@ function findMatchingArgument(
   token: string,
   argsSchema: NonNullable<AgentCommandInputSchema["args"]>,
 ): { name: string; value?: string } | undefined {
+  const strippedToken = token.startsWith("--") ? token.slice(2) : null;
+  if (strippedToken === null) return undefined;
+
   for (const argumentName of Object.keys(argsSchema)) {
-    if (token === argumentName) {
+    if (strippedToken === argumentName) {
       return {name: argumentName};
     }
 
     const prefix = `${argumentName}=`;
-    if (token.startsWith(prefix)) {
+    if (strippedToken.startsWith(prefix)) {
       return {
         name: argumentName,
         value: token.slice(prefix.length),

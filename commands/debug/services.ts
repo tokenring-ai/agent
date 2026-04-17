@@ -3,7 +3,7 @@ import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentComma
 
 const inputSchema = {
   args: {
-    "--limit": {
+    "limit": {
       type: "number",
       description: "Optional number of log entries to show",
       required: false,
@@ -18,7 +18,7 @@ function execute({
                    args,
                    agent,
                  }: AgentCommandInputType<typeof inputSchema>): string {
-  const limit = args["--limit"];
+  const limit = args.limit;
   const logs = agent.app.logs.slice(-limit);
 
   if (logs.length === 0) {

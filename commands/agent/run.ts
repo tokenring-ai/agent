@@ -6,59 +6,59 @@ import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentComma
 
 const inputSchema = {
   args: {
-    "--bg": {
+    "bg": {
       type: "flag",
       description: "Run the agent in the background without forwarding output",
     },
-    "--type": {
+    "type": {
       type: "string",
       description: "The type of agent to run",
       required: true,
     },
-    "--forwardChatOutput": {
+    "forwardChatOutput": {
       type: "flag",
       description: "Forward chat output from the sub-agent",
     },
-    "--noStatusMessages": {
+    "noStatusMessages": {
       type: "flag",
       description: "Do not forward status messages from the sub-agent",
     },
-    "--forwardSystemOutput": {
+    "forwardSystemOutput": {
       type: "flag",
       description: "Forward system output from the sub-agent",
     },
-    "--noHumanRequests": {
+    "noHumanRequests": {
       type: "flag",
       description: "Do not forward human requests from the sub-agent",
     },
-    "--forwardReasoning": {
+    "forwardReasoning": {
       type: "flag",
       description: "Forward reasoning output from the sub-agent",
     },
-    "--noInputCommands": {
+    "noInputCommands": {
       type: "flag",
       description: "Do not forward input commands from the sub-agent",
     },
-    "--forwardArtifacts": {
+    "forwardArtifacts": {
       type: "flag",
       description: "Forward artifacts from the sub-agent",
     },
-    "--timeout": {
+    "timeout": {
       type: "number",
       description: "Timeout in milliseconds for the sub-agent (0 = no timeout)",
       defaultValue: 0,
     },
-    "--maxResponseLength": {
+    "maxResponseLength": {
       type: "number",
       description: "Maximum response length from the sub-agent",
       defaultValue: 10000,
     },
-    "--minContextLength": {
+    "minContextLength": {
       type: "number",
       description: "Minimum context length for the sub-agent",
       defaultValue: 1000,
     },
-    "--neverFail": {
+    "neverFail": {
       type: "flag",
       description: "Ignore errors from the sub-agent, printing them as warnings instead of failing the command",
     },
@@ -75,20 +75,20 @@ async function execute({
                          args,
                          agent,
                        }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const isBg = args["--bg"] === true;
-  const agentType = args["--type"];
+  const isBg = args.bg === true;
+  const agentType = args.type;
 
   const subAgentOptions = {
-    forwardChatOutput: !!args["--forwardChatOutput"],
-    forwardStatusMessages: !args["--noStatusMessages"],
-    forwardSystemOutput: !!args["--forwardSystemOutput"],
-    forwardHumanRequests: !args["--noHumanRequests"],
-    forwardReasoning: !!args["--forwardReasoning"],
-    forwardInputCommands: !args["--noInputCommands"],
-    forwardArtifacts: !!args["--forwardArtifacts"],
-    timeout: args["--timeout"],
-    maxResponseLength: args["--maxResponseLength"],
-    minContextLength: args["--minContextLength"],
+    forwardChatOutput: !!args.forwardChatOutput,
+    forwardStatusMessages: !args.noStatusMessages,
+    forwardSystemOutput: !!args.forwardSystemOutput,
+    forwardHumanRequests: !args.noHumanRequests,
+    forwardReasoning: !!args.forwardReasoning,
+    forwardInputCommands: !args.noInputCommands,
+    forwardArtifacts: !!args.forwardArtifacts,
+    timeout: args.timeout,
+    maxResponseLength: args.maxResponseLength,
+    minContextLength: args.minContextLength,
   };
 
   const subAgentService = agent.requireServiceByType(SubAgentService);
@@ -115,7 +115,7 @@ async function execute({
     return `Agent ${agentType} started in background.`;
   }
 
-  if (result.status === "success" || args["--neverFail"]) {
+  if (result.status === "success" || args.neverFail) {
     return result.response || "Agent completed successfully.";
   } else if (result.status === "cancelled") {
     throw new CommandFailedError(`Agent was cancelled: ${result.response}`);
