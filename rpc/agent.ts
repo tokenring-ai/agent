@@ -10,15 +10,21 @@ import AgentRpcSchema from "./schema.ts";
 export default createRPCEndpoint(AgentRpcSchema, {
   getAgentConfig(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-    return agent.config;
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+    return {status: 'success', ...agent.config};
   },
 
   getAgentEvents(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+
     const state = agent.getState(AgentEventState);
     return {
+      status: 'success',
       events: state.events.slice(args.fromPosition),
       position: state.events.length,
     };
@@ -26,7 +32,10 @@ export default createRPCEndpoint(AgentRpcSchema, {
 
   async* streamAgentEvents(args, app, signal) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
+    if (!agent) {
+      yield { status: 'agentNotFound' };
+      return;
+    }
 
     let position = args.fromPosition;
 
@@ -37,6 +46,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
       const events = state.events.slice(position);
       position = state.events.length;
       yield {
+        status: 'success',
         events,
         position,
       };
@@ -109,42 +119,69 @@ export default createRPCEndpoint(AgentRpcSchema, {
   },
 
   deleteAgent(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+
     app
       .requireService(AgentManager)
-      .deleteAgent(args.agentId, args.reason);
-    return {success: true};
+      .deleteAgent(agent.id, args.reason);
+    return {status: 'success'};
   },
 
   sendInput(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+
     const requestId = agent.handleInput(args.input);
-    return {requestId};
+    return {
+      status: 'success',
+      requestId
+    };
   },
 
   sendInteractionResponse(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+
     agent.sendInteractionResponse(args.response);
-    return {success: true};
+    return {status: 'success'};
   },
 
   abortCurrentOperation(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+
     agent.abortCurrentOperation(args.message);
-    return {success: true};
+    return {status: 'success'};
   },
 
   getCommandHistory(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-    return agent.getState(CommandHistoryState).commands;
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+    return {
+      status: "success",
+      history: agent.getState(CommandHistoryState).commands
+    };
   },
 
   getAvailableCommands(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-    return agent.requireServiceByType(AgentCommandService).getCommandNames();
+    if (!agent) {
+      return {status: 'agentNotFound'};
+    }
+    return {
+      status: 'success',
+      commands: agent.requireServiceByType(AgentCommandService).getCommandNames()
+    };
   },
 });

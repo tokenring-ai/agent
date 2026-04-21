@@ -75,3 +75,6 @@ export type AgentPackageConfig = z.input<typeof AgentPackageConfigSchema>;
 
 export type AgentConfig = z.input<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;
+export const AgentNotFoundSchema = z.object({
+  status: z.literal('agentNotFound'),
+});

@@ -3,6 +3,10 @@ import {z} from "zod";
 import {AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema} from "../AgentEvents.ts";
 import {AgentConfigSchema} from "../schema.ts";
 
+export const AgentNotFoundSchema = z.object({
+  status: z.literal('agentNotFound'),
+});
+
 export default {
   name: "Agent RPC",
   path: "/rpc/agent",
@@ -12,7 +16,10 @@ export default {
       input: z.object({
         agentId: z.string(),
       }),
-      result: AgentConfigSchema,
+      result: z.discriminatedUnion("status", [
+        AgentConfigSchema.extend({status: z.literal('success')}),
+        AgentNotFoundSchema
+      ])
     },
     getAgentEvents: {
       type: "query",
@@ -20,10 +27,14 @@ export default {
         agentId: z.string(),
         fromPosition: z.number(),
       }),
-      result: z.object({
-        events: z.array(AgentEventEnvelopeSchema),
-        position: z.number(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          events: z.array(AgentEventEnvelopeSchema),
+          position: z.number(),
+        }),
+        AgentNotFoundSchema
+      ])
     },
     streamAgentEvents: {
       type: "stream",
@@ -31,10 +42,14 @@ export default {
         agentId: z.string(),
         fromPosition: z.number(),
       }),
-      result: z.object({
-        events: z.array(AgentEventEnvelopeSchema),
-        position: z.number(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          events: z.array(AgentEventEnvelopeSchema),
+          position: z.number(),
+        }),
+        AgentNotFoundSchema
+      ])
     },
     /*
     getAgentExecutionState: {
@@ -102,9 +117,12 @@ export default {
         agentId: z.string(),
         reason: z.string(),
       }),
-      result: z.object({
-        success: z.boolean(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+        }),
+        AgentNotFoundSchema
+      ])
     },
     sendInput: {
       type: "mutation",
@@ -112,9 +130,13 @@ export default {
         agentId: z.string(),
         input: InputMessageSchema,
       }),
-      result: z.object({
-        requestId: z.string(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          requestId: z.string(),
+        }),
+        AgentNotFoundSchema
+      ])
     },
     sendInteractionResponse: {
       type: "mutation",
@@ -122,9 +144,12 @@ export default {
         agentId: z.string(),
         response: InteractionResponseSchema,
       }),
-      result: z.object({
-        success: z.boolean(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+        }),
+        AgentNotFoundSchema
+      ])
     },
     abortCurrentOperation: {
       type: "mutation",
@@ -132,23 +157,38 @@ export default {
         agentId: z.string(),
         message: z.string(),
       }),
-      result: z.object({
-        success: z.boolean(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+        }),
+        AgentNotFoundSchema
+      ])
     },
     getCommandHistory: {
       type: "query",
       input: z.object({
         agentId: z.string(),
       }),
-      result: z.array(z.string()),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          history: z.array(z.string()),
+        }),
+        AgentNotFoundSchema
+      ])
     },
     getAvailableCommands: {
       type: "query",
       input: z.object({
         agentId: z.string(),
       }),
-      result: z.array(z.string()),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          commands: z.array(z.string()),
+        }),
+        AgentNotFoundSchema
+      ])
     },
   },
 } satisfies RPCSchema;
