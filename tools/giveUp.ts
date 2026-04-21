@@ -1,5 +1,5 @@
-import type {TokenRingToolDefinition, TokenRingToolResult} from "@tokenring-ai/chat/schema";
-import {z} from "zod";
+import type { TokenRingToolDefinition, TokenRingToolResult } from "@tokenring-ai/chat/schema";
+import { z } from "zod";
 import type Agent from "../Agent.ts";
 
 const name = "give_up";
@@ -10,15 +10,10 @@ const description =
   "Provide a clear explanation of why the work cannot be finished.";
 
 const inputSchema = z.object({
-  reason: z
-    .string()
-    .describe("A detailed explanation of why the task cannot be completed."),
+  reason: z.string().describe("A detailed explanation of why the task cannot be completed."),
 });
 
-export function execute(
-  {reason}: z.output<typeof inputSchema>,
-  agent: Agent,
-): TokenRingToolResult {
+export function execute({ reason }: z.output<typeof inputSchema>, agent: Agent): TokenRingToolResult {
   agent.abortCurrentOperation(`Agent decided to call the give_up tool, indicating that the task could not be completed.
 Reason: ${reason}`);
   return `Immediately stop what you are doing, and wait for input from the user on what to do next.`;

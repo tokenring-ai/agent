@@ -1,12 +1,10 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../types.ts";
 
 const description = "Show current chat settings." as const;
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-export function execute({
-                          agent,
-                        }: AgentCommandInputType<typeof inputSchema>): string {
+export function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
   const activeServiceNames = agent.app.getServices().map(s => s.name);
 
   return `
@@ -15,12 +13,9 @@ export function execute({
 ${activeServiceNames.length > 0 ? markdownList(activeServiceNames) : "[No services active]"}
 
 ## Agent State:
-${
-    Array.from(agent.stateManager.slices())
-      .map(slice => `***${slice.name}***:\n${slice.show()}\n`)
-      .join("\n")
-  }`;
-
+${Array.from(agent.stateManager.slices())
+  .map(slice => `***${slice.name}***:\n${slice.show()}\n`)
+  .join("\n")}`;
 }
 
 const help: string = `Displays current agent settings and configuration state.

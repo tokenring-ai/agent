@@ -34,7 +34,7 @@ export const AgentCommandConfigSchema = z.object({
     })
     .prefault({}),
   /** Custom help text for the command */
-  help: z.string().optional(),
+  help: z.string().exactOptional(),
   /** Whether to run in background mode by default */
   background: z.boolean().default(false),
   /** The steps to execute */
@@ -76,5 +76,5 @@ export type AgentPackageConfig = z.input<typeof AgentPackageConfigSchema>;
 export type AgentConfig = z.input<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;
 export const AgentNotFoundSchema = z.object({
-  status: z.literal('agentNotFound'),
+  status: z.literal("agentNotFound"),
 });

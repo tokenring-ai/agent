@@ -1,24 +1,13 @@
-import type {TokenRingToolDefinition, TokenRingToolResult} from "@tokenring-ai/chat/schema";
-import {z} from "zod";
+import type { TokenRingToolDefinition, TokenRingToolResult } from "@tokenring-ai/chat/schema";
+import { z } from "zod";
 import type Agent from "../Agent.ts";
 
 const name = "get_current_datetime";
 const displayName = "Agent/Get Current Date & Time";
 
-const DAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export function execute(
-  _args: z.output<typeof inputSchema>,
-  _agent: Agent,
-): TokenRingToolResult {
+export function execute(_args: z.output<typeof inputSchema>, _agent: Agent): TokenRingToolResult {
   const now = new Date();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

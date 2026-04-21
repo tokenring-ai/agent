@@ -1,6 +1,6 @@
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import {z} from "zod";
-import {AgentStateSlice} from "../types.ts";
+import { z } from "zod";
+import { AgentStateSlice } from "../types.ts";
 
 const serializationSchema = z
   .object({
@@ -8,12 +8,10 @@ const serializationSchema = z
   })
   .prefault({});
 
-export class CommandHistoryState extends AgentStateSlice<
-  typeof serializationSchema
-> {
+export class CommandHistoryState extends AgentStateSlice<typeof serializationSchema> {
   commands: string[] = [];
 
-  constructor({commands}: { commands?: string[] }) {
+  constructor({ commands }: { commands?: string[] }) {
     super("CommandHistoryState", serializationSchema);
     this.commands = commands ? [...commands] : [];
   }

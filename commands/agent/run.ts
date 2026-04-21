@@ -1,64 +1,64 @@
-import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
-import {CommandFailedError} from "../../AgentError.ts";
-import {AfterSubAgentResponse} from "../../hooks.ts";
-import {type RunSubAgentOptions, SubAgentService} from "../../index.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
+import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
+import { CommandFailedError } from "../../AgentError.ts";
+import { AfterSubAgentResponse } from "../../hooks.ts";
+import { type RunSubAgentOptions, SubAgentService } from "../../index.ts";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
 
 const inputSchema = {
   args: {
-    "bg": {
+    bg: {
       type: "flag",
       description: "Run the agent in the background without forwarding output",
     },
-    "type": {
+    type: {
       type: "string",
       description: "The type of agent to run",
       required: true,
     },
-    "forwardChatOutput": {
+    forwardChatOutput: {
       type: "flag",
       description: "Forward chat output from the sub-agent",
     },
-    "noStatusMessages": {
+    noStatusMessages: {
       type: "flag",
       description: "Do not forward status messages from the sub-agent",
     },
-    "forwardSystemOutput": {
+    forwardSystemOutput: {
       type: "flag",
       description: "Forward system output from the sub-agent",
     },
-    "noHumanRequests": {
+    noHumanRequests: {
       type: "flag",
       description: "Do not forward human requests from the sub-agent",
     },
-    "forwardReasoning": {
+    forwardReasoning: {
       type: "flag",
       description: "Forward reasoning output from the sub-agent",
     },
-    "noInputCommands": {
+    noInputCommands: {
       type: "flag",
       description: "Do not forward input commands from the sub-agent",
     },
-    "forwardArtifacts": {
+    forwardArtifacts: {
       type: "flag",
       description: "Forward artifacts from the sub-agent",
     },
-    "timeout": {
+    timeout: {
       type: "number",
       description: "Timeout in milliseconds for the sub-agent (0 = no timeout)",
       defaultValue: 0,
     },
-    "maxResponseLength": {
+    maxResponseLength: {
       type: "number",
       description: "Maximum response length from the sub-agent",
       defaultValue: 10000,
     },
-    "minContextLength": {
+    minContextLength: {
       type: "number",
       description: "Minimum context length for the sub-agent",
       defaultValue: 1000,
     },
-    "neverFail": {
+    neverFail: {
       type: "flag",
       description: "Ignore errors from the sub-agent, printing them as warnings instead of failing the command",
     },
@@ -70,11 +70,7 @@ const inputSchema = {
   },
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({
-                         remainder,
-                         args,
-                         agent,
-                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({ remainder, args, agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const isBg = args.bg === true;
   const agentType = args.type;
 
@@ -106,10 +102,7 @@ async function execute({
   const result = await subAgentService.runSubAgent(request);
 
   const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-  await lifecycleService?.executeHooks(
-    new AfterSubAgentResponse(request, result),
-    agent,
-  );
+  await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
 
   if (isBg) {
     return `Agent ${agentType} started in background.`;

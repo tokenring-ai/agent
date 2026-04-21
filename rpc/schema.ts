@@ -1,10 +1,10 @@
-import type {RPCSchema} from "@tokenring-ai/rpc/types";
-import {z} from "zod";
-import {AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema} from "../AgentEvents.ts";
-import {AgentConfigSchema} from "../schema.ts";
+import type { RPCSchema } from "@tokenring-ai/rpc/types";
+import { z } from "zod";
+import { AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema } from "../AgentEvents.ts";
+import { AgentConfigSchema } from "../schema.ts";
 
 export const AgentNotFoundSchema = z.object({
-  status: z.literal('agentNotFound'),
+  status: z.literal("agentNotFound"),
 });
 
 export default {
@@ -16,10 +16,7 @@ export default {
       input: z.object({
         agentId: z.string(),
       }),
-      result: z.discriminatedUnion("status", [
-        AgentConfigSchema.extend({status: z.literal('success')}),
-        AgentNotFoundSchema
-      ])
+      result: z.discriminatedUnion("status", [AgentConfigSchema.extend({ status: z.literal("success") }), AgentNotFoundSchema]),
     },
     getAgentEvents: {
       type: "query",
@@ -29,12 +26,12 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           events: z.array(AgentEventEnvelopeSchema),
           position: z.number(),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
     streamAgentEvents: {
       type: "stream",
@@ -44,12 +41,12 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           events: z.array(AgentEventEnvelopeSchema),
           position: z.number(),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
     /*
     getAgentExecutionState: {
@@ -95,7 +92,7 @@ export default {
           type: z.string(),
           displayName: z.string(),
           description: z.string(),
-          category: z.string().optional(),
+          category: z.string().exactOptional(),
         }),
       ),
     },
@@ -119,10 +116,10 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
     sendInput: {
       type: "mutation",
@@ -132,11 +129,11 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           requestId: z.string(),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
     sendInteractionResponse: {
       type: "mutation",
@@ -146,10 +143,10 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
     abortCurrentOperation: {
       type: "mutation",
@@ -159,10 +156,10 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
     getCommandHistory: {
       type: "query",
@@ -171,11 +168,11 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           history: z.array(z.string()),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
     getAvailableCommands: {
       type: "query",
@@ -184,11 +181,11 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           commands: z.array(z.string()),
         }),
-        AgentNotFoundSchema
-      ])
+        AgentNotFoundSchema,
+      ]),
     },
   },
 } satisfies RPCSchema;

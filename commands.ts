@@ -12,7 +12,7 @@ import debugQuestions from "./commands/debug/questions.ts";
 import debugServices from "./commands/debug/services.ts";
 import help from "./commands/help.ts";
 import settings from "./commands/settings.ts";
-import type {TokenRingAgentCommand} from "./types.ts";
+import type { TokenRingAgentCommand } from "./types.ts";
 
 export default [
   settings,

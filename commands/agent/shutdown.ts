@@ -1,5 +1,5 @@
 import AgentManager from "../../services/AgentManager.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
 
 const inputSchema = {
   positionals: [
@@ -11,17 +11,11 @@ const inputSchema = {
   ],
 } as const satisfies AgentCommandInputSchema;
 
-function execute({
-                         positionals,
-                         agent,
-                       }: AgentCommandInputType<typeof inputSchema>) : string {
+function execute({ positionals, agent }: AgentCommandInputType<typeof inputSchema>): string {
   const agentId = positionals.agentId ?? agent.id;
   const agentManager = agent.requireServiceByType(AgentManager);
 
-  agentManager.deleteAgent(
-    agentId,
-    "Agent was shut down with /agent shutdown command",
-  );
+  agentManager.deleteAgent(agentId, "Agent was shut down with /agent shutdown command");
   return `Agent ${agentId} shut down.`;
 }
 

@@ -1,37 +1,29 @@
-import {AgentLifecycleService} from "@tokenring-ai/lifecycle";
+import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import interpolateString from "@tokenring-ai/utility/string/interpolateString";
-import {CommandFailedError} from "../AgentError.ts";
-import {AfterSubAgentResponse} from "../hooks.ts";
-import {SubAgentService} from "../index.ts";
+import { CommandFailedError } from "../AgentError.ts";
+import { AfterSubAgentResponse } from "../hooks.ts";
+import { SubAgentService } from "../index.ts";
 
 /**
  * Register an agent as a callable command
  */
-import type {ParsedAgentCommandConfig} from "../schema.ts";
-import type {RunSubAgentOptions} from "../services/SubAgentService.ts";
-import type {AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
+import type { ParsedAgentCommandConfig } from "../schema.ts";
+import type { RunSubAgentOptions } from "../services/SubAgentService.ts";
+import type { AgentCommandInputType, TokenRingAgentCommand } from "../types.ts";
 
-export function createAgentCommand(
-  name: string,
-  commandConfig: ParsedAgentCommandConfig,
-): TokenRingAgentCommand<any> {
+export function createAgentCommand(name: string, commandConfig: ParsedAgentCommandConfig): TokenRingAgentCommand<any> {
   return {
     name,
     description: commandConfig.description,
     inputSchema: commandConfig.commandSchema,
-    execute: async (
-      args: AgentCommandInputType<typeof commandConfig.commandSchema>,
-    ): Promise<string> => {
-      const {agent} = args;
+    execute: async (args: AgentCommandInputType<typeof commandConfig.commandSchema>): Promise<string> => {
+      const { agent } = args;
       const replacements: Record<string, () => string> = {};
       if (commandConfig.commandSchema.remainder) {
-        replacements[commandConfig.commandSchema.remainder.name] = () =>
-          args.remainder ?? "undefined";
+        replacements[commandConfig.commandSchema.remainder.name] = () => args.remainder ?? "undefined";
       }
 
-      const steps = commandConfig.steps.map((step) =>
-        interpolateString(step, replacements),
-      );
+      const steps = commandConfig.steps.map(step => interpolateString(step, replacements));
 
       const subAgentService = agent.requireServiceByType(SubAgentService);
       const request: RunSubAgentOptions = {
@@ -41,7 +33,7 @@ export function createAgentCommand(
         from: `Parent agent command: /${name}`,
         steps,
         parentAgent: agent,
-        options: commandConfig.subAgent
+        options: commandConfig.subAgent,
       };
 
       const result = await subAgentService.runSubAgent(request);
@@ -51,10 +43,7 @@ export function createAgentCommand(
       }
 
       const lifecycleService = agent.getServiceByType(AgentLifecycleService);
-      await lifecycleService?.executeHooks(
-        new AfterSubAgentResponse(request, result),
-        agent,
-      );
+      await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
 
       if (result.status === "success") {
         return result.response || "Agent completed successfully.";

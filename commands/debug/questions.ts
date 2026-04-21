@@ -1,6 +1,6 @@
-import {CommandFailedError} from "../../AgentError.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
-import {formatAgentCommandUsageError} from "../../util/formatAgentCommandUsage.ts";
+import { CommandFailedError } from "../../AgentError.ts";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
+import { formatAgentCommandUsageError } from "../../util/formatAgentCommandUsage.ts";
 
 const inputSchema = {
   positionals: [
@@ -12,10 +12,7 @@ const inputSchema = {
   ],
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({
-                         positionals,
-                         agent,
-                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({ positionals, agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const type = positionals.type;
 
   switch (type) {
@@ -48,16 +45,16 @@ async function execute({
                   name: "Frontend",
                   value: "frontend",
                   children: [
-                    {name: "React", value: "react"},
-                    {name: "Vue", value: "vue"},
+                    { name: "React", value: "react" },
+                    { name: "Vue", value: "vue" },
                   ],
                 },
                 {
                   name: "Backend",
                   value: "backend",
                   children: [
-                    {name: "Node.js", value: "node"},
-                    {name: "Python", value: "python"},
+                    { name: "Node.js", value: "node" },
+                    { name: "Python", value: "python" },
                   ],
                 },
               ],
@@ -126,18 +123,18 @@ async function execute({
                           name: "Node.js Frameworks",
                           value: "nodejs",
                           children: [
-                            {name: "Express", value: "express"},
-                            {name: "NestJS", value: "nestjs"},
-                            {name: "Fastify", value: "fastify"},
+                            { name: "Express", value: "express" },
+                            { name: "NestJS", value: "nestjs" },
+                            { name: "Fastify", value: "fastify" },
                           ],
                         },
                         {
                           name: "Python Frameworks",
                           value: "python",
                           children: [
-                            {name: "Django", value: "django"},
-                            {name: "FastAPI", value: "fastapi"},
-                            {name: "Flask", value: "flask"},
+                            { name: "Django", value: "django" },
+                            { name: "FastAPI", value: "fastapi" },
+                            { name: "Flask", value: "flask" },
                           ],
                         },
                       ],
@@ -152,12 +149,7 @@ async function execute({
       return `Form results: ${JSON.stringify(result, null, 2)}`;
     }
     default:
-      throw new CommandFailedError(
-        formatAgentCommandUsageError(
-          command,
-          `Unknown question type: ${type}. Use: text, confirm, tree, file, or form`,
-        ),
-      );
+      throw new CommandFailedError(formatAgentCommandUsageError(command, `Unknown question type: ${type}. Use: text, confirm, tree, file, or form`));
   }
 }
 

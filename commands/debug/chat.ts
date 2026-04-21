@@ -1,4 +1,4 @@
-import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../../types.ts";
+import type { AgentCommandInputSchema, TokenRingAgentCommand } from "../../types.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 

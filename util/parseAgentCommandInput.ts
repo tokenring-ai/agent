@@ -1,8 +1,8 @@
 import type Agent from "../Agent.ts";
-import {CommandFailedError} from "../AgentError.ts";
-import type {BaseAttachment} from "../AgentEvents.ts";
-import type {AgentCommandArgumentSchema, AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../types.ts";
-import {formatAgentCommandUsageError} from "./formatAgentCommandUsage.ts";
+import { CommandFailedError } from "../AgentError.ts";
+import type { BaseAttachment } from "../AgentEvents.ts";
+import type { AgentCommandArgumentSchema, AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../types.ts";
+import { formatAgentCommandUsageError } from "./formatAgentCommandUsage.ts";
 
 function tokenizeInput(input: string): string[] {
   const tokens: string[] = [];
@@ -35,10 +35,7 @@ function tokenizeInput(input: string): string[] {
       continue;
     }
 
-    if (
-      (char === '"' || char === "'") &&
-      (!tokenStarted || current.endsWith("="))
-    ) {
+    if ((char === '"' || char === "'") && (!tokenStarted || current.endsWith("="))) {
       quote = char;
       tokenStarted = true;
       continue;
@@ -78,26 +75,17 @@ function tokenizeInput(input: string): string[] {
   return tokens;
 }
 
-function parseDateValue(
-  argumentName: string,
-  rawValue: string,
-): number {
+function parseDateValue(argumentName: string, rawValue: string): number {
   const parsedDate = Date.parse(rawValue);
-  
-  if (isNaN(parsedDate)) {
-    throw new CommandFailedError(
-      `Argument ${argumentName} must be a valid date string (e.g., "2024-01-15", "January 15, 2024", "today", "yesterday").`,
-    );
+
+  if (Number.isNaN(parsedDate)) {
+    throw new CommandFailedError(`Argument ${argumentName} must be a valid date string (e.g., "2024-01-15", "January 15, 2024", "today", "yesterday").`);
   }
-  
+
   return parsedDate;
 }
 
-function parseArgumentValue(
-  argumentName: string,
-  argumentSchema: AgentCommandArgumentSchema,
-  rawValue: string | undefined,
-): string | number | boolean {
+function parseArgumentValue(argumentName: string, argumentSchema: AgentCommandArgumentSchema, rawValue: string | undefined): string | number | boolean {
   if (argumentSchema.type === "flag") {
     if (rawValue === undefined || rawValue === "") {
       return true;
@@ -112,9 +100,7 @@ function parseArgumentValue(
       return false;
     }
 
-    throw new CommandFailedError(
-      `Argument ${argumentName} must be true or false.`,
-    );
+    throw new CommandFailedError(`Argument ${argumentName} must be true or false.`);
   }
 
   if (rawValue === undefined) {
@@ -124,57 +110,31 @@ function parseArgumentValue(
   if (argumentSchema.type === "number") {
     const parsedValue = Number(rawValue);
     if (!Number.isFinite(parsedValue)) {
-      throw new CommandFailedError(
-        `Argument ${argumentName} must be a valid number.`,
-      );
+      throw new CommandFailedError(`Argument ${argumentName} must be a valid number.`);
     }
-    return validateNumberRange(
-      argumentName,
-      parsedValue,
-      argumentSchema.minimum,
-      argumentSchema.maximum,
-    );
+    return validateNumberRange(argumentName, parsedValue, argumentSchema.minimum, argumentSchema.maximum);
   }
 
   if (argumentSchema.type === "date") {
     return parseDateValue(argumentName, rawValue);
   }
 
-  return validateStringRange(
-    argumentName,
-    rawValue,
-    argumentSchema.minimum,
-    argumentSchema.maximum,
-  );
+  return validateStringRange(argumentName, rawValue, argumentSchema.minimum, argumentSchema.maximum);
 }
 
-function validateStringRange(
-  name: string,
-  value: string,
-  minimum?: number,
-  maximum?: number,
-): string {
+function validateStringRange(name: string, value: string, minimum?: number, maximum?: number): string {
   if (minimum !== undefined && value.length < minimum) {
-    throw new CommandFailedError(
-      `${name} must be at least ${minimum} characters.`,
-    );
+    throw new CommandFailedError(`${name} must be at least ${minimum} characters.`);
   }
 
   if (maximum !== undefined && value.length > maximum) {
-    throw new CommandFailedError(
-      `${name} must be at most ${maximum} characters.`,
-    );
+    throw new CommandFailedError(`${name} must be at most ${maximum} characters.`);
   }
 
   return value;
 }
 
-function validateNumberRange(
-  name: string,
-  value: number,
-  minimum?: number,
-  maximum?: number,
-): number {
+function validateNumberRange(name: string, value: number, minimum?: number, maximum?: number): number {
   if (minimum !== undefined && value < minimum) {
     throw new CommandFailedError(`${name} must be at least ${minimum}.`);
   }
@@ -189,13 +149,13 @@ function validateNumberRange(
 function findMatchingArgument(
   token: string,
   argsSchema: NonNullable<AgentCommandInputSchema["args"]>,
-): { name: string; value?: string } | undefined {
+): { name: string; value?: string | undefined } | undefined {
   const strippedToken = token.startsWith("--") ? token.slice(2) : null;
   if (strippedToken === null) return undefined;
 
   for (const argumentName of Object.keys(argsSchema)) {
     if (strippedToken === argumentName) {
-      return {name: argumentName};
+      return { name: argumentName };
     }
 
     const prefix = `${argumentName}=`;
@@ -217,12 +177,10 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
   agent: Agent,
 ): AgentCommandInputType<Schema> {
   try {
-    const {inputSchema} = command;
+    const { inputSchema } = command;
 
     if (!inputSchema.allowAttachments && attachments.length > 0) {
-      throw new CommandFailedError(
-        `Attachments are not allowed for command: /${command.name}`,
-      );
+      throw new CommandFailedError(`Attachments are not allowed for command: /${command.name}`);
     }
 
     const tokens = tokenizeInput(input.trim());
@@ -246,17 +204,13 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
         const matchingArgument = findMatchingArgument(token, argsSchema);
         if (!matchingArgument) {
           if (token.startsWith("-")) {
-            throw new CommandFailedError(
-              `Unknown argument ${token} for command /${command.name}`,
-            );
+            throw new CommandFailedError(`Unknown argument ${token} for command /${command.name}`);
           }
           break;
         }
 
         if (matchingArgument.name in parsedArgs) {
-          throw new CommandFailedError(
-            `Argument ${matchingArgument.name} was provided more than once.`,
-          );
+          throw new CommandFailedError(`Argument ${matchingArgument.name} was provided more than once.`);
         }
 
         const argumentSchema = argsSchema[matchingArgument.name];
@@ -267,11 +221,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
           rawValue = tokens[tokenIndex];
         }
 
-        parsedArgs[matchingArgument.name] = parseArgumentValue(
-          matchingArgument.name,
-          argumentSchema,
-          rawValue,
-        );
+        parsedArgs[matchingArgument.name] = parseArgumentValue(matchingArgument.name, argumentSchema, rawValue);
         tokenIndex += 1;
       }
 
@@ -280,44 +230,23 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
           continue;
         }
 
-        if (
-          argumentSchema.type === "number" &&
-          argumentSchema.defaultValue !== undefined
-        ) {
-          parsedArgs[argumentName] = validateNumberRange(
-            argumentName,
-            argumentSchema.defaultValue,
-            argumentSchema.minimum,
-            argumentSchema.maximum,
-          );
+        if (argumentSchema.type === "number" && argumentSchema.defaultValue !== undefined) {
+          parsedArgs[argumentName] = validateNumberRange(argumentName, argumentSchema.defaultValue, argumentSchema.minimum, argumentSchema.maximum);
           continue;
         }
 
-        if (
-          argumentSchema.type === "string" &&
-          argumentSchema.defaultValue !== undefined
-        ) {
-          parsedArgs[argumentName] = validateStringRange(
-            argumentName,
-            argumentSchema.defaultValue,
-            argumentSchema.minimum,
-            argumentSchema.maximum,
-          );
+        if (argumentSchema.type === "string" && argumentSchema.defaultValue !== undefined) {
+          parsedArgs[argumentName] = validateStringRange(argumentName, argumentSchema.defaultValue, argumentSchema.minimum, argumentSchema.maximum);
           continue;
         }
 
-        if (
-          argumentSchema.type === "date" &&
-          argumentSchema.defaultValue !== undefined
-        ) {
+        if (argumentSchema.type === "date" && argumentSchema.defaultValue !== undefined) {
           parsedArgs[argumentName] = argumentSchema.defaultValue;
           continue;
         }
 
         if (argumentSchema.required) {
-          throw new CommandFailedError(
-            `Missing required argument ${argumentName} for command /${command.name}`,
-          );
+          throw new CommandFailedError(`Missing required argument ${argumentName} for command /${command.name}`);
         }
       }
     }
@@ -342,23 +271,17 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
         }
 
         if (positional.required) {
-          throw new CommandFailedError(
-            `Missing required positional ${positional.name} for command /${command.name}`,
-          );
+          throw new CommandFailedError(`Missing required positional ${positional.name} for command /${command.name}`);
         }
       }
 
       if (!remainderSchema && positionalTokenIndex < remainingTokens.length) {
-        throw new CommandFailedError(
-          `Too many positional arguments for command /${command.name}`,
-        );
+        throw new CommandFailedError(`Too many positional arguments for command /${command.name}`);
       }
 
       consumedPositionalTokens = positionalTokenIndex;
     } else if (!remainderSchema && remainingTokens.length > 0) {
-      throw new CommandFailedError(
-        `Command /${command.name} does not take positional arguments.`,
-      );
+      throw new CommandFailedError(`Command /${command.name} does not take positional arguments.`);
     }
 
     const remainderTokens = remainingTokens.slice(consumedPositionalTokens);
@@ -372,26 +295,22 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
       } else if ("defaultValue" in remainderSchema) {
         parsedRemainder = remainderSchema.defaultValue;
       } else if (remainderSchema.required) {
-        throw new CommandFailedError(
-          `Missing required remainder ${remainderSchema.name} for command /${command.name}`,
-        );
+        throw new CommandFailedError(`Missing required remainder ${remainderSchema.name} for command /${command.name}`);
       }
     }
 
     const parsedInput = {
       agent,
-      ...(inputSchema.allowAttachments ? {attachments} : {}),
-      ...(argsSchema ? {args: parsedArgs} : {}),
-      ...(positionalSchema ? {positionals: parsedPositionals} : {}),
-      ...(remainderSchema ? {remainder: parsedRemainder} : {}),
+      ...(inputSchema.allowAttachments ? { attachments } : {}),
+      ...(argsSchema ? { args: parsedArgs } : {}),
+      ...(positionalSchema ? { positionals: parsedPositionals } : {}),
+      ...(remainderSchema ? { remainder: parsedRemainder } : {}),
     };
 
     return parsedInput as AgentCommandInputType<Schema>;
   } catch (error: unknown) {
     if (error instanceof CommandFailedError || error instanceof Error) {
-      throw new CommandFailedError(
-        formatAgentCommandUsageError(command, error.message),
-      );
+      throw new CommandFailedError(formatAgentCommandUsageError(command, error.message));
     }
 
     throw error;

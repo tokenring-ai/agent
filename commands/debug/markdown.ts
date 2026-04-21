@@ -1,7 +1,7 @@
-import type {AgentCommandInputSchema, TokenRingAgentCommand} from "../../types.ts";
+import type { AgentCommandInputSchema, TokenRingAgentCommand } from "../../types.ts";
 
 // @ts-expect-error - This is a markdown file
-import markdownSample from "./markdown.sample.md" with {type: "text"};
+import markdownSample from "./markdown.sample.md" with { type: "text" };
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 

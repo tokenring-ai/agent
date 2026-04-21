@@ -1,11 +1,11 @@
-import {z} from "zod";
-import {QuestionSchema} from "./question.ts";
+import { z } from "zod";
+import { QuestionSchema } from "./question.ts";
 
 export const BaseTextEventSchema = z.object({
   message: z.string(),
-  details: z.array(z.string()).optional(),
+  details: z.array(z.string()).exactOptional(),
   timestamp: z.number(),
-})
+});
 
 export const AgentCreatedSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.created"),
@@ -35,22 +35,9 @@ export const OutputErrorSchema = BaseTextEventSchema.extend({
 
 export const BaseAttachmentSchema = z.object({
   name: z.string(),
-  description: z.string().optional(),
-  encoding: z.enum([
-    "text",
-    "base64",
-    "href"
-  ]),
-  mimeType: z.enum([
-    "application/json",
-    "text/plain",
-    "text/markdown",
-    "text/html",
-    "text/x-diff",
-    "image/png",
-    "image/jpeg",
-    "message/rfc822"
-  ]),
+  description: z.string().exactOptional(),
+  encoding: z.enum(["text", "base64", "href"]),
+  mimeType: z.enum(["application/json", "text/plain", "text/markdown", "text/html", "text/x-diff", "image/png", "image/jpeg", "message/rfc822"]),
   body: z.string(),
 });
 
@@ -72,18 +59,17 @@ export const OutputArtifactSchema = BaseAttachmentSchema.extend({
 
 export type Artifact = z.input<typeof OutputArtifactSchema>;
 
-
 export const InputMessageSchema = z.object({
   from: z.string(),
   message: z.string(),
-  attachments: z.array(BaseAttachmentSchema).optional(),
-  timestamp: z.never().optional()
+  attachments: z.array(BaseAttachmentSchema).exactOptional(),
+  timestamp: z.never().exactOptional(),
 });
 
 export type InputMessage = z.input<typeof InputMessageSchema>;
 
 export const ToolCallAttachmentSchema = BaseAttachmentSchema.extend({
-  sendToLLM: z.boolean().default(false)
+  sendToLLM: z.boolean().default(false),
 });
 
 export type ToolCallAttachment = z.input<typeof ToolCallAttachmentSchema>;
@@ -96,8 +82,8 @@ export const ToolCallResultSchema = z.object({
   args: z.record(z.string(), z.unknown()),
   summary: z.string(), //Markdown string, i.e. Bash(ls -la foo)
   result: z.string(),
-  actions: z.array(z.string()).optional(), // Markdown list of items
-  attachments: z.array(ToolCallAttachmentSchema).optional()
+  actions: z.array(z.string()).exactOptional(), // Markdown list of items
+  attachments: z.array(ToolCallAttachmentSchema).exactOptional(),
 });
 
 export type ToolCallResult = z.input<typeof ToolCallResultSchema>;
@@ -127,13 +113,10 @@ export const QuestionInteractionSchema = z.object({
   message: z.string(),
   question: QuestionSchema,
   optional: z.boolean().default(false),
-  autoSubmitAt: z.number().optional(),
+  autoSubmitAt: z.number().exactOptional(),
 });
 
-export const InteractionSchema = z.discriminatedUnion("type", [
-  FollowupInteractionSchema,
-  QuestionInteractionSchema,
-]);
+export const InteractionSchema = z.discriminatedUnion("type", [FollowupInteractionSchema, QuestionInteractionSchema]);
 
 export type Interaction = z.input<typeof InteractionSchema>;
 export type ParsedInteraction = z.output<typeof InteractionSchema>;
@@ -155,9 +138,7 @@ export const AgentCancelledResponseSchema = BaseTextEventSchema.extend({
   status: z.literal("cancelled"),
 });
 
-export type ParsedAgentCancelledResponse = z.output<
-  typeof AgentCancelledResponseSchema
->;
+export type ParsedAgentCancelledResponse = z.output<typeof AgentCancelledResponseSchema>;
 
 export const AgentErrorResponseSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.response"),
@@ -165,35 +146,27 @@ export const AgentErrorResponseSchema = BaseTextEventSchema.extend({
   status: z.literal("error"),
 });
 
-export type ParsedAgentErrorResponse = z.output<
-  typeof AgentErrorResponseSchema
->;
+export type ParsedAgentErrorResponse = z.output<typeof AgentErrorResponseSchema>;
 
 export const AgentSuccessResponseSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.response"),
   requestId: z.string(),
   status: z.literal("success"),
-  attachments: z.array(AttachmentSchema).optional(),
+  attachments: z.array(AttachmentSchema).exactOptional(),
 });
 
-export type ParsedAgentSuccessResponse = z.output<
-  typeof AgentSuccessResponseSchema
->;
+export type ParsedAgentSuccessResponse = z.output<typeof AgentSuccessResponseSchema>;
 
 export const InputExecutionStateSchema = z.object({
   type: z.literal("input.execution"),
   timestamp: z.number(),
   requestId: z.string(),
   status: z.enum(["queued", "running", "finished"]),
-  currentActivity: z.string().optional(),
-  availableInteractions: z.array(InteractionSchema).optional(),
+  currentActivity: z.string().exactOptional(),
+  availableInteractions: z.array(InteractionSchema).exactOptional(),
 });
 
-export const AgentResponseSchema = z.discriminatedUnion("status", [
-  AgentCancelledResponseSchema,
-  AgentErrorResponseSchema,
-  AgentSuccessResponseSchema,
-]);
+export const AgentResponseSchema = z.discriminatedUnion("status", [AgentCancelledResponseSchema, AgentErrorResponseSchema, AgentSuccessResponseSchema]);
 
 export type ParsedAgentResponse = z.output<typeof AgentResponseSchema>;
 
@@ -218,9 +191,7 @@ export type InteractionRequest = z.input<typeof InteractionSchema>;
 export type ParsedInteractionRequest = z.output<typeof InteractionSchema>;
 
 export type InteractionResponse = z.input<typeof InteractionResponseSchema>;
-export type ParsedInteractionResponse = z.output<
-  typeof InteractionResponseSchema
->;
+export type ParsedInteractionResponse = z.output<typeof InteractionResponseSchema>;
 
 export type QuestionResponse = z.output<typeof QuestionInteractionSchema>;
 
@@ -239,7 +210,7 @@ export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   InputCancelSchema,
   InputExecutionStateSchema,
   InteractionResponseSchema,
-  ToolCallResultSchema
+  ToolCallResultSchema,
 ]);
 
 export type AgentEventEnvelope = z.output<typeof AgentEventEnvelopeSchema>;

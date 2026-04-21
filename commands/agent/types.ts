@@ -1,9 +1,9 @@
 import AgentManager from "../../services/AgentManager.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-function execute({agent}: AgentCommandInputType<typeof inputSchema>): string {
+function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
   const agentManager = agent.requireServiceByType(AgentManager);
   const configs = agentManager.getAgentConfigEntries();
 

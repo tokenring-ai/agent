@@ -1,39 +1,25 @@
 import AgentCommandService from "../../services/AgentCommandService.ts";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "../../types.ts";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-export function formatCommandUsage<Schema extends AgentCommandInputSchema>(
-  command: TokenRingAgentCommand<Schema>,
-) {
+export function formatCommandUsage<Schema extends AgentCommandInputSchema>(command: TokenRingAgentCommand<Schema>) {
   const usageParts = [`/${command.name}`];
   const detailLines: string[] = [];
 
   for (const positional of command.inputSchema.positionals ?? []) {
     const name = positional.name;
     usageParts.push(positional.required ? `<${name}>` : `[${name}]`);
-    detailLines.push(
-      `- ${name}: ${positional.description}${positional.required ? " (required)" : " (optional)"}`,
-    );
+    detailLines.push(`- ${name}: ${positional.description}${positional.required ? " (required)" : " (optional)"}`);
   }
 
-  for (const [argumentName, argumentSchema] of Object.entries(
-    command.inputSchema.args ?? {},
-  )) {
+  for (const [argumentName, argumentSchema] of Object.entries(command.inputSchema.args ?? {})) {
     const isRequired = argumentSchema.required;
     const argumentExample =
-      argumentSchema.type === "string"
-        ? `${argumentName} string`
-        : argumentSchema.type === "number"
-          ? `${argumentName} 12345`
-          : argumentName;
+      argumentSchema.type === "string" ? `${argumentName} string` : argumentSchema.type === "number" ? `${argumentName} 12345` : argumentName;
 
-    usageParts.push(
-      isRequired ? `<${argumentExample}>` : `[${argumentExample}]`,
-    );
-    detailLines.push(
-      `- ${argumentName}: ${argumentSchema.description}${isRequired ? " (required)" : " (optional)"}`,
-    );
+    usageParts.push(isRequired ? `<${argumentExample}>` : `[${argumentExample}]`);
+    detailLines.push(`- ${argumentName}: ${argumentSchema.description}${isRequired ? " (required)" : " (optional)"}`);
   }
 
   const lines = [`# ${usageParts.join(" ")}`, command.description];
@@ -47,7 +33,7 @@ export function formatCommandUsage<Schema extends AgentCommandInputSchema>(
   return lines.join("\n");
 }
 
-function execute({agent}: AgentCommandInputType<typeof inputSchema>): string {
+function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
   const commandService = agent.requireServiceByType(AgentCommandService);
 
   const commandList = commandService
