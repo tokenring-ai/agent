@@ -84,9 +84,9 @@ export default class AgentManager implements TokenRingService {
     return newAgent;
   }
 
-  deleteAgent(agentId: string, reason: string): void {
+  deleteAgent(agentId: string, reason: string): boolean {
     const agentEntry = this.agents.get(agentId);
-    if (!agentEntry) throw new Error(`Agent ${agentId} not found`);
+    if (!agentEntry) return false;
 
     const { agent, shutdownController } = agentEntry;
     agent.abortCurrentOperation(reason);
@@ -105,6 +105,7 @@ export default class AgentManager implements TokenRingService {
     }
 
     this.agents.delete(agentId);
+    return true;
   }
 
   getAgents(): Agent[] {
