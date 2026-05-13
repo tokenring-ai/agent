@@ -13,6 +13,13 @@ export default class AgentManager implements TokenRingService {
   description = "A service which manages agent configurations and spawns agents.";
   private readonly cleanupCheckIntervalMs = 15000;
   private agents = new Map<string, { agent: Agent; shutdownController: AbortController }>();
+  private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
+  getAgentConfigEntries = this.agentConfigRegistry.entriesArray;
+  getAgentConfig = this.agentConfigRegistry.get;
+  getAgentTypes = this.agentConfigRegistry.keysArray;
+  getAgentTypesLike = this.agentConfigRegistry.entriesLike;
+
+  constructor(readonly app: TokenRingApp) {}
 
   async run(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
@@ -24,14 +31,6 @@ export default class AgentManager implements TokenRingService {
       }
     }
   }
-
-  constructor(readonly app: TokenRingApp) {}
-  private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
-
-  getAgentConfigEntries = this.agentConfigRegistry.entriesArray;
-  getAgentConfig = this.agentConfigRegistry.get;
-  getAgentTypes = this.agentConfigRegistry.keysArray;
-  getAgentTypesLike = this.agentConfigRegistry.entriesLike;
 
   addAgentConfigs(...configs: ParsedAgentConfig[]) {
     for (const config of configs) {
@@ -112,6 +111,10 @@ export default class AgentManager implements TokenRingService {
     return Array.from(this.agents.values()).map(({ agent }) => agent);
   }
 
+  getAgent(id: string): Agent | null {
+    return this.agents.get(id)?.agent ?? null;
+  }
+
   private createAgent(options: ParsedAgentConfig, state: AgentCheckpointData["state"] = {}) {
     const shutdownController = new AbortController();
 
@@ -141,10 +144,6 @@ export default class AgentManager implements TokenRingService {
     });
 
     return agent;
-  }
-
-  getAgent(id: string): Agent | null {
-    return this.agents.get(id)?.agent ?? null;
   }
 
   private checkAndDeleteIdleAgents() {

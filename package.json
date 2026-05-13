@@ -3,13 +3,13 @@
   "version": "0.2.0",
   "description": "Central orchestrator for managing AI agents, tools, commands, and state persistence.",
   "dependencies": {
-    "@tokenring-ai/chat": "0.2.0",
+    "@tokenring-ai/chat": "workspace:*",
     "zod": "^4.3.6",
-    "@tokenring-ai/lifecycle": "0.2.0",
-    "@tokenring-ai/utility": "0.2.0",
-    "@tokenring-ai/app": "0.2.0",
+    "@tokenring-ai/lifecycle": "workspace:*",
+    "@tokenring-ai/utility": "workspace:*",
+    "@tokenring-ai/app": "workspace:*",
     "uuid": "14.0.0",
-    "@tokenring-ai/rpc": "0.2.0"
+    "@tokenring-ai/rpc": "workspace:*"
   },
   "exports": {
     ".": "./index.ts",

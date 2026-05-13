@@ -84,7 +84,6 @@ export default class SubAgentService implements TokenRingService {
    * @param options - Configuration options for the sub-agent execution
    * @param parentAgent - The parent agent instance
    * @param autoCleanup - Whether to automatically delete the child agent after execution (default: true)
-   * @param checkPermissions - Whether to check the permissions of the parent agent before running the sub-agent (default: true)
    * @returns Promise resolving to the execution result
    */
   async runSubAgent({

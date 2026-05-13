@@ -8,6 +8,7 @@ import {
   AfterAgentInputSuccess,
   BeforeAgentInput,
 } from "@tokenring-ai/lifecycle/util/hooks";
+import { arrayableToArray } from "@tokenring-ai/utility/array/arrayable";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
@@ -30,18 +31,17 @@ export default class AgentCommandService implements TokenRingService {
   description = "A service which registers and dispatches agent commands.";
 
   private agentCommands = new KeyedRegistry<TokenRingAgentCommand<any>>();
-  private readonly defaultCommand = "/chat send";
-
   getCommandNames = this.agentCommands.keysArray;
   getCommandEntries = this.agentCommands.entriesArray;
   getCommand = this.agentCommands.get;
+  private readonly defaultCommand = "/chat send";
 
   constructor(private readonly app: TokenRingApp) {}
 
   addAgentCommands(...commands: (TokenRingAgentCommand<any> | TokenRingAgentCommand<any>[])[]) {
     for (const command of commands.flat()) {
       this.agentCommands.set(command.name, command);
-      for (const alias of command.aliases ?? []) {
+      for (const alias of arrayableToArray(command.alias)) {
         this.agentCommands.set(alias, command);
       }
     }

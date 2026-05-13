@@ -1,4 +1,5 @@
 import { SerializableStateSlice } from "@tokenring-ai/app/StateManager";
+import type { Arrayable } from "@tokenring-ai/utility/array/arrayable";
 import type { MaybePromise } from "bun";
 import z, { type ZodType } from "zod";
 import type Agent from "./Agent.ts";
@@ -6,7 +7,7 @@ import type { InputAttachment } from "./AgentEvents.ts";
 
 export type TokenRingBaseAgentCommand = {
   name: string;
-  aliases?: string[] | undefined;
+  alias?: Arrayable<string>;
   description: string;
   help: string;
 };

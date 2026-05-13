@@ -2,8 +2,8 @@ import TokenRingApp from "@tokenring-ai/app";
 
 // Create a mock agent
 import Agent from "../Agent";
-import {AgentManager} from "../index";
-import {AgentConfigSchema} from "../schema";
+import { AgentManager } from "../index";
+import { AgentConfigSchema } from "../schema";
 
 const config = AgentConfigSchema.parse({
   agentType: "mock-agent",

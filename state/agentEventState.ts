@@ -37,15 +37,14 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
   currentActivity = agentMessages.agentStarting;
   inputQueue: InputQueueItem[] = [];
   currentlyExecutingInputItem: InputQueueItem | null = null;
-
-  get idle(): boolean {
-    return this.inputQueue.length === 0;
-  }
-
   events: AgentEventEnvelope[] = [];
 
   constructor() {
     super("AgentEventState", serializationSchema);
+  }
+
+  get idle(): boolean {
+    return this.inputQueue.length === 0;
   }
 
   pushAgentStatus(): void {
@@ -97,13 +96,13 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
             }
 
             /*const inputQueueItem = this.inputQueue.find(item => item.request.requestId === event.requestId);
-        if (inputQueueItem) {
-          inputQueueItem.executionState.status = event.status;
-          inputQueueItem.executionState.currentActivity = event.currentActivity ?? inputQueueItem.executionState.currentActivity;
-          inputQueueItem.executionState.availableInteractions = event.availableInteractions ?? inputQueueItem.executionState.availableInteractions;
-        } else {
-          throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
-        }*/
+      if (inputQueueItem) {
+        inputQueueItem.executionState.status = event.status;
+        inputQueueItem.executionState.currentActivity = event.currentActivity ?? inputQueueItem.executionState.currentActivity;
+        inputQueueItem.executionState.availableInteractions = event.availableInteractions ?? inputQueueItem.executionState.availableInteractions;
+      } else {
+        throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
+      }*/
             //this.currentActivity = this.currentlyExecutingInputItem?.executionState.currentActivity ?? this.currentActivity
           }
           this.pushAgentStatus();
