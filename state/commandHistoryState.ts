@@ -11,9 +11,9 @@ const serializationSchema = z
 export class CommandHistoryState extends AgentStateSlice<typeof serializationSchema> {
   commands: string[] = [];
 
-  constructor({ commands }: { commands?: string[] }) {
+  constructor({ commands = []}: { commands?: string[] }) {
     super("CommandHistoryState", serializationSchema);
-    this.commands = commands ? [...commands] : [];
+    this.commands = [...commands];
   }
 
   reset(): void {

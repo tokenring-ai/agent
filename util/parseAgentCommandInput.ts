@@ -309,7 +309,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
 
     return parsedInput as AgentCommandInputType<Schema>;
   } catch (error: unknown) {
-    if (error instanceof CommandFailedError || error instanceof Error) {
+    if (Error.isError(error)) {
       throw new CommandFailedError(formatAgentCommandUsageError(command, error.message));
     }
 

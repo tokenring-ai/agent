@@ -25,6 +25,7 @@ import type {
 import { AgentEventState, agentMessages, type InputQueueItem } from "../state/agentEventState.ts";
 import type { AgentCommandInputSchema, TokenRingAgentCommand, TokenRingAgentCommandResult } from "../types.ts";
 import { parseAgentCommandInput } from "../util/parseAgentCommandInput.ts";
+import codeBlock from "@tokenring-ai/utility/string/codeBlock";
 
 export default class AgentCommandService implements TokenRingService {
   readonly name = "AgentCommandService";
@@ -214,7 +215,9 @@ Type /help for a list of commands.`);
 
         await agentLifecycleService?.executeHooks(new AfterAgentInputCancelled(item.request, response), agent);
       } else {
-        const message = err instanceof CommandFailedError ? err.message : formatLogMessages([err as Error]);
+        const message = err instanceof CommandFailedError
+          ? err.message
+          : `**Caught error while running command: ${input.message}**\n${codeBlock(formatLogMessages(err), 'javascript')}`;
 
         response = {
           type: "agent.response",
