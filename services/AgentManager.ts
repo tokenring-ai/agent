@@ -1,7 +1,7 @@
-import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
+import { setTimeout as delay } from "node:timers/promises";
 import Agent from "../Agent.ts";
 import type { ParsedAgentConfig } from "../schema.ts";
 import { AgentEventState } from "../state/agentEventState.ts";

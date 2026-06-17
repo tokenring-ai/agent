@@ -10,6 +10,7 @@ import {
 } from "@tokenring-ai/lifecycle/util/hooks";
 import { arrayableToArray } from "@tokenring-ai/utility/array/arrayable";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
+import codeBlock from "@tokenring-ai/utility/string/codeBlock";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import { v4 as uuid } from "uuid";
@@ -25,7 +26,6 @@ import type {
 import { AgentEventState, agentMessages, type InputQueueItem } from "../state/agentEventState.ts";
 import type { AgentCommandInputSchema, TokenRingAgentCommand, TokenRingAgentCommandResult } from "../types.ts";
 import { parseAgentCommandInput } from "../util/parseAgentCommandInput.ts";
-import codeBlock from "@tokenring-ai/utility/string/codeBlock";
 
 export default class AgentCommandService implements TokenRingService {
   readonly name = "AgentCommandService";

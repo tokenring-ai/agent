@@ -1,8 +1,8 @@
-import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import StateManager from "@tokenring-ai/app/StateManager";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import { generateHumanId } from "@tokenring-ai/utility/string/generateHumanId";
+import { setTimeout as delay } from "node:timers/promises";
 import { v4 as uuid } from "uuid";
 import type { z } from "zod";
 import {
@@ -383,6 +383,7 @@ export default class Agent {
     Promise.resolve()
       .then(() => task(this.agentShutdownSignal))
       .catch(error => {
+        console.log(error);
         this.errorMessage("Error while running background task", error as Error);
       });
   }

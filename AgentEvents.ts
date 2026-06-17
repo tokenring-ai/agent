@@ -96,7 +96,7 @@ export const InteractionResponseSchema = z.object({
   timestamp: z.number(),
   requestId: z.string(),
   interactionId: z.string(),
-  result: z.any(),
+  result: z.unknown(),
 });
 
 export const FollowupInteractionSchema = z.object({
