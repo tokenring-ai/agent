@@ -95,12 +95,17 @@ export default createRPCEndpoint(AgentRpcSchema, {
 
   getAgentTypes(_args, app) {
     const configs = app.requireService(AgentManager).getAgentConfigEntries();
-    return configs.map(([type, config]) => ({
-      type,
-      displayName: config.displayName,
-      description: config.description,
-      category: config.category,
-    }));
+    return configs.map(([type, config]) => {
+      const chat = (config as Record<string, unknown>).chat as { enabledTools?: string[] } | undefined;
+      const enabledTools = Array.isArray(chat?.enabledTools) ? chat.enabledTools : [];
+      return {
+        type,
+        displayName: config.displayName,
+        description: config.description,
+        category: config.category,
+        enabledTools,
+      };
+    });
   },
 
   createAgent(args, app) {

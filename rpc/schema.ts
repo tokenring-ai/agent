@@ -93,6 +93,7 @@ export default {
           displayName: z.string(),
           description: z.string(),
           category: z.string().exactOptional(),
+          enabledTools: z.array(z.string()).default([]),
         }),
       ),
     },
