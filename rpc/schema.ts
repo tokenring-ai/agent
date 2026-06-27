@@ -182,7 +182,12 @@ export default {
       result: z.discriminatedUnion("status", [
         z.object({
           status: z.literal("success"),
-          commands: z.array(z.string()),
+          commands: z.array(
+            z.object({
+              name: z.string(),
+              description: z.string(),
+            }),
+          ),
         }),
         AgentNotFoundSchema,
       ]),

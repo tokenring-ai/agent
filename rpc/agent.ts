@@ -174,9 +174,17 @@ export default createRPCEndpoint(AgentRpcSchema, {
     if (!agent) {
       return { status: "agentNotFound" };
     }
+    const commandService = agent.requireServiceByType(AgentCommandService);
+    const uniqueCommands = new Map<string, { name: string; description: string }>();
+    for (const [, command] of commandService.getCommandEntries()) {
+      uniqueCommands.set(command.name, {
+        name: command.name,
+        description: command.description,
+      });
+    }
     return {
       status: "success",
-      commands: agent.requireServiceByType(AgentCommandService).getCommandNames(),
+      commands: Array.from(uniqueCommands.values()).sort((l, r) => l.name.localeCompare(r.name)),
     };
   },
 });
