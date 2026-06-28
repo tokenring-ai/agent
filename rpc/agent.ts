@@ -85,6 +85,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
 
         return {
           id: agent.id,
+          createdAt: agent.createdAt,
           displayName: agent.displayName,
           description: agent.config.description,
           idle: agentState.idle,

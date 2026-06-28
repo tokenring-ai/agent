@@ -24,6 +24,7 @@ import type { AgentCheckpointData, AgentStateSlice } from "./types.ts";
 
 export default class Agent {
   readonly id: string = generateHumanId();
+  readonly createdAt: number = Date.now();
   debugEnabled = false;
   requireServiceByType;
   getServiceByType;

@@ -77,6 +77,7 @@ export default {
       result: z.array(
         z.object({
           id: z.string(),
+          createdAt: z.number(),
           displayName: z.string(),
           description: z.string(),
           idle: z.boolean(),
