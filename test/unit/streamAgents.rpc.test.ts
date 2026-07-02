@@ -1,4 +1,4 @@
-import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import { describe, expect, it } from "vitest";
 import { AgentConfigSchema } from "../../schema.ts";
 import AgentManager from "../../services/AgentManager.ts";

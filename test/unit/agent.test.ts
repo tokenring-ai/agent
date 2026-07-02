@@ -1,4 +1,4 @@
-import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +6,7 @@ import Agent from "../../Agent.ts";
 import { AgentConfigSchema } from "../../schema";
 import { AgentEventState } from "../../state/agentEventState.ts";
 import { CommandHistoryState } from "../../state/commandHistoryState.ts";
-import createTestingAgent from "../createTestingAgent";
+import createTestingAgent from "../createTestingAgent.test";
 
 const app = createTestingApp();
 

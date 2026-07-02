@@ -1,11 +1,11 @@
-import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService";
 import { LifecycleState } from "@tokenring-ai/lifecycle/state/lifecycleState";
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { AfterAgentInputSuccess, BeforeAgentInput, HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Agent from "../../Agent";
-import createTestingAgent from "../createTestingAgent";
+import createTestingAgent from "../createTestingAgent.test";
 
 const app = createTestingApp();
 

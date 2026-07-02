@@ -1,10 +1,10 @@
 import TokenRingApp from "@tokenring-ai/app";
-import createTestingApp from "@tokenring-ai/app/test/createTestingApp";
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Agent from "../../Agent.ts";
 import { AgentConfigSchema, type ParsedAgentConfig } from "../../schema";
 import AgentManager from "../../services/AgentManager.ts";
-import createTestingAgent from "../createTestingAgent";
+import createTestingAgent from "../createTestingAgent.test";
 
 const app = createTestingApp();
 
