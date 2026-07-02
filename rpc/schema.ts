@@ -7,6 +7,16 @@ export const AgentNotFoundSchema = z.object({
   status: z.literal("agentNotFound"),
 });
 
+export const AgentListEntrySchema = z.object({
+  id: z.string(),
+  createdAt: z.number(),
+  agentType: z.string(),
+  displayName: z.string(),
+  description: z.string(),
+  idle: z.boolean(),
+  currentActivity: z.string(),
+});
+
 export default {
   name: "Agent RPC",
   path: "/rpc/agent",
@@ -74,16 +84,12 @@ export default {
     listAgents: {
       type: "query",
       input: z.object({}),
-      result: z.array(
-        z.object({
-          id: z.string(),
-          createdAt: z.number(),
-          displayName: z.string(),
-          description: z.string(),
-          idle: z.boolean(),
-          currentActivity: z.string(),
-        }),
-      ),
+      result: z.array(AgentListEntrySchema),
+    },
+    streamAgents: {
+      type: "stream",
+      input: z.object({}),
+      result: z.array(AgentListEntrySchema),
     },
     getAgentTypes: {
       type: "query",

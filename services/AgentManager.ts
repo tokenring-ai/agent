@@ -1,18 +1,22 @@
 import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
+import { deepEquals } from "bun";
 import { setTimeout as delay } from "node:timers/promises";
 import Agent from "../Agent.ts";
 import type { ParsedAgentConfig } from "../schema.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
 import type { AgentCheckpointData, AgentCreationContext } from "../types.js";
 import { formatAgentId } from "../util/formatAgentId.ts";
+import { type AgentListEntry, projectAgentList } from "./projectAgentList.ts";
 
 export default class AgentManager implements TokenRingService {
   readonly name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
   private readonly cleanupCheckIntervalMs = 15000;
   private agents = new Map<string, { agent: Agent; shutdownController: AbortController }>();
+  private agentListeners = new Set<() => void>();
+  private agentStateUnsubscribers = new Map<string, () => void>();
   private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
   getAgentConfigEntries = this.agentConfigRegistry.entriesArray;
   getAgentConfig = this.agentConfigRegistry.get;
@@ -87,6 +91,8 @@ export default class AgentManager implements TokenRingService {
     const agentEntry = this.agents.get(agentId);
     if (!agentEntry) return false;
 
+    this.untrackAgentState(agentId);
+
     const { agent, shutdownController } = agentEntry;
     agent.abortCurrentOperation(reason);
     shutdownController.abort(reason);
@@ -104,7 +110,58 @@ export default class AgentManager implements TokenRingService {
     }
 
     this.agents.delete(agentId);
+    this.notifyAgentListChanged();
     return true;
+  }
+
+  async *subscribeAgentsAsync(signal: AbortSignal): AsyncGenerator<AgentListEntry[]> {
+    // TODO: We should move the agent list into the app state, so we can use the app state subscription mechanism and get rid of these listeners
+    if (signal.aborted) {
+      return;
+    }
+
+    let pending = true;
+    let resolveNext: (() => void) | null = null;
+    let lastSnapshot: AgentListEntry[] | undefined;
+
+    const listener = () => {
+      pending = true;
+      resolveNext?.();
+      resolveNext = null;
+    };
+
+    this.agentListeners.add(listener);
+
+    const abortHandler = () => {
+      resolveNext?.();
+      resolveNext = null;
+    };
+
+    signal.addEventListener("abort", abortHandler);
+
+    try {
+      while (!signal.aborted) {
+        if (!pending) {
+          await new Promise<void>(resolve => {
+            resolveNext = resolve;
+          });
+        }
+        if (signal.aborted) {
+          break;
+        }
+
+        pending = false;
+        const snapshot = projectAgentList(this.getAgents());
+        if (lastSnapshot !== undefined && deepEquals(snapshot, lastSnapshot, true)) {
+          continue;
+        }
+        lastSnapshot = snapshot;
+        yield snapshot;
+      }
+    } finally {
+      this.agentListeners.delete(listener);
+      signal.removeEventListener("abort", abortHandler);
+    }
   }
 
   getAgents(): Agent[] {
@@ -121,6 +178,8 @@ export default class AgentManager implements TokenRingService {
     const agent = new Agent(this.app, state, options, shutdownController.signal);
 
     this.agents.set(agent.id, { agent, shutdownController });
+    this.trackAgentState(agent);
+    this.notifyAgentListChanged();
 
     const creationContext: AgentCreationContext = {
       items: [],
@@ -144,6 +203,28 @@ export default class AgentManager implements TokenRingService {
     });
 
     return agent;
+  }
+
+  private notifyAgentListChanged() {
+    for (const listener of this.agentListeners) {
+      listener();
+    }
+  }
+
+  private trackAgentState(agent: Agent) {
+    if (this.agentStateUnsubscribers.has(agent.id)) {
+      return;
+    }
+
+    const unsubscribe = agent.subscribeState(AgentEventState, () => {
+      this.notifyAgentListChanged();
+    });
+    this.agentStateUnsubscribers.set(agent.id, unsubscribe);
+  }
+
+  private untrackAgentState(agentId: string) {
+    this.agentStateUnsubscribers.get(agentId)?.();
+    this.agentStateUnsubscribers.delete(agentId);
   }
 
   private checkAndDeleteIdleAgents() {

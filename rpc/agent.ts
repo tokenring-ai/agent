@@ -1,8 +1,8 @@
 import type TokenRingApp from "@tokenring-ai/app";
 import { createRPCEndpoint } from "@tokenring-ai/rpc/createRPCEndpoint";
-import type Agent from "../Agent.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import AgentManager from "../services/AgentManager.ts";
+import { projectAgentList } from "../services/projectAgentList.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
 import { CommandHistoryState } from "../state/commandHistoryState.ts";
 import AgentRpcSchema from "./schema.ts";
@@ -77,21 +77,14 @@ export default createRPCEndpoint(AgentRpcSchema, {
     }
   },*/
   listAgents(_args, app) {
-    return app
-      .requireService(AgentManager)
-      .getAgents()
-      .map((agent: Agent) => {
-        const agentState = agent.getState(AgentEventState);
+    return projectAgentList(app.requireService(AgentManager).getAgents());
+  },
 
-        return {
-          id: agent.id,
-          createdAt: agent.createdAt,
-          displayName: agent.displayName,
-          description: agent.config.description,
-          idle: agentState.idle,
-          currentActivity: agentState.currentActivity,
-        };
-      });
+  async *streamAgents(_args, app, signal) {
+    const manager = app.requireService(AgentManager);
+    for await (const agents of manager.subscribeAgentsAsync(signal)) {
+      yield agents;
+    }
   },
 
   getAgentTypes(_args, app) {
