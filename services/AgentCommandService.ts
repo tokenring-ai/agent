@@ -59,7 +59,7 @@ export default class AgentCommandService implements TokenRingService {
       message = "/help";
     } else if (message.startsWith("@")) {
       const agentMention = message.slice(1);
-      const match = agentMention.match(/^@(\S+)\s+(.*)$/i);
+      const match = agentMention.match(/^@(\S+)\s+(.*)$/i) as [string, string, string] | undefined;
       if (match) {
         const [, agentName, prompt] = match;
         if (agentName && prompt) {
@@ -139,22 +139,22 @@ Type /help for a list of commands.`);
 
     for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
       if (state.currentlyExecutingInputItem) continue;
-      if (state.inputQueue.length === 0) continue;
 
-      const item = state.inputQueue[0];
+      const firstInputQueueItem = state.inputQueue[0];
+      if (!firstInputQueueItem) continue;
 
       agent.mutateState(AgentEventState, s => {
-        item.executionState.status = "running";
-        s.currentlyExecutingInputItem = item;
-        s.pushInputExecution(item);
+        firstInputQueueItem.executionState.status = "running";
+        s.currentlyExecutingInputItem = firstInputQueueItem;
+        s.pushInputExecution(firstInputQueueItem);
       });
 
       try {
-        await this.processAgentInput(agent, item);
+        await this.processAgentInput(agent, firstInputQueueItem);
       } finally {
         agent.mutateState(AgentEventState, eventState => {
-          item.executionState.status = "finished";
-          eventState.pushInputExecution(item);
+          firstInputQueueItem.executionState.status = "finished";
+          eventState.pushInputExecution(firstInputQueueItem);
         });
       }
     }
@@ -215,9 +215,10 @@ Type /help for a list of commands.`);
 
         await agentLifecycleService?.executeHooks(new AfterAgentInputCancelled(item.request, response), agent);
       } else {
-        const message = err instanceof CommandFailedError
-          ? err.message
-          : `**Caught error while running command: ${input.message}**\n${codeBlock(formatLogMessages(err), 'javascript')}`;
+        const message =
+          err instanceof CommandFailedError
+            ? err.message
+            : `**Caught error while running command: ${input.message}**\n${codeBlock(formatLogMessages(err), "javascript")}`;
 
         response = {
           type: "agent.response",

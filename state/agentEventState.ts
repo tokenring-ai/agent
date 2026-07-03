@@ -209,10 +209,8 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
           this.events.push({ ...event, timestamp: Date.now() });
           break;
         default: {
-          // noinspection JSUnusedLocalSymbols
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const _foo: never = event;
-          break;
+          const exhaustive: any = event satisfies never;
+          throw new Error(`Unhandled event type: ${exhaustive.type}`);
         }
       }
     }
@@ -240,7 +238,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
 
   *yieldEventsByCursor(cursor: AgentEventCursor): Generator<AgentEventEnvelope> {
     for (; cursor.position < this.events.length; cursor.position++) {
-      yield this.events[cursor.position];
+      yield this.events[cursor.position]!;
     }
   }
 }

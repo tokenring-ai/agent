@@ -72,7 +72,8 @@ export default class SubAgentService implements TokenRingService {
   readonly name = "SubAgentService";
   description = "A service for managing sub-agent execution and permissions";
 
-  constructor(readonly app: TokenRingApp) {}
+  constructor(readonly app: TokenRingApp) {
+  }
 
   /**
    * Runs a sub-agent with configurable options for output forwarding.
@@ -87,15 +88,15 @@ export default class SubAgentService implements TokenRingService {
    * @returns Promise resolving to the execution result
    */
   async runSubAgent({
-    agentType,
-    background,
-    headless,
-    from,
-    steps,
-    options,
-    parentAgent,
-    autoCleanup = true,
-  }: RunSubAgentOptions): Promise<RunSubAgentResult> {
+                      agentType,
+                      background,
+                      headless,
+                      from,
+                      steps,
+                      options,
+                      parentAgent,
+                      autoCleanup = true,
+                    }: RunSubAgentOptions): Promise<RunSubAgentResult> {
     const {
       forwardChatOutput,
       forwardReasoning,
@@ -126,13 +127,14 @@ export default class SubAgentService implements TokenRingService {
     const timer =
       timeoutSeconds > 0
         ? setTimeout(() => {
-            timeoutExceeded = true;
-            childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
-            listenerAbortController.abort();
-          }, timeoutSeconds * 1000)
+          timeoutExceeded = true;
+          childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
+          listenerAbortController.abort();
+        }, timeoutSeconds * 1000)
         : null;
 
-    let removeParentAbortListener = () => {};
+    let removeParentAbortListener = () => {
+    };
     if (!background) {
       const parentAbortSignal = parentAgent.getAbortSignal();
       const onParentAbort = () => {
@@ -298,12 +300,10 @@ export default class SubAgentService implements TokenRingService {
               case "toolCall":
                 /* ignored */
                 break;
-              default:
-                {
-                  // noinspection JSUnusedLocalSymbols
-                  const _foo: never = event;
-                }
-                break;
+              default: {
+                const exhaustive: any = event satisfies never;
+                throw new Error(`Unhandled event type: ${exhaustive.type}`);
+              }
             }
           }
 

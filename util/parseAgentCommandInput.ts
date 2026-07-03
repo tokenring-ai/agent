@@ -194,7 +194,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
 
     if (argsSchema) {
       while (tokenIndex < tokens.length) {
-        const token = tokens[tokenIndex];
+        const token = tokens[tokenIndex]!;
 
         if (token === "--") {
           tokenIndex += 1;
@@ -213,7 +213,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
           throw new CommandFailedError(`Argument ${matchingArgument.name} was provided more than once.`);
         }
 
-        const argumentSchema = argsSchema[matchingArgument.name];
+        const argumentSchema = argsSchema[matchingArgument.name]!;
         let rawValue = matchingArgument.value;
 
         if (argumentSchema.type !== "flag" && rawValue === undefined) {

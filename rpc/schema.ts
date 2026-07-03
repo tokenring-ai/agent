@@ -1,11 +1,9 @@
+import { AgentNotFoundSchema } from "@tokenring-ai/rpc/types";
+import { SuccessSchema } from "@tokenring-ai/rpc/types";
 import type { RPCSchema } from "@tokenring-ai/rpc/types";
 import { z } from "zod";
 import { AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema } from "../AgentEvents.ts";
 import { AgentConfigSchema } from "../schema.ts";
-
-export const AgentNotFoundSchema = z.object({
-  status: z.literal("agentNotFound"),
-});
 
 export const AgentListEntrySchema = z.object({
   id: z.string(),
@@ -26,7 +24,7 @@ export default {
       input: z.object({
         agentId: z.string(),
       }),
-      result: z.discriminatedUnion("status", [AgentConfigSchema.extend({ status: z.literal("success") }), AgentNotFoundSchema]),
+      result: z.discriminatedUnion("status", [SuccessSchema.extend(AgentConfigSchema.shape), AgentNotFoundSchema]),
     },
     getAgentEvents: {
       type: "query",
@@ -35,8 +33,7 @@ export default {
         fromPosition: z.number(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           events: z.array(AgentEventEnvelopeSchema),
           position: z.number(),
         }),
@@ -50,37 +47,13 @@ export default {
         fromPosition: z.number(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           events: z.array(AgentEventEnvelopeSchema),
           position: z.number(),
         }),
         AgentNotFoundSchema,
       ]),
     },
-    /*
-    getAgentExecutionState: {
-      type: "query",
-      input: z.object({
-        agentId: z.string()
-      }),
-      result: z.object({
-        idle: z.boolean(),
-        busyWith: z.string().nullable(),
-        waitingOn: z.array(InteractionSchema),
-      })
-    },
-    streamAgentExecutionState: {
-      type: "stream",
-      input: z.object({
-        agentId: z.string(),
-      }),
-      result: z.object({
-        idle: z.boolean(),
-        busyWith: z.string().nullable(),
-        waitingOn: z.array(InteractionSchema),
-      })
-    },*/
     listAgents: {
       type: "query",
       input: z.object({}),
@@ -122,12 +95,7 @@ export default {
         agentId: z.string(),
         reason: z.string(),
       }),
-      result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
-        }),
-        AgentNotFoundSchema,
-      ]),
+      result: z.discriminatedUnion("status", [SuccessSchema, AgentNotFoundSchema]),
     },
     sendInput: {
       type: "mutation",
@@ -136,8 +104,7 @@ export default {
         input: InputMessageSchema,
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           requestId: z.string(),
         }),
         AgentNotFoundSchema,
@@ -149,12 +116,7 @@ export default {
         agentId: z.string(),
         response: InteractionResponseSchema,
       }),
-      result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
-        }),
-        AgentNotFoundSchema,
-      ]),
+      result: z.discriminatedUnion("status", [SuccessSchema, AgentNotFoundSchema]),
     },
     abortCurrentOperation: {
       type: "mutation",
@@ -162,12 +124,7 @@ export default {
         agentId: z.string(),
         message: z.string(),
       }),
-      result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
-        }),
-        AgentNotFoundSchema,
-      ]),
+      result: z.discriminatedUnion("status", [SuccessSchema, AgentNotFoundSchema]),
     },
     getCommandHistory: {
       type: "query",
@@ -175,8 +132,7 @@ export default {
         agentId: z.string(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           history: z.array(z.string()),
         }),
         AgentNotFoundSchema,
@@ -188,8 +144,7 @@ export default {
         agentId: z.string(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           commands: z.array(
             z.object({
               name: z.string(),
