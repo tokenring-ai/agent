@@ -49,33 +49,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
       };
     }
   },
-  /*
-  getAgentExecutionState(args, app) {
-    const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-    const state = agent.getState(AgentEventState);
-    return {
-      idle: state.idle,
-      busyWith: state.latestExecutionState.busyWith,
-      waitingOn: state.latestExecutionState.waitingOn,
-    };
-  },
 
-  async * streamAgentExecutionState(args, app, signal) {
-    const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) throw new Error("Agent not found");
-
-    let lastExecutionState: z.output<typeof AgentExecutionStateSchema> | null = null;
-    for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
-      if (state.latestExecutionState === lastExecutionState) continue;
-      yield {
-        idle: state.idle,
-        busyWith: state.latestExecutionState.busyWith,
-        waitingOn: state.latestExecutionState.waitingOn,
-      };
-      lastExecutionState = state.latestExecutionState;
-    }
-  },*/
   listAgents(_args, app) {
     return projectAgentList(app.requireService(AgentManager).getAgents());
   },
