@@ -1,7 +1,7 @@
-import type { Arrayable } from "@tokenring-ai/utility/array/arrayable";
 import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import StateManager from "@tokenring-ai/app/StateManager";
+import type { Arrayable } from "@tokenring-ai/utility/array/arrayable";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import { generateHumanId } from "@tokenring-ai/utility/string/generateHumanId";
 import { v4 as uuid } from "uuid";
