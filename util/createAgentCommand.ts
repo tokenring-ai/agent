@@ -19,9 +19,7 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
     execute: async (args: AgentCommandInputType<typeof commandConfig.commandSchema>): Promise<string> => {
       const { agent } = args;
       const replacements: Record<string, () => string> = {};
-      if (commandConfig.commandSchema.remainder) {
-        replacements[commandConfig.commandSchema.remainder.name] = () => args.remainder ?? "undefined";
-      }
+      replacements[commandConfig.commandSchema.remainder.name] = () => args.remainder ?? "undefined";
 
       const steps = commandConfig.steps.map(step => interpolateString(step, replacements));
 

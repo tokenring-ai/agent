@@ -9,9 +9,9 @@ import {
   BeforeAgentInput,
 } from "@tokenring-ai/lifecycle/util/hooks";
 import { arrayableToArray } from "@tokenring-ai/utility/array/arrayable";
+import formatError from "@tokenring-ai/utility/error/formatError";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import codeBlock from "@tokenring-ai/utility/string/codeBlock";
-import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import { v4 as uuid } from "uuid";
 import type Agent from "../Agent.ts";
@@ -203,7 +203,7 @@ Type /help for a list of commands.`);
       } satisfies ParsedAgentSuccessResponse;
 
       await agentLifecycleService?.executeHooks(new AfterAgentInputSuccess(item.request, response), agent);
-    } catch (err: unknown) {
+    } catch (err) {
       if (signal.aborted) {
         response = {
           type: "agent.response",
@@ -218,7 +218,7 @@ Type /help for a list of commands.`);
         const message =
           err instanceof CommandFailedError
             ? err.message
-            : `**Caught error while running command: ${input.message}**\n${codeBlock(formatLogMessages(err), "javascript")}`;
+            : `**Caught error while running command: ${input.message}**\n${codeBlock(formatError(err), "javascript")}`;
 
         response = {
           type: "agent.response",

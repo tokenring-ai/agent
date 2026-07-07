@@ -176,7 +176,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
 
   deserialize(data: z.output<typeof serializationSchema>): void {
     // When restoring the event state, we need to clean up the events to put the agent back into a usable state
-    const events: AgentEventEnvelope[] = data.events || [];
+    const { events } = data;
     const receivedEvents = new Set<string>();
     for (const event of events) {
       if (event.type === "input.received") receivedEvents.add(event.requestId);

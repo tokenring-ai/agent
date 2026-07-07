@@ -1,8 +1,8 @@
+import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import { deepEquals } from "bun";
-import { setTimeout as delay } from "node:timers/promises";
 import Agent from "../Agent.ts";
 import type { ParsedAgentConfig } from "../schema.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
@@ -78,7 +78,7 @@ export default class AgentManager implements TokenRingService {
     });
 
     for (const item of newAgent.stateManager.slices()) {
-      item?.transferStateFromParent?.(agent);
+      item.transferStateFromParent(agent);
     }
 
     /*agent.infoMessage(
@@ -140,12 +140,14 @@ export default class AgentManager implements TokenRingService {
     signal.addEventListener("abort", abortHandler);
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- can be mutated asynchronously
       while (!signal.aborted) {
         if (!pending) {
           await new Promise<void>(resolve => {
             resolveNext = resolve;
           });
         }
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- can be mutated asynchronously
         if (signal.aborted) {
           break;
         }
@@ -188,7 +190,7 @@ export default class AgentManager implements TokenRingService {
     for (const service of this.app.getServices()) {
       try {
         service.attach?.(agent, creationContext);
-      } catch (err: unknown) {
+      } catch (err) {
         agent.errorMessage("Agent threw error during creation: ", err as Error);
       }
     }
@@ -235,14 +237,14 @@ export default class AgentManager implements TokenRingService {
         try {
           this.deleteAgent(agentId, `Agent has been idle for ${agent.getIdleDuration() / 1000} seconds`);
           this.app.serviceOutput(this, `Agent ${agent.id} has been deleted due to inactivity.`);
-        } catch (err: unknown) {
+        } catch (err) {
           this.app.serviceError(this, `Failed to delete idle agent ${agent.id}:`, err);
         }
       } else if (maxRunTime && agent.getRunDuration() > maxRunTime * 1000) {
         try {
           this.deleteAgent(agentId, `Agent has been running for ${agent.getRunDuration() / 1000} seconds`);
           this.app.serviceOutput(this, `Agent ${agent.id} has been deleted due to max runtime.`);
-        } catch (err: unknown) {
+        } catch (err) {
           this.app.serviceError(this, `Failed to delete agent ${agent.id} due to max runtime:`, err);
         }
       }

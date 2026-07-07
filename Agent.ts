@@ -1,8 +1,9 @@
+import type { Arrayable } from "@tokenring-ai/utility/array/arrayable";
+import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import StateManager from "@tokenring-ai/app/StateManager";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import { generateHumanId } from "@tokenring-ai/utility/string/generateHumanId";
-import { setTimeout as delay } from "node:timers/promises";
 import { v4 as uuid } from "uuid";
 import type { z } from "zod";
 import {
@@ -225,7 +226,7 @@ export default class Agent {
       this.mutateState(AgentEventState, state => {
         if (state.currentlyExecutingInputItem) {
           const inputItem = state.currentlyExecutingInputItem;
-          const availableInteractions = (inputItem.executionState.availableInteractions ??= []);
+          const availableInteractions = inputItem.executionState.availableInteractions;
           availableInteractions.push(event);
 
           inputItem.interactionCallbacks.set(interactionId, resolve);
@@ -314,29 +315,29 @@ export default class Agent {
   infoMessage = (...messages: string[]) =>
     this.emit({
       type: "output.info",
-      message: formatLogMessages(messages),
+      message: formatLogMessages(...messages),
       timestamp: Date.now(),
     });
 
-  warningMessage = (...messages: Array<string | Error>) =>
+  warningMessage = (...messages: Arrayable<unknown>[]) =>
     this.emit({
       type: "output.warning",
-      message: formatLogMessages(messages),
+      message: formatLogMessages(...messages),
       timestamp: Date.now(),
     });
 
-  errorMessage = (...messages: Array<string | Error>) =>
+  errorMessage = (...messages: Arrayable<unknown>[]) =>
     this.emit({
       type: "output.error",
-      message: formatLogMessages(messages),
+      message: formatLogMessages(...messages),
       timestamp: Date.now(),
     });
 
-  debugMessage = (...messages: Array<string | Error>) => {
+  debugMessage = (...messages: Arrayable<unknown>[]) => {
     if (this.debugEnabled) {
       this.emit({
         type: "output.info",
-        message: formatLogMessages(messages),
+        message: formatLogMessages(...messages),
         timestamp: Date.now(),
       });
     }

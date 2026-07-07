@@ -2,7 +2,7 @@ import type { AgentCommandArgumentSchema, AgentCommandInputSchema, TokenRingAgen
 
 function formatUsageToken(argumentName: string, argumentSchema: AgentCommandArgumentSchema) {
   if (argumentSchema.type === "flag") {
-    return argumentSchema.required ? argumentName : `[${argumentName}]`;
+    return `[${argumentName}]`;
   }
 
   const valueLabel = argumentSchema.type === "number" ? "<number>" : "<value>";

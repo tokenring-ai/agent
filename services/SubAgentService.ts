@@ -72,8 +72,7 @@ export default class SubAgentService implements TokenRingService {
   readonly name = "SubAgentService";
   description = "A service for managing sub-agent execution and permissions";
 
-  constructor(readonly app: TokenRingApp) {
-  }
+  constructor(readonly app: TokenRingApp) {}
 
   /**
    * Runs a sub-agent with configurable options for output forwarding.
@@ -88,15 +87,15 @@ export default class SubAgentService implements TokenRingService {
    * @returns Promise resolving to the execution result
    */
   async runSubAgent({
-                      agentType,
-                      background,
-                      headless,
-                      from,
-                      steps,
-                      options,
-                      parentAgent,
-                      autoCleanup = true,
-                    }: RunSubAgentOptions): Promise<RunSubAgentResult> {
+    agentType,
+    background,
+    headless,
+    from,
+    steps,
+    options,
+    parentAgent,
+    autoCleanup = true,
+  }: RunSubAgentOptions): Promise<RunSubAgentResult> {
     const {
       forwardChatOutput,
       forwardReasoning,
@@ -127,14 +126,13 @@ export default class SubAgentService implements TokenRingService {
     const timer =
       timeoutSeconds > 0
         ? setTimeout(() => {
-          timeoutExceeded = true;
-          childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
-          listenerAbortController.abort();
-        }, timeoutSeconds * 1000)
+            timeoutExceeded = true;
+            childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
+            listenerAbortController.abort();
+          }, timeoutSeconds * 1000)
         : null;
 
-    let removeParentAbortListener = () => {
-    };
+    let removeParentAbortListener = () => {};
     if (!background) {
       const parentAbortSignal = parentAgent.getAbortSignal();
       const onParentAbort = () => {
@@ -339,7 +337,9 @@ export default class SubAgentService implements TokenRingService {
 
       listenerAbortController.abort();
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- can be mutated asynchronously
       if (!childResult) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- can be mutated asynchronously
         if (timeoutExceeded) {
           return {
             status: "cancelled",
@@ -357,7 +357,7 @@ export default class SubAgentService implements TokenRingService {
         ...childResult,
         ...(!autoCleanup && { childAgent }),
       };
-    } catch (err: unknown) {
+    } catch (err) {
       return {
         status: "error",
         response: formatLogMessages(["Error running sub-agent: ", err as Error]),
