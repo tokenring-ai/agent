@@ -73,10 +73,10 @@ describe("AgentLifecycleService", () => {
     });
 
     it("should add multiple hooks", () => {
-      service.addHooks({
-        "hook1": mockHook,
-        "hook2": anotherHook,
-      });
+      service.addHooks(
+        { ...mockHook, name: "hook1" },
+        { ...anotherHook, name: "hook2" },
+      );
 
       const hookNames = service.getAllHookNames();
       expect(hookNames).toContain("hook1");
@@ -138,7 +138,7 @@ describe("AgentLifecycleService", () => {
       service.enableHooks(["test-hook"], mockAgent);
 
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks.filter(hook => hook === "test-hook")).toHaveLength(1);
+      expect(Array.from(enabledHooks).filter((hook: string) => hook === "test-hook")).toHaveLength(1);
     });
   });
 
@@ -163,7 +163,7 @@ describe("AgentLifecycleService", () => {
         type: "agent.response" as const,
         timestamp: Date.now(),
         requestId: "test-request",
-        status: "success",
+        status: "success" as const,
         message: "success",
       };
 
@@ -219,14 +219,14 @@ describe("AgentLifecycleService", () => {
         type: "agent.response" as const,
         timestamp: Date.now(),
         requestId: "test-request",
-        status: "success",
+        status: "success" as const,
         message: "success",
       };
 
       await service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent);
 
       const callback = handledHook.callbacks[0];
-      expect(callback.callback).toHaveBeenCalledWith(
+      expect(callback?.callback).toHaveBeenCalledWith(
         expect.any(AfterAgentInputSuccess),
         mockAgent
       );
@@ -256,7 +256,7 @@ describe("AgentLifecycleService", () => {
         type: "agent.response" as const,
         timestamp: Date.now(),
         requestId: "test-request",
-        status: "success",
+        status: "success" as const,
         message: "success",
       };
 
@@ -269,7 +269,7 @@ describe("AgentLifecycleService", () => {
         expect.any(AfterAgentInputSuccess),
         mockAgent
       );
-      expect(partialCallback.callback).toHaveBeenCalledWith(
+      expect(partialCallback?.callback).toHaveBeenCalledWith(
         expect.any(AfterAgentInputSuccess),
         mockAgent
       );
@@ -309,7 +309,7 @@ describe("AgentLifecycleService", () => {
         type: "agent.response" as const,
         timestamp: Date.now(),
         requestId: "test-request",
-        status: "success",
+        status: "success" as const,
         message: "success",
       };
 
@@ -320,11 +320,11 @@ describe("AgentLifecycleService", () => {
         expect.any(AfterAgentInputSuccess),
         mockAgent
       );
-      expect(hook1.callbacks[0].callback).toHaveBeenCalledWith(
+      expect(hook1.callbacks[0]?.callback).toHaveBeenCalledWith(
         expect.any(AfterAgentInputSuccess),
         mockAgent
       );
-      expect(hook2.callbacks[0].callback).toHaveBeenCalledWith(
+      expect(hook2.callbacks[0]?.callback).toHaveBeenCalledWith(
         expect.any(AfterAgentInputSuccess),
         mockAgent
       );
@@ -354,7 +354,7 @@ describe("AgentLifecycleService", () => {
         type: "agent.response" as const,
         timestamp: Date.now(),
         requestId: "test-request",
-        status: "success",
+        status: "success" as const,
         message: "success",
       };
 

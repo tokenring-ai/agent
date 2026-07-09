@@ -1,9 +1,11 @@
 import TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import Agent from "../../Agent.ts";
 import { AgentConfigSchema, type ParsedAgentConfig } from "../../schema";
 import AgentManager from "../../services/AgentManager.ts";
+import { AgentStateSlice } from "../../types.ts";
 import createTestingAgent from "../createTestingAgent.test";
 
 const app = createTestingApp();
@@ -73,7 +75,7 @@ describe("AgentManager", () => {
         displayName: "New Agent",
       };
 
-      manager.addAgentConfigs("new", testConfig);
+      manager.addAgentConfigs(testConfig);
 
       const entries = Array.from(manager.getAgentConfigEntries());
       expect(entries).toEqual(
@@ -85,8 +87,8 @@ describe("AgentManager", () => {
 
     it("should add multiple agent configs", () => {
       manager.addAgentConfigs(
-        { agentType: "config1", displayName: "Agent 1", description: "desc", category: "test", createMessage: "msg" },
-        { agentType: "config2", displayName: "Agent 2", description: "desc", category: "test", createMessage: "msg" }
+        { ...mockConfig, agentType: "config1", displayName: "Agent 1" },
+        { ...mockConfig, agentType: "config2", displayName: "Agent 2" }
       );
 
       const entries = Array.from(manager.getAgentConfigEntries());
@@ -116,7 +118,7 @@ describe("AgentManager", () => {
 
     it("should get agent types like pattern", () => {
       const entries = manager.getAgentTypesLike("te*");
-      expect(entries[0][0]).toEqual("test");
+      expect(entries[0]?.[0]).toEqual("test");
     });
   });
 
@@ -165,16 +167,33 @@ describe("AgentManager", () => {
     it("should transfer state from parent to sub-agent", async () => {
       const transferStateFromParent = vi.fn();
 
-      class TestState {
-        readonly name = "TestState";
+      const testStateSchema = z.object({});
+
+      class TestState extends AgentStateSlice<typeof testStateSchema> {
+        constructor() {
+          super("TestState", testStateSchema);
+        }
+
+        show() {
+          return "";
+        }
+
+        serialize() {
+          return {};
+        }
+
+        deserialize() {}
+
         transferStateFromParent = transferStateFromParent;
       }
 
       const mockAgent = createMockAgent();
       app.addServices({
+        name: "TestStateService",
+        description: "Registers a test state slice",
         attach(agent: Agent) {
           agent.initializeState(TestState, {});
-        }
+        },
       });
 
       await manager.spawnSubAgent(mockAgent, "test", {
@@ -236,7 +255,7 @@ describe("AgentManager", () => {
         displayName: "Short Timeout Agent",
         idleTimeout: 1, // 1 second
       });
-      manager.addAgentConfigs("short", shortTimeoutConfig);
+      manager.addAgentConfigs(shortTimeoutConfig);
 
       const agent = await manager.spawnAgent({ agentType: "short", headless: true });
 
@@ -294,7 +313,7 @@ describe("AgentManager", () => {
         displayName: "Min Running Agent",
         minimumRunning: 2,
       });
-      manager.addAgentConfigs("min-test", minRunningConfig);
+      manager.addAgentConfigs(minRunningConfig);
 
       // Trigger cleanup which should check minimum running
       await manager["checkAndDeleteIdleAgents"]();

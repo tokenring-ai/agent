@@ -386,7 +386,12 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      const attachments = [{ name: "file.txt", content: "test content" }];
+      const attachments = [{
+        name: "file.txt",
+        encoding: "text" as const,
+        body: "test content",
+        mimeType: "text/plain" as const,
+      }];
       const parsed = parseAgentCommandInput(command, "hello", attachments, {} as any);
 
       expect(parsed.attachments).toEqual(attachments);
@@ -406,7 +411,12 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      const attachments = [{ name: "file.txt", content: "test content" }];
+      const attachments = [{
+        name: "file.txt",
+        encoding: "text" as const,
+        body: "test content",
+        mimeType: "text/plain" as const,
+      }];
 
       expect(() => parseAgentCommandInput(command, "hello", attachments, {} as any))
         .toThrow("Attachments are not allowed");

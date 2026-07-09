@@ -1,8 +1,11 @@
+import type TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import agentRpc from "../../rpc/agent.ts";
+import { AgentListEntrySchema } from "../../rpc/schema.ts";
 import { AgentConfigSchema } from "../../schema.ts";
 import AgentManager from "../../services/AgentManager.ts";
-import agentRpc from "../../rpc/agent.ts";
 
 const mockConfig = AgentConfigSchema.parse({
   agentType: "test",
@@ -27,7 +30,15 @@ describe("streamAgents RPC", () => {
     manager.addAgentConfigs(mockConfig);
 
     const controller = new AbortController();
-    const stream = agentRpc.methods.streamAgents.execute({}, app, controller.signal);
+    const streamAgentsExecute = agentRpc.methods.streamAgents?.execute;
+    if (!streamAgentsExecute) throw new Error("streamAgents method not registered");
+
+    const streamAgents = streamAgentsExecute as (
+      args: Record<string, never>,
+      app: TokenRingApp,
+      signal: AbortSignal,
+    ) => AsyncGenerator<z.infer<typeof AgentListEntrySchema>[]>;
+    const stream = streamAgents({}, app, controller.signal);
 
     const first = await stream.next();
     expect(first.value).toEqual([]);

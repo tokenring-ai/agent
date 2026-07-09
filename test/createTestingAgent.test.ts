@@ -1,7 +1,5 @@
 import TokenRingApp from "@tokenring-ai/app";
 
-// Create a mock agent
-import Agent from "../Agent";
 import { AgentManager } from "../index";
 import { AgentConfigSchema } from "../schema";
 
@@ -30,7 +28,5 @@ export default function createTestingAgent(app: TokenRingApp) {
     app.addServices(agentManager);
   }
 
-  const agent = new Agent(app, {}, config, new AbortController().signal);
-  agentManager.agents.set(agent.id, { agent, shutdownController: new AbortController() });
-  return agent;
+  return agentManager.spawnAgentFromConfig(config);
 };

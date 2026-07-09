@@ -158,7 +158,7 @@ describe("Agent Integration Tests", () => {
         type: "agent.response" as const,
         timestamp: Date.now(),
         requestId: "test-request",
-        status: "success",
+        status: "success" as const,
         message: "success",
       };
 
@@ -199,7 +199,7 @@ describe("Agent Integration Tests", () => {
 
   describe("Manager Integration", () => {
     it("should create agents through manager", async () => {
-      manager.addAgentConfigs("integration-test", mockConfig);
+      manager.addAgentConfigs(mockConfig);
 
       const managedAgent = await manager.spawnAgent({ agentType: "integration-test", headless: true });
 
@@ -208,7 +208,7 @@ describe("Agent Integration Tests", () => {
     });
 
     it("should handle sub-agent creation", async () => {
-      manager.addAgentConfigs("integration-test", mockConfig);
+      manager.addAgentConfigs(mockConfig);
 
       const subAgent = await manager.spawnSubAgent(agent, "integration-test", {
         headless: true

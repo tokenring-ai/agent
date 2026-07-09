@@ -1,17 +1,21 @@
 import StateManager from "@tokenring-ai/app/StateManager";
-import { SerializableStateSlice } from "@tokenring-ai/app/StateManager";
 import type TokenRingApp from "@tokenring-ai/app";
 import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { createAgentStateStream } from "./createAgentStateStream.ts";
+import { AgentStateSlice } from "../types.ts";
+import { createAgentStateSliceStream } from "./createAgentStateStream.ts";
 
 const schema = z.object({ value: z.number() });
 
-class TestSlice extends SerializableStateSlice<typeof schema> {
+class TestSlice extends AgentStateSlice<typeof schema> {
   value = 0;
 
   constructor() {
     super("TestSlice", schema);
+  }
+
+  show() {
+    return `value: ${this.value}`;
   }
 
   serialize() {
@@ -23,7 +27,7 @@ class TestSlice extends SerializableStateSlice<typeof schema> {
   }
 }
 
-describe("createAgentStateStream", () => {
+describe("createAgentStateSliceStream", () => {
   let stateManager: StateManager<TestSlice>;
   let mockApp: TokenRingApp;
 
@@ -31,18 +35,22 @@ describe("createAgentStateStream", () => {
     stateManager = new StateManager<TestSlice>();
     stateManager.initializeState(TestSlice, {});
 
+    const fakeAgent = {
+      subscribeStateAsync: stateManager.subscribeAsync.bind(stateManager),
+    };
+    const mockManager = {
+      getAgent: (id: string) => (id === "agent-1" ? fakeAgent : null),
+    };
+
     mockApp = {
-      requireService: () => {
-        throw new Error("not used in this test");
-      },
+      requireService: () => mockManager,
     } as unknown as TokenRingApp;
   });
 
   it("yields agentNotFound when agent is missing", async () => {
-    const stream = createAgentStateStream({
+    const stream = createAgentStateSliceStream<TestSlice, { value: number }>({
       SliceClass: TestSlice,
-      project: state => ({ value: state.value }),
-      resolveAgent: () => null,
+      project: (state: TestSlice) => ({ value: state.value }),
     });
 
     const controller = new AbortController();
@@ -55,12 +63,10 @@ describe("createAgentStateStream", () => {
   });
 
   it("deduplicates unchanged projections", async () => {
-    const stream = createAgentStateStream({
+    const stream = createAgentStateSliceStream<TestSlice, { value: number }>({
       SliceClass: TestSlice,
-      project: state => ({ value: state.value }),
-      resolveAgent: () => ({
-        subscribeStateAsync: stateManager.subscribeAsync.bind(stateManager),
-      }),
+      project: (state: TestSlice) => ({ value: state.value }),
+      equals: (a, b) => a.value === b.value,
     });
 
     const controller = new AbortController();
@@ -68,7 +74,7 @@ describe("createAgentStateStream", () => {
 
     expect(await iterator.next()).toEqual({
       done: false,
-      value: { status: "success", data: { value: 0 }, revision: 1 },
+      value: { value: 0 },
     });
 
     stateManager.mutateState(TestSlice, state => {
@@ -76,7 +82,7 @@ describe("createAgentStateStream", () => {
     });
     expect(await iterator.next()).toEqual({
       done: false,
-      value: { status: "success", data: { value: 1 }, revision: 2 },
+      value: { value: 1 },
     });
 
     stateManager.mutateState(TestSlice, state => {
@@ -90,12 +96,9 @@ describe("createAgentStateStream", () => {
   });
 
   it("cleans up subscription on abort", async () => {
-    const stream = createAgentStateStream({
+    const stream = createAgentStateSliceStream<TestSlice, { value: number }>({
       SliceClass: TestSlice,
-      project: state => ({ value: state.value }),
-      resolveAgent: () => ({
-        subscribeStateAsync: stateManager.subscribeAsync.bind(stateManager),
-      }),
+      project: (state: TestSlice) => ({ value: state.value }),
     });
 
     const controller = new AbortController();

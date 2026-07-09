@@ -111,8 +111,8 @@ describe("Agent", () => {
       agent.errorMessage("Error message");
 
       const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[eventState.events.length - 2].type).toBe("output.warning");
-      expect(eventState.events[eventState.events.length - 1].type).toBe("output.error");
+      expect(eventState.events[eventState.events.length - 2]?.type).toBe("output.warning");
+      expect(eventState.events[eventState.events.length - 1]?.type).toBe("output.error");
     });
   });
 
@@ -160,7 +160,7 @@ describe("Agent", () => {
           interactionCallbacks: new Map(),
           abortController: new AbortController()
         });
-        state.currentlyExecutingInputItem = state.inputQueue[0];
+        state.currentlyExecutingInputItem = state.inputQueue[0] ?? null;
       });
 
       const reason = "Test abort reason";
@@ -253,7 +253,6 @@ describe("Agent", () => {
 
     it("should throw error for invalid config slice", () => {
       expect(() => {
-        // @ts-expect-error - Testing invalid key
         agent.getAgentConfigSlice("nonexistent", AgentConfigSchema.shape.displayName);
       }).toThrow();
     });
@@ -308,9 +307,10 @@ describe("Agent", () => {
       debugAgent.debugMessage("Debug message");
 
       const eventState = debugAgent.getState(AgentEventState);
-      const lastEvent = eventState.events[eventState.events.length - 1];
-      expect(lastEvent.type).toEqual("output.info");
-      expect(lastEvent.message).toEqual("Debug message");
+      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
+        type: "output.info",
+        message: "Debug message",
+      });
     });
 
     it("should not output debug messages when disabled", () => {
@@ -356,23 +356,6 @@ describe("Agent", () => {
     });
   });
 
-  describe("Artifact Output", () => {
-    it("should output artifacts", () => {
-      agent.artifactOutput({
-        name: "test-artifact",
-        encoding: "utf-8",
-        mimeType: "text/plain",
-        body: "artifact content"
-      });
-
-      const eventState = agent.getState(AgentEventState);
-      expect(eventState.events[eventState.events.length - 1]).toMatchObject({
-        type: "output.artifact",
-        name: "test-artifact",
-      });
-    });
-  });
-
   describe("Send Interaction Response", () => {
     it("should send interaction response", () => {
       // Setup: need an input item in the queue with a callback
@@ -393,7 +376,7 @@ describe("Agent", () => {
           interactionCallbacks: new Map([["test-interaction", resolveCallback]]),
           abortController: new AbortController()
         });
-        state.currentlyExecutingInputItem = state.inputQueue[0];
+        state.currentlyExecutingInputItem = state.inputQueue[0] ?? null;
       });
 
       agent.sendInteractionResponse({
