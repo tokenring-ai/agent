@@ -39,10 +39,6 @@ const inputSchema = {
       type: "flag",
       description: "Do not forward input commands from the sub-agent",
     },
-    forwardArtifacts: {
-      type: "flag",
-      description: "Forward artifacts from the sub-agent",
-    },
     timeout: {
       type: "number",
       description: "Timeout in milliseconds for the sub-agent (0 = no timeout)",
@@ -81,7 +77,6 @@ async function execute({ remainder, args, agent }: AgentCommandInputType<typeof 
     forwardHumanRequests: !args.noHumanRequests,
     forwardReasoning: !!args.forwardReasoning,
     forwardInputCommands: !args.noInputCommands,
-    forwardArtifacts: !!args.forwardArtifacts,
     timeout: args.timeout,
     maxResponseLength: args.maxResponseLength,
     minContextLength: args.minContextLength,

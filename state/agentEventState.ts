@@ -203,7 +203,6 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
         case "output.error":
         case "output.chat":
         case "output.reasoning":
-        case "output.artifact":
         case "input.interaction":
         case "toolCall":
           this.events.push({ ...event, timestamp: Date.now() });

@@ -103,7 +103,6 @@ export default class SubAgentService implements TokenRingService {
       forwardSystemOutput,
       forwardHumanRequests,
       forwardInputCommands,
-      forwardArtifacts,
       timeout: timeoutSeconds,
       maxResponseLength,
       minContextLength,
@@ -286,11 +285,6 @@ export default class SubAgentService implements TokenRingService {
                 break;
               case "agent.stopped":
                 //parentAgent.infoMessage(`${agentType} > Agent Stopped: ${event.message}`);
-                break;
-              case "output.artifact":
-                if (forwardArtifacts) {
-                  parentAgent.artifactOutput(event);
-                }
                 break;
               case "cancel":
               case "input.execution":

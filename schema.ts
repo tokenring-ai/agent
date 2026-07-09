@@ -7,7 +7,6 @@ export const SubAgentConfigSchema = z.object({
   forwardHumanRequests: z.boolean().default(true),
   forwardReasoning: z.boolean().default(false),
   forwardInputCommands: z.boolean().default(true),
-  forwardArtifacts: z.boolean().default(false),
   timeout: z.number().default(0),
   maxResponseLength: z.number().default(10000),
   minContextLength: z.number().default(1000),

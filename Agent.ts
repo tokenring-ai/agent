@@ -11,7 +11,6 @@ import {
   type InputMessage,
   type InteractionResponse,
   InteractionSchema,
-  type OutputArtifactSchema,
   type QuestionInteractionSchema,
   type ToolCallResult,
   ToolCallResultSchema,
@@ -342,17 +341,6 @@ export default class Agent {
       });
     }
   };
-
-  artifactOutput({ name, encoding, mimeType, body }: Omit<z.input<typeof OutputArtifactSchema>, "type" | "timestamp">) {
-    this.emit({
-      type: "output.artifact",
-      name,
-      encoding,
-      mimeType,
-      body,
-      timestamp: Date.now(),
-    });
-  }
 
   toolCallResult(result: Omit<ToolCallResult, "type" | "timestamp">) {
     this.emit(

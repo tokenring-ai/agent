@@ -33,42 +33,59 @@ export const OutputErrorSchema = BaseTextEventSchema.extend({
   type: z.literal("output.error"),
 });
 
+export const audioMimeTypes = ["audio/wav", "audio/mpeg", "audio/webm"] as const;
+
+export const videoMimeTypes = ["video/mp4", "video/webm"] as const;
+
+export const imageMimeTypes = ["image/png", "image/jpeg"] as const;
+
+export const textMimeTypes = ["text/plain", "text/markdown", "text/html", "text/x-diff", "application/json", "message/rfc822"] as const;
+
+export type AudioMimeTypes = (typeof audioMimeTypes)[number];
+export type VideoMimeTypes = (typeof videoMimeTypes)[number];
+export type ImageMimeTypes = (typeof imageMimeTypes)[number];
+export type TextMimeTypes = (typeof textMimeTypes)[number];
+
+export type SupportedMimeTypes = AudioMimeTypes | VideoMimeTypes | ImageMimeTypes | TextMimeTypes;
+
+export const mimeTypeClassifications = new Map<SupportedMimeTypes, "audio" | "video" | "image" | "text">([
+  ...audioMimeTypes.map(t => [t, "audio"] as const),
+  ...videoMimeTypes.map(t => [t, "video"] as const),
+  ...imageMimeTypes.map(t => [t, "image"] as const),
+  ...textMimeTypes.map(t => [t, "text"] as const),
+]);
+
 export const BaseAttachmentSchema = z.object({
   name: z.string(),
   description: z.string().exactOptional(),
   encoding: z.enum(["text", "base64", "href"]),
-  mimeType: z.enum(["application/json", "text/plain", "text/markdown", "text/html", "text/x-diff", "image/png", "image/jpeg", "message/rfc822"]),
   body: z.string(),
 });
 
-export const allowedMimeTypes = BaseAttachmentSchema.shape.mimeType.enum;
+export const InputAttachmentSchema = BaseAttachmentSchema.extend({
+  mimeType: z.enum([...audioMimeTypes, ...videoMimeTypes, ...imageMimeTypes, ...textMimeTypes]),
+});
 
-export type BaseAttachment = z.output<typeof BaseAttachmentSchema>;
+export type BaseAttachment = z.output<typeof InputAttachmentSchema>;
 
-export const AttachmentSchema = BaseAttachmentSchema.extend({
+export const AttachmentSchema = InputAttachmentSchema.extend({
   type: z.literal("attachment"),
   timestamp: z.number(),
 });
 
 export type AttachmentMessage = z.output<typeof AttachmentSchema>;
 
-export const OutputArtifactSchema = BaseAttachmentSchema.extend({
-  type: z.literal("output.artifact"),
-  timestamp: z.number(),
-});
-
-export type Artifact = z.input<typeof OutputArtifactSchema>;
-
 export const InputMessageSchema = z.object({
   from: z.string(),
   message: z.string(),
-  attachments: z.array(BaseAttachmentSchema).exactOptional(),
+  attachments: z.array(InputAttachmentSchema).exactOptional(),
   timestamp: z.never().exactOptional(),
 });
 
 export type InputMessage = z.input<typeof InputMessageSchema>;
 
-export const ToolCallAttachmentSchema = BaseAttachmentSchema.extend({
+export const ToolCallAttachmentSchema = InputAttachmentSchema.extend({
+  mimeType: z.enum([...textMimeTypes, ...imageMimeTypes]),
   sendToLLM: z.boolean().default(false),
 });
 
@@ -200,7 +217,6 @@ export const AgentEventEnvelopeSchema = z.discriminatedUnion("type", [
   AgentStoppedSchema,
   AgentStatusSchema,
   AgentResponseSchema,
-  OutputArtifactSchema,
   OutputChatSchema,
   OutputReasoningSchema,
   OutputInfoSchema,
