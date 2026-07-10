@@ -3,7 +3,7 @@ import type { Arrayable } from "@tokenring-ai/utility/array/arrayable";
 import type { MaybePromise } from "bun";
 import z, { type ZodType } from "zod";
 import type Agent from "./Agent.ts";
-import type { InputAttachment } from "./AgentEvents.ts";
+import type { ChatAttachment } from "./AgentEvents.ts";
 
 export type TokenRingBaseAgentCommand = {
   name: string;
@@ -158,7 +158,7 @@ type AgentCommandArgsInput<Schema extends AgentCommandInputSchema> = Schema["arg
   : { args?: never };
 
 type AgentCommandAttachmentsInput<Schema extends AgentCommandInputSchema> = Schema["allowAttachments"] extends true
-  ? { attachments: InputAttachment[] }
+  ? { attachments: ChatAttachment[] }
   : { attachments?: never };
 
 export type AgentCommandInputType<Schema extends AgentCommandInputSchema> = {
@@ -171,7 +171,7 @@ export type AgentCommandInputType<Schema extends AgentCommandInputSchema> = {
 export type TokenRingAgentCommandResult = {
   message: string;
   details?: string[];
-  attachments?: InputAttachment[];
+  attachments?: ChatAttachment[];
 };
 
 export type TokenRingAgentCommand<InputSchema extends AgentCommandInputSchema = AgentCommandInputSchema> = TokenRingBaseAgentCommand & {

@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService";
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { AfterAgentInputSuccess, BeforeAgentInput, HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
 import Agent from "../../Agent.ts";
+import { AfterInputReceived } from "../../lifecycle.ts";
 import { AgentConfigSchema } from "../../schema";
 import AgentCommandService from "../../services/AgentCommandService.ts";
 import AgentManager from "../../services/AgentManager.ts";
@@ -50,6 +52,7 @@ describe("Agent Integration Tests", () => {
 
     // Create agent
     agent = new Agent(app, {}, mockConfig, new AbortController().signal);
+    lifecycleService.attach(agent);
   });
 
   afterEach(() => {
@@ -99,6 +102,7 @@ describe("Agent Integration Tests", () => {
 
       // Send chat message
       agent.handleInput({ from: "test", message: "hello world" });
+      await delay(10);
 
       // Verify the message was added to events
       const eventState = agent.getState(AgentEventState);
@@ -172,12 +176,42 @@ describe("Agent Integration Tests", () => {
       const enabledHooks = lifecycleService.getEnabledHooks(agent);
       expect(enabledHooks).toContain("test");
     });
+
+    it("should fire AfterInputReceived and allow listeners to mutate the input", async () => {
+      const receivedHook: HookSubscription = {
+        name: "after-input-received",
+        displayName: "After Input Received",
+        description: "Mutates received input",
+        callbacks: [
+          new HookCallback(AfterInputReceived, data => {
+            data.input.message = `[mutated] ${data.input.message}`;
+          }),
+        ],
+      };
+
+      lifecycleService.registerHook("after-input-received", receivedHook);
+      lifecycleService.enableHooks(["after-input-received"], agent);
+
+      const requestId = agent.handleInput({ from: "test", message: "hello" });
+      await delay(10);
+
+      const eventState = agent.getState(AgentEventState);
+      const inputEvent = eventState.events.find(e => e.type === "input.received");
+      expect(inputEvent).toBeDefined();
+      expect(inputEvent!.requestId).toBe(requestId);
+      expect(inputEvent!.input.message).toBe("[mutated] hello");
+
+      // Command history retains the original (un-mutated) message
+      const historyState = agent.getState(CommandHistoryState);
+      expect(historyState.commands).toContain("hello");
+    });
   });
 
   describe("Complete Agent Workflow", () => {
-    it("should handle state changes during operations", () => {
+    it("should handle state changes during operations", async () => {
       // Add some state
       agent.handleInput({ from: "test", message: "test input" });
+      await delay(10);
 
       // Verify state changes
       const eventState = agent.getState(AgentEventState);
@@ -210,9 +244,10 @@ describe("Agent Integration Tests", () => {
   });
 
   describe("State Management Integration", () => {
-    it("should persist state across operations", () => {
+    it("should persist state across operations", async () => {
       // Add some state
       agent.handleInput({ from: "test", message: "test message" });
+      await delay(10);
 
       // Generate checkpoint
       const checkpoint = agent.generateCheckpoint();
@@ -300,12 +335,13 @@ describe("Agent Integration Tests", () => {
       expect(workingCommand.execute).not.toHaveBeenCalled();
     });
 
-    it("should maintain state integrity after errors", () => {
+    it("should maintain state integrity after errors", async () => {
       // Add some initial state
       const initialEventCount = agent.getState(AgentEventState).events.length;
 
       // This will fail but shouldn't corrupt state
       agent.handleInput({ from: "test", message: "test" });
+      await delay(10);
 
       const eventState = agent.getState(AgentEventState);
       // State should still be intact

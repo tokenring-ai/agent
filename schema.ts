@@ -36,6 +36,12 @@ export const AgentCommandConfigSchema = z.object({
   help: z.string().exactOptional(),
   /** Whether to run in background mode by default */
   background: z.boolean().default(false),
+  /**
+   * When false (default) and the current agent already has the command's agentType,
+   * steps run in the foreground on the current agent instead of spawning a sub-agent.
+   * When true, or when the agent type differs, a new agent of the target type is used.
+   */
+  requireNewAgent: z.boolean().default(false),
   /** The steps to execute */
   steps: z.array(z.string()).min(1),
   /** The subagent configuration */

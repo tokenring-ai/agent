@@ -3,14 +3,19 @@ import interpolateString from "@tokenring-ai/utility/string/interpolateString";
 import { CommandFailedError } from "../AgentError.ts";
 import { AfterSubAgentResponse } from "../hooks.ts";
 import { SubAgentService } from "../index.ts";
+import type { ParsedAgentCommandConfig } from "../schema.ts";
+import AgentCommandService from "../services/AgentCommandService.ts";
+import type { RunSubAgentOptions } from "../services/SubAgentService.ts";
+import type { AgentCommandInputType, TokenRingAgentCommand, TokenRingAgentCommandResult } from "../types.ts";
 
 /**
- * Register an agent as a callable command
+ * Register an agent as a callable command.
+ *
+ * When `requireNewAgent` is false (default) and the invoking agent already has
+ * the same `agentType` as the command, steps run in-place via `/chat send`.
+ * Otherwise a new agent of the target type is spawned (background by default
+ * when types differ so the parent is not blocked).
  */
-import type { ParsedAgentCommandConfig } from "../schema.ts";
-import type { RunSubAgentOptions } from "../services/SubAgentService.ts";
-import type { AgentCommandInputType, TokenRingAgentCommand } from "../types.ts";
-
 export function createAgentCommand(name: string, commandConfig: ParsedAgentCommandConfig): TokenRingAgentCommand<any> {
   return {
     name,
@@ -23,10 +28,32 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
 
       const steps = commandConfig.steps.map(step => interpolateString(step, replacements));
 
+      const canRunInPlace = !commandConfig.requireNewAgent && agent.config.agentType === commandConfig.agentType;
+
+      if (canRunInPlace) {
+        const commandService = agent.requireServiceByType(AgentCommandService);
+        let lastMessage = "Agent completed successfully.";
+
+        for (const step of steps) {
+          const result: TokenRingAgentCommandResult = await commandService.executeAgentCommand(agent, `/chat send ${step}`, args.attachments);
+          if (typeof result === "string") {
+            lastMessage = result;
+          } else if (result.message) {
+            lastMessage = result.message;
+          }
+        }
+
+        return lastMessage;
+      }
+
+      // Type mismatch or requireNewAgent: dispatch to a dedicated agent.
+      // Prefer background when spawning from a different agent type so the parent is not blocked.
+      const useBackground = commandConfig.requireNewAgent ? commandConfig.background : true;
+
       const subAgentService = agent.requireServiceByType(SubAgentService);
       const request: RunSubAgentOptions = {
         agentType: commandConfig.agentType,
-        background: commandConfig.background,
+        background: useBackground,
         headless: agent.headless,
         from: `Parent agent command: /${name}`,
         steps,
@@ -36,7 +63,7 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
 
       const result = await subAgentService.runSubAgent(request);
 
-      if (commandConfig.background) {
+      if (useBackground) {
         return `Agent ${commandConfig.agentType} started in background.`;
       }
 

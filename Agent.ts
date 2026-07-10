@@ -1,6 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import StateManager from "@tokenring-ai/app/StateManager";
+import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import type { Arrayable } from "@tokenring-ai/utility/array/arrayable";
 import formatLogMessages from "@tokenring-ai/utility/string/formatLogMessage";
 import { generateHumanId } from "@tokenring-ai/utility/string/generateHumanId";
@@ -15,6 +16,7 @@ import {
   type ToolCallResult,
   ToolCallResultSchema,
 } from "./AgentEvents.js";
+import { AfterInputReceived } from "./lifecycle.ts";
 import { getDefaultQuestionValue, type ResultTypeForQuestion } from "./question.ts";
 import type { AgentConfig, ParsedAgentConfig } from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.ts";
@@ -103,17 +105,24 @@ export default class Agent {
   handleInput(input: InputMessage): string {
     const requestId = generateHumanId();
 
-    this.mutateState(AgentEventState, state => {
-      state.emit({
-        type: "input.received",
-        requestId,
-        timestamp: Date.now(),
-        input,
-      });
-    });
-
     this.mutateState(CommandHistoryState, state => {
       state.commands.push(input.message);
+    });
+
+    this.runBackgroundTask(async () => {
+      const hook = new AfterInputReceived(input);
+      try {
+        await this.getServiceByType(AgentLifecycleService)?.executeHooks(hook, this);
+      } finally {
+        this.mutateState(AgentEventState, state => {
+          state.emit({
+            type: "input.received",
+            requestId,
+            timestamp: Date.now(),
+            input: hook.input,
+          });
+        });
+      }
     });
 
     return requestId;

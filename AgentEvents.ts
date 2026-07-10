@@ -62,29 +62,24 @@ export const BaseAttachmentSchema = z.object({
   body: z.string(),
 });
 
-export const InputAttachmentSchema = BaseAttachmentSchema.extend({
+export type BaseAttachment = z.infer<typeof BaseAttachmentSchema>;
+
+export const ChatAttachmentSchema = BaseAttachmentSchema.extend({
   mimeType: z.enum([...audioMimeTypes, ...videoMimeTypes, ...imageMimeTypes, ...textMimeTypes]),
 });
 
-export type BaseAttachment = z.output<typeof InputAttachmentSchema>;
-
-export const AttachmentSchema = InputAttachmentSchema.extend({
-  type: z.literal("attachment"),
-  timestamp: z.number(),
-});
-
-export type AttachmentMessage = z.output<typeof AttachmentSchema>;
+export type ChatAttachment = z.infer<typeof ChatAttachmentSchema>;
 
 export const InputMessageSchema = z.object({
   from: z.string(),
   message: z.string(),
-  attachments: z.array(InputAttachmentSchema).exactOptional(),
+  attachments: z.array(ChatAttachmentSchema).exactOptional(),
   timestamp: z.never().exactOptional(),
 });
 
 export type InputMessage = z.input<typeof InputMessageSchema>;
 
-export const ToolCallAttachmentSchema = InputAttachmentSchema.extend({
+export const ToolCallAttachmentSchema = ChatAttachmentSchema.extend({
   mimeType: z.enum([...textMimeTypes, ...imageMimeTypes]),
   sendToLLM: z.boolean().default(false),
 });
@@ -138,8 +133,6 @@ export const InteractionSchema = z.discriminatedUnion("type", [FollowupInteracti
 export type Interaction = z.input<typeof InteractionSchema>;
 export type ParsedInteraction = z.output<typeof InteractionSchema>;
 
-export type InputAttachment = z.input<typeof AttachmentSchema>;
-
 export const InputReceivedSchema = z.object({
   type: z.literal("input.received"),
   timestamp: z.number(),
@@ -169,7 +162,7 @@ export const AgentSuccessResponseSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.response"),
   requestId: z.string(),
   status: z.literal("success"),
-  attachments: z.array(AttachmentSchema).exactOptional(),
+  attachments: z.array(ChatAttachmentSchema).exactOptional(),
 });
 
 export type ParsedAgentSuccessResponse = z.output<typeof AgentSuccessResponseSchema>;

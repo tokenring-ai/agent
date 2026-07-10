@@ -47,13 +47,14 @@ describe("Agent", () => {
   });
 
   describe("Input Handling", () => {
-    it("should handle input correctly", () => {
+    it("should handle input correctly", async () => {
       const message = "Test message";
       const requestId = agent.handleInput({ from: "test", message: message });
 
       expect(requestId).toBeDefined();
       expect(typeof requestId).toBe("string");
 
+      await delay(10);
       const eventState = agent.getState(AgentEventState);
       const lastEvent = eventState.events.find(e => e.type === "input.received");
       expect(lastEvent).toBeDefined();
@@ -61,10 +62,11 @@ describe("Agent", () => {
       expect(lastEvent!.requestId).toBe(requestId);
     });
 
-    it("should not trim input message (trimming happens in command service)", () => {
+    it("should not trim input message (trimming happens in command service)", async () => {
       const message = "  Test message with spaces  ";
       agent.handleInput({ from: "test", message: message });
 
+      await delay(10);
       const eventState = agent.getState(AgentEventState);
       // Find the input.received event
       const inputEvent = eventState.events.find(e => e.type === "input.received");
@@ -285,9 +287,10 @@ describe("Agent", () => {
       expect((checkpoint as any).config).toBeUndefined();
     });
 
-    it("should restore state from checkpoint", () => {
+    it("should restore state from checkpoint", async () => {
       // Add some state
       agent.handleInput({ from: "test", message: "test" });
+      await delay(10);
 
       const checkpoint = agent.generateCheckpoint();
 
