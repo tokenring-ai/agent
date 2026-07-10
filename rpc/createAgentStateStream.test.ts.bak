@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from "bun:test";
-import type TokenRingApp from "@tokenring-ai/app";
 import StateManager from "@tokenring-ai/app/StateManager";
+import type TokenRingApp from "@tokenring-ai/app";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { AgentStateSlice } from "../types.ts";
 import { createAgentStateSliceStream } from "./createAgentStateStream.ts";
@@ -89,7 +89,7 @@ describe("createAgentStateSliceStream", () => {
       state.value = 1;
     });
     const pending = iterator.next();
-    expect(Promise.race([pending, Promise.resolve("timeout")])).resolves.toBe("timeout");
+    await expect(Promise.race([pending, Promise.resolve("timeout")])).resolves.toBe("timeout");
 
     controller.abort();
     await pending;

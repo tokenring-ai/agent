@@ -1,4 +1,4 @@
-import type TokenRingApp from "@tokenring-ai/app";
+import TokenRingApp from "@tokenring-ai/app";
 
 import { AgentManager } from "../index";
 import { AgentConfigSchema } from "../schema";
@@ -29,4 +29,4 @@ export default function createTestingAgent(app: TokenRingApp) {
   }
 
   return agentManager.spawnAgentFromConfig(config);
-}
+};

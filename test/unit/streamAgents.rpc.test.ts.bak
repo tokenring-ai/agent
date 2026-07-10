@@ -1,9 +1,9 @@
-import { describe, expect, it } from "bun:test";
 import type TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
-import type { z } from "zod";
+import { describe, expect, it } from "bun:test";
+import { z } from "zod";
 import agentRpc from "../../rpc/agent.ts";
-import type { AgentListEntrySchema } from "../../rpc/schema.ts";
+import { AgentListEntrySchema } from "../../rpc/schema.ts";
 import { AgentConfigSchema } from "../../schema.ts";
 import AgentManager from "../../services/AgentManager.ts";
 

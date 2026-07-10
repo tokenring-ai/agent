@@ -1,10 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 
 import { setTimeout as delay } from "node:timers/promises";
-import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
+import { afterEach,beforeEach,describe,expect,it,mock,spyOn } from "bun:test";
 import Agent from "../../Agent.ts";
 import { AgentConfigSchema } from "../../schema";
-import AgentManager from "../../services/AgentManager.ts";
 import { AgentEventState } from "../../state/agentEventState.ts";
 import { CommandHistoryState } from "../../state/commandHistoryState.ts";
 import createTestingAgent from "../createTestingAgent.test";
@@ -16,19 +15,14 @@ describe("Agent", () => {
 
   beforeEach(() => {
     mock.clearAllMocks();
-    jest.useRealTimers();
     agent = createTestingAgent(app);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
-    const agentManager = app.getService(AgentManager);
-    if (agentManager) {
-      for (const managed of agentManager.getAgents()) {
-        agentManager.deleteAgent(managed.id, "test cleanup");
-      }
+    if (agent) {
+      // Agent doesn't have shutdown method, just clear mocks
+      mock.clearAllMocks();
     }
-    mock.clearAllMocks();
   });
 
   describe("Constructor and Initialization", () => {
@@ -126,52 +120,45 @@ describe("Agent", () => {
     it("should calculate idle duration correctly", () => {
       const startTime = Date.now();
       jest.useFakeTimers({ now: startTime });
-      try {
-        agent.infoMessage("hello world!"); // Sets the last activity time
+      agent.infoMessage("hello world!"); // Sets the last activity time
 
-        // Simulate some time passing
-        jest.advanceTimersByTime(1000);
+      // Simulate some time passing
+      jest.advanceTimersByTime(1000);
 
-        const idleDuration = agent.getIdleDuration();
-        expect(idleDuration).toBeGreaterThanOrEqual(1000);
-      } finally {
-        jest.useRealTimers();
-      }
+      const idleDuration = agent.getIdleDuration();
+      expect(idleDuration).toBeGreaterThanOrEqual(1000);
     });
 
     it("should calculate run duration correctly", () => {
       const startTime = Date.now();
       jest.useFakeTimers({ now: startTime });
-      try {
-        // Trigger an event to set the first activity time
-        agent.infoMessage("start");
 
-        jest.advanceTimersByTime(2000);
+      // Trigger an event to set the first activity time
+      agent.infoMessage("start");
 
-        const runDuration = agent.getRunDuration();
-        expect(runDuration).toBeGreaterThanOrEqual(2000);
-      } finally {
-        jest.useRealTimers();
-      }
+      jest.advanceTimersByTime(2000);
+
+      const runDuration = agent.getRunDuration();
+      expect(runDuration).toBeGreaterThanOrEqual(2000);
     });
 
     it("should abort current operation when there is one", () => {
       // Add an input item to the queue
-      agent.mutateState(AgentEventState, state => {
+      agent.mutateState(AgentEventState, (state) => {
         state.inputQueue.push({
           request: {
             type: "input.received",
             requestId: "test-request",
             timestamp: Date.now(),
-            input: { from: "test", message: "test" },
+            input: { from: "test", message: "test" }
           },
           executionState: {
             status: "queued",
             currentActivity: "test",
-            availableInteractions: [],
+            availableInteractions: []
           },
           interactionCallbacks: new Map(),
-          abortController: new AbortController(),
+          abortController: new AbortController()
         });
         state.currentlyExecutingInputItem = state.inputQueue[0] ?? null;
       });
@@ -195,27 +182,29 @@ describe("Agent", () => {
   describe("Human Interface", () => {
     it("should throw error when asking human in headless mode", async () => {
       agent.config.headless = true;
-      await expect(agent.askForApproval({ message: "foo" })).rejects.toThrow("Cannot ask human for feedback when agent is running in headless mode");
+      await expect(agent.askForApproval({ message: "foo" })).rejects.toThrow(
+        "Cannot ask human for feedback when agent is running in headless mode"
+      );
     });
 
     it("should handle busyWithActivity correctly", async () => {
       // Setup: need an input item to be executing
       const abortController = new AbortController();
-      agent.mutateState(AgentEventState, state => {
+      agent.mutateState(AgentEventState, (state) => {
         state.currentlyExecutingInputItem = {
           request: {
             type: "input.received",
             requestId: "test-request",
             timestamp: Date.now(),
-            input: { from: "test", message: "test" },
+            input: { from: "test", message: "test" }
           },
           executionState: {
             status: "running",
             currentActivity: "initial",
-            availableInteractions: [],
+            availableInteractions: []
           },
           interactionCallbacks: new Map(),
-          abortController,
+          abortController
         };
       });
 
@@ -231,21 +220,21 @@ describe("Agent", () => {
 
     it("should set current activity", () => {
       const abortController = new AbortController();
-      agent.mutateState(AgentEventState, state => {
+      agent.mutateState(AgentEventState, (state) => {
         state.currentlyExecutingInputItem = {
           request: {
             type: "input.received",
             requestId: "test-request",
             timestamp: Date.now(),
-            input: { from: "test", message: "test" },
+            input: { from: "test", message: "test" }
           },
           executionState: {
             status: "running",
             currentActivity: "initial",
-            availableInteractions: [],
+            availableInteractions: []
           },
           interactionCallbacks: new Map(),
-          abortController,
+          abortController
         };
       });
 
@@ -338,7 +327,7 @@ describe("Agent", () => {
   describe("Background Task", () => {
     it("should run background task", async () => {
       const taskCalled = mock();
-      const task = mock().mockImplementation((_signal: AbortSignal) => {
+      const task = mock().mockImplementation((signal: AbortSignal) => {
         taskCalled();
         // Task completes synchronously
       });
@@ -352,9 +341,10 @@ describe("Agent", () => {
     });
 
     it("should handle background task errors", async () => {
-      const errorMessageSpy = spyOn(agent, "errorMessage").mockImplementation(() => {});
+      const errorMessageSpy = spyOn(agent, "errorMessage").mockImplementation(() => {
+      });
 
-      const task = mock().mockImplementation((_signal: AbortSignal) => {
+      const task = mock().mockImplementation((signal: AbortSignal) => {
         throw new Error("Background task failed");
       });
 
@@ -370,21 +360,21 @@ describe("Agent", () => {
     it("should send interaction response", () => {
       // Setup: need an input item in the queue with a callback
       const resolveCallback = mock();
-      agent.mutateState(AgentEventState, state => {
+      agent.mutateState(AgentEventState, (state) => {
         state.inputQueue.push({
           request: {
             type: "input.received",
             requestId: "test-request",
             timestamp: Date.now(),
-            input: { from: "test", message: "test" },
+            input: { from: "test", message: "test" }
           },
           executionState: {
             status: "running",
             currentActivity: "test",
-            availableInteractions: [],
+            availableInteractions: []
           },
           interactionCallbacks: new Map([["test-interaction", resolveCallback]]),
-          abortController: new AbortController(),
+          abortController: new AbortController()
         });
         state.currentlyExecutingInputItem = state.inputQueue[0] ?? null;
       });
@@ -392,7 +382,7 @@ describe("Agent", () => {
       agent.sendInteractionResponse({
         requestId: "test-request",
         interactionId: "test-interaction",
-        result: "test-result",
+        result: "test-result"
       });
 
       const eventState = agent.getState(AgentEventState);

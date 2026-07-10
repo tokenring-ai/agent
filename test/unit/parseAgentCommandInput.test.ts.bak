@@ -35,7 +35,7 @@ describe("parseAgentCommandInput", () => {
       execute: () => "",
     } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-    const parsed = parseAgentCommandInput(command, '"hello world"', [], {} as any);
+    const parsed = parseAgentCommandInput(command, "\"hello world\"", [], {} as any);
 
     expect(parsed.remainder).toBe("hello world");
   });
@@ -55,7 +55,7 @@ describe("parseAgentCommandInput", () => {
       execute: () => "",
     } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-    const parsed = parseAgentCommandInput(command, '--message="hello world"', [], {} as any);
+    const parsed = parseAgentCommandInput(command, "message=\"hello world\"", [], {} as any);
 
     expect(parsed.args?.message).toBe("hello world");
   });
@@ -91,7 +91,8 @@ describe("parseAgentCommandInput", () => {
       execute: () => "",
     } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-    expect(() => parseAgentCommandInput(command, '"unterminated', [], {} as any)).toThrow("Unterminated quote");
+    expect(() => parseAgentCommandInput(command, "\"unterminated", [], {} as any))
+      .toThrow("Unterminated quote");
   });
 
   describe("Number Arguments", () => {
@@ -110,7 +111,7 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      const parsed = parseAgentCommandInput(command, "--count 42", [], {} as any);
+      const parsed = parseAgentCommandInput(command, "count=42", [], {} as any);
 
       expect(parsed.args?.count).toBe(42);
     });
@@ -130,7 +131,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "--count invalid", [], {} as any)).toThrow("must be a valid number");
+      expect(() => parseAgentCommandInput(command, "count=invalid", [], {} as any))
+        .toThrow("must be a valid number");
     });
 
     it("validates number minimum", () => {
@@ -148,7 +150,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "--count 0", [], {} as any)).toThrow("must be at least 1");
+      expect(() => parseAgentCommandInput(command, "count=0", [], {} as any))
+        .toThrow("must be at least 1");
     });
 
     it("validates number maximum", () => {
@@ -166,7 +169,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "--count 101", [], {} as any)).toThrow("must be at most 100");
+      expect(() => parseAgentCommandInput(command, "count=101", [], {} as any))
+        .toThrow("must be at most 100");
     });
   });
 
@@ -186,7 +190,7 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      const parsed = parseAgentCommandInput(command, "--name John", [], {} as any);
+      const parsed = parseAgentCommandInput(command, "name=John", [], {} as any);
 
       expect(parsed.args?.name).toBe("John");
     });
@@ -206,7 +210,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "--name Jo", [], {} as any)).toThrow("must be at least 3 characters");
+      expect(() => parseAgentCommandInput(command, "name=Jo", [], {} as any))
+        .toThrow("must be at least 3 characters");
     });
 
     it("validates string maximum length", () => {
@@ -224,7 +229,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "--name JohnDoe", [], {} as any)).toThrow("must be at most 5 characters");
+      expect(() => parseAgentCommandInput(command, "name=JohnDoe", [], {} as any))
+        .toThrow("must be at most 5 characters");
     });
   });
 
@@ -253,7 +259,9 @@ describe("parseAgentCommandInput", () => {
 
     it("throws error for missing required positional", () => {
       const inputSchema = {
-        positionals: [{ name: "first", description: "First", required: true }],
+        positionals: [
+          { name: "first", description: "First", required: true },
+        ],
       } as const satisfies AgentCommandInputSchema;
 
       const command = {
@@ -264,12 +272,15 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "", [], {} as any)).toThrow("Missing required positional first");
+      expect(() => parseAgentCommandInput(command, "", [], {} as any))
+        .toThrow("Missing required positional first");
     });
 
     it("uses default value for optional positional", () => {
       const inputSchema = {
-        positionals: [{ name: "first", description: "First", defaultValue: "default" }],
+        positionals: [
+          { name: "first", description: "First", defaultValue: "default" },
+        ],
       } as const satisfies AgentCommandInputSchema;
 
       const command = {
@@ -287,7 +298,9 @@ describe("parseAgentCommandInput", () => {
 
     it("throws error for too many positional arguments", () => {
       const inputSchema = {
-        positionals: [{ name: "first", description: "First", required: true }],
+        positionals: [
+          { name: "first", description: "First", required: true },
+        ],
       } as const satisfies AgentCommandInputSchema;
 
       const command = {
@@ -298,7 +311,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "first second", [], {} as any)).toThrow("Too many positional arguments");
+      expect(() => parseAgentCommandInput(command, "first second", [], {} as any))
+        .toThrow("Too many positional arguments");
     });
   });
 
@@ -352,7 +366,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "", [], {} as any)).toThrow("Missing required remainder message");
+      expect(() => parseAgentCommandInput(command, "", [], {} as any))
+        .toThrow("Missing required remainder message");
     });
   });
 
@@ -371,17 +386,15 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      const attachments = [
-        {
-          name: "file.txt",
-          encoding: "text" as const,
-          body: "test content",
-          mimeType: "text/plain" as const,
-        },
-      ];
+      const attachments = [{
+        name: "file.txt",
+        encoding: "text" as const,
+        body: "test content",
+        mimeType: "text/plain" as const,
+      }];
       const parsed = parseAgentCommandInput(command, "hello", attachments, {} as any);
 
-      expect(parsed.attachments as any).toEqual(attachments);
+      expect(parsed.attachments).toEqual(attachments);
     });
 
     it("throws error when attachments not allowed", () => {
@@ -398,16 +411,15 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      const attachments = [
-        {
-          name: "file.txt",
-          encoding: "text" as const,
-          body: "test content",
-          mimeType: "text/plain" as const,
-        },
-      ];
+      const attachments = [{
+        name: "file.txt",
+        encoding: "text" as const,
+        body: "test content",
+        mimeType: "text/plain" as const,
+      }];
 
-      expect(() => parseAgentCommandInput(command, "hello", attachments, {} as any)).toThrow("Attachments are not allowed");
+      expect(() => parseAgentCommandInput(command, "hello", attachments, {} as any))
+        .toThrow("Attachments are not allowed");
     });
   });
 
@@ -428,7 +440,8 @@ describe("parseAgentCommandInput", () => {
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
       // When args schema is defined, unknown arguments should throw
-      expect(() => parseAgentCommandInput(command, "--known value --unknown foo", [], {} as any)).toThrow(/Unknown argument|does not take positional/);
+      expect(() => parseAgentCommandInput(command, "known=value unknown=foo", [], {} as any))
+        .toThrow(/Unknown argument|does not take positional/);
     });
 
     it("throws error for duplicate arguments", () => {
@@ -446,7 +459,8 @@ describe("parseAgentCommandInput", () => {
         execute: () => "",
       } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-      expect(() => parseAgentCommandInput(command, "--count 1 --count 2", [], {} as any)).toThrow("was provided more than once");
+      expect(() => parseAgentCommandInput(command, "count=1 count=2", [], {} as any))
+        .toThrow("was provided more than once");
     });
 
     it("formats error messages with command usage", () => {
@@ -464,7 +478,7 @@ describe("parseAgentCommandInput", () => {
 
       try {
         parseAgentCommandInput(command, "", [], {} as any);
-        throw new Error("Should have thrown");
+        expect.fail("Should have thrown");
       } catch (error: unknown) {
         expect(error).toBeInstanceOf(CommandFailedError);
         const cmdError = error as CommandFailedError;

@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
+import { afterEach,beforeEach,describe,expect,it,mock } from "bun:test";
 import AgentCommandService from "../../services/AgentCommandService.ts";
 import type { TokenRingAgentCommand } from "../../types.ts";
 
@@ -14,7 +14,7 @@ const mockCommand: TokenRingAgentCommand = {
       name: "input",
       description: "Input",
       required: true,
-    },
+    }
   },
   execute: mock().mockResolvedValue("success"),
   help: "Mock help text",
@@ -28,7 +28,7 @@ const mockChatCommand: TokenRingAgentCommand = {
       name: "input",
       description: "Input",
       required: true,
-    },
+    }
   },
   execute: mock().mockResolvedValue("chat success"),
   help: "Chat help text",
@@ -96,7 +96,7 @@ describe("AgentCommandService", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock(),
         help: "Test 1 help",
@@ -110,7 +110,7 @@ describe("AgentCommandService", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock(),
         help: "Test 2 help",
@@ -133,7 +133,7 @@ describe("AgentCommandService", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock(),
         help: "New help",
@@ -154,7 +154,7 @@ describe("AgentCommandService", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock(),
         help: "Alias help",

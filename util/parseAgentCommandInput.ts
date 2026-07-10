@@ -162,7 +162,7 @@ function findMatchingArgument(
     if (strippedToken.startsWith(prefix)) {
       return {
         name: argumentName,
-        value: token.slice(prefix.length),
+        value: strippedToken.slice(prefix.length),
       };
     }
   }

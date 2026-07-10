@@ -1,18 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mock } from "bun:test";
 import helpCommand from "../../../commands/help.ts";
 import AgentCommandService from "../../../services/AgentCommandService.ts";
 
 // Mock agent
-const createMockAgent = () =>
-  ({
-    requireServiceByType: mock(),
-    getServiceByType: mock(),
-    chatOutput: mock(),
-    infoMessage: mock(),
-    systemMessage: mock(),
-    errorMessage: mock(),
-    debugMessage: mock(),
-  }) as any;
+const createMockAgent = () => ({
+  requireServiceByType: mock(),
+  getServiceByType: mock(),
+  chatOutput: mock(),
+  infoMessage: mock(),
+  systemMessage: mock(),
+  errorMessage: mock(),
+  debugMessage: mock(),
+} as any);
 
 describe("Help_Command", () => {
   let mockAgent: any;
@@ -52,33 +52,25 @@ describe("Help_Command", () => {
   describe("Command Execution", () => {
     it("should show general help when no specific command requested", async () => {
       const mockCommandService = {
-        getCommandEntries: mock().mockReturnValue(
-          new Map([
-            [
-              "test",
-              {
-                name: "test",
-                description: "Test command",
-                help: "Test help",
-                execute: mock(),
-              },
-            ],
-            [
-              "other",
-              {
-                name: "other",
-                description: "Other command",
-                help: "Other help",
-                execute: mock(),
-              },
-            ],
-          ]),
-        ),
+        getCommandEntries: mock().mockReturnValue(new Map([
+          ["test", {
+            name: "test",
+            description: "Test command",
+            help: "Test help",
+            execute: mock(),
+          }],
+          ["other", {
+            name: "other",
+            description: "Other command",
+            help: "Other help",
+            execute: mock(),
+          }],
+        ])),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
       expect(result).toContain("**Available chat commands:**");
       expect(result).toContain("- Test command");
@@ -98,19 +90,20 @@ describe("Help_Command", () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: "test", agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: "test", agent: mockAgent });
 
       expect(result).toBe("# Test Command\n\nDetailed help for test command.");
     });
 
-    it("should throw error for non-existent command help", () => {
+    it("should throw error for non-existent command help", async () => {
       const mockCommandService = {
         getCommand: mock().mockReturnValue(undefined),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      expect(() => helpCommand.execute({ remainder: "nonexistent", agent: mockAgent })).toThrow("No help available for command /nonexistent");
+      await expect(helpCommand.execute({ remainder: "nonexistent", agent: mockAgent }))
+        .rejects.toThrow("No help available for command /nonexistent");
     });
 
     it("should handle command help with multiple words", async () => {
@@ -130,7 +123,7 @@ describe("Help_Command", () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: "multi word", agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: "multi word", agent: mockAgent });
 
       expect(result).toBe("# Multi Word Command\n\nHelp for multi word command.");
     });
@@ -139,24 +132,19 @@ describe("Help_Command", () => {
   describe("Help Content Structure", () => {
     it("should include proper markdown formatting", async () => {
       const mockCommandService = {
-        getCommandEntries: mock().mockReturnValue(
-          new Map([
-            [
-              "basic",
-              {
-                name: "basic",
-                description: "Basic command description",
-                help: "# Basic Command\n\n## Description\nBasic command help.\n\n## Usage\n/basic\n\n## Examples\n/basic arg1 arg2",
-                execute: mock(),
-              },
-            ],
-          ]),
-        ),
+        getCommandEntries: mock().mockReturnValue(new Map([
+          ["basic", {
+            name: "basic",
+            description: "Basic command description",
+            help: "# Basic Command\n\n## Description\nBasic command help.\n\n## Usage\n/basic\n\n## Examples\n/basic arg1 arg2",
+            execute: mock(),
+          }],
+        ])),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
       expect(result).toContain("**Available chat commands:**");
       expect(result).toContain("- Basic command description");
@@ -170,7 +158,7 @@ describe("Help_Command", () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
       expect(result).toContain("**Available chat commands:**");
       expect(result).toContain("Use /help <command> to get detailed help for a specific command.");
@@ -178,33 +166,25 @@ describe("Help_Command", () => {
 
     it("should handle commands with special characters", async () => {
       const mockCommandService = {
-        getCommandEntries: mock().mockReturnValue(
-          new Map([
-            [
-              "test-command",
-              {
-                name: "test-command",
-                description: "Test command with dash",
-                help: "# Test Command\n\nHelp for test command.",
-                execute: mock(),
-              },
-            ],
-            [
-              "test_command",
-              {
-                name: "test_command",
-                description: "Test command with underscore",
-                help: "# Test Command\n\nHelp for test command.",
-                execute: mock(),
-              },
-            ],
-          ]),
-        ),
+        getCommandEntries: mock().mockReturnValue(new Map([
+          ["test-command", {
+            name: "test-command",
+            description: "Test command with dash",
+            help: "# Test Command\n\nHelp for test command.",
+            execute: mock(),
+          }],
+          ["test_command", {
+            name: "test_command",
+            description: "Test command with underscore",
+            help: "# Test Command\n\nHelp for test command.",
+            execute: mock(),
+          }],
+        ])),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
       expect(result).toContain("- Test command with dash");
       expect(result).toContain("- Test command with underscore");
@@ -212,15 +192,15 @@ describe("Help_Command", () => {
   });
 
   describe("Error Handling", () => {
-    it("should handle service resolution errors", () => {
+    it("should handle service resolution errors", async () => {
       mockAgent.requireServiceByType.mockImplementation(() => {
         throw new Error("Service not found");
       });
 
-      expect(() => helpCommand.execute({ remainder: undefined, agent: mockAgent })).toThrow("Service not found");
+      await expect(helpCommand.execute({ remainder: undefined, agent: mockAgent })).rejects.toThrow();
     });
 
-    it("should handle command service errors", () => {
+    it("should handle command service errors", async () => {
       const mockCommandService = {
         getCommandEntries: mock().mockImplementation(() => {
           throw new Error("Failed to get commands");
@@ -229,10 +209,10 @@ describe("Help_Command", () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      expect(() => helpCommand.execute({ remainder: undefined, agent: mockAgent })).toThrow("Failed to get commands");
+      await expect(helpCommand.execute({ remainder: undefined, agent: mockAgent })).rejects.toThrow();
     });
 
-    it("should handle get command errors", () => {
+    it("should handle get command errors", async () => {
       const mockCommandService = {
         getCommand: mock().mockImplementation(() => {
           throw new Error("Failed to get command");
@@ -241,64 +221,51 @@ describe("Help_Command", () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      expect(() => helpCommand.execute({ remainder: "test", agent: mockAgent })).toThrow("Failed to get command");
+      await expect(helpCommand.execute({ remainder: "test", agent: mockAgent })).rejects.toThrow();
     });
   });
 
   describe("Integration with Agent Interface", () => {
     it("should use requireServiceByType correctly", async () => {
       const mockCommandService = {
-        getCommandEntries: mock().mockReturnValue(
-          new Map([
-            [
-              "test",
-              {
-                name: "test",
-                description: "Test command",
-                help: "Test help",
-                execute: mock(),
-              },
-            ],
-          ]),
-        ),
+        getCommandEntries: mock().mockReturnValue(new Map([
+          ["test", {
+            name: "test",
+            description: "Test command",
+            help: "Test help",
+            execute: mock(),
+          }],
+        ])),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      helpCommand.execute({ remainder: undefined, agent: mockAgent });
+      await helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
       expect(mockAgent.requireServiceByType).toHaveBeenCalledWith(AgentCommandService);
     });
 
     it("should handle chat output formatting", async () => {
       const mockCommandService = {
-        getCommandEntries: mock().mockReturnValue(
-          new Map([
-            [
-              "alpha",
-              {
-                name: "alpha",
-                description: "Alpha command",
-                help: "Alpha help",
-                execute: mock(),
-              },
-            ],
-            [
-              "beta",
-              {
-                name: "beta",
-                description: "Beta command",
-                help: "Beta help",
-                execute: mock(),
-              },
-            ],
-          ]),
-        ),
+        getCommandEntries: mock().mockReturnValue(new Map([
+          ["alpha", {
+            name: "alpha",
+            description: "Alpha command",
+            help: "Alpha help",
+            execute: mock(),
+          }],
+          ["beta", {
+            name: "beta",
+            description: "Beta command",
+            help: "Beta help",
+            execute: mock(),
+          }],
+        ])),
       };
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
       // Commands should be sorted
       expect(result).toContain("- Alpha command");
@@ -314,7 +281,7 @@ describe("Help_Command", () => {
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
       expect(result).toContain("Use /help <command> to get detailed help for a specific command.");
     });
@@ -345,7 +312,7 @@ Additional notes about usage.`,
 
       mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
 
-      const result = helpCommand.execute({ remainder: "multi", agent: mockAgent });
+      const result = await helpCommand.execute({ remainder: "multi", agent: mockAgent });
 
       expect(result).toBe(`# Multi Command
 

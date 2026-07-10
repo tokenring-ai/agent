@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
+import { afterEach,beforeEach,describe,expect,it,mock } from "bun:test";
 import { AgentConfigSchema } from "../../schema.ts";
 import AgentManager from "../../services/AgentManager.ts";
 import { AgentEventState } from "../../state/agentEventState.ts";
@@ -41,9 +41,6 @@ describe("AgentManager.subscribeAgentsAsync", () => {
   });
 
   afterEach(() => {
-    for (const agent of manager.getAgents()) {
-      manager.deleteAgent(agent.id, "test cleanup");
-    }
   });
 
   it("yields the current agent list immediately", async () => {

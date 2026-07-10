@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import type TokenRingApp from "@tokenring-ai/app";
+import TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService";
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { AfterAgentInputSuccess, BeforeAgentInput, HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
+import { afterEach,beforeEach,describe,expect,it,mock } from "bun:test";
 import Agent from "../../Agent.ts";
 import { AgentConfigSchema } from "../../schema";
 import AgentCommandService from "../../services/AgentCommandService.ts";
@@ -42,7 +42,7 @@ describe("Agent Integration Tests", () => {
     lifecycleService = new AgentLifecycleService({
       agentDefaults: {
         enabledHooks: [],
-      },
+      }
     });
     manager = new AgentManager(app);
 
@@ -67,7 +67,7 @@ describe("Agent Integration Tests", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock().mockResolvedValue("Command executed"),
         help: "Test command help",
@@ -89,7 +89,7 @@ describe("Agent Integration Tests", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock().mockResolvedValue("Chat handled"),
         help: "Chat help",
@@ -109,7 +109,8 @@ describe("Agent Integration Tests", () => {
     it("should handle unknown commands gracefully", async () => {
       // Note: executeAgentCommand requires an executing input item
       // We'll test the command service directly instead
-      expect(commandService.executeAgentCommand(agent, "/unknown command")).rejects.toThrow();
+      await expect(commandService.executeAgentCommand(agent, "/unknown command"))
+        .rejects.toThrow();
     });
   });
 
@@ -121,7 +122,10 @@ describe("Agent Integration Tests", () => {
         name: "test-hook",
         displayName: "Test Hook",
         description: "Test hook for integration",
-        callbacks: [new HookCallback(BeforeAgentInput, mock()), new HookCallback(AfterAgentInputSuccess, mock())],
+        callbacks: [
+          new HookCallback(BeforeAgentInput, mock()),
+          new HookCallback(AfterAgentInputSuccess, mock()),
+        ],
       };
 
       lifecycleService.registerHook("test", testHook);
@@ -134,13 +138,16 @@ describe("Agent Integration Tests", () => {
         type: "input.received" as const,
         requestId: "test-request",
         timestamp: Date.now(),
-        input: { from: "test", message: "test message" },
+        input: { from: "test", message: "test message" }
       };
 
       await lifecycleService.executeHooks(new BeforeAgentInput(requestData), agent);
 
       const callback = testHook.callbacks.find(c => c.hookConstructor === BeforeAgentInput);
-      expect(callback?.callback).toHaveBeenCalledWith(expect.any(BeforeAgentInput), agent);
+      expect(callback?.callback).toHaveBeenCalledWith(
+        expect.any(BeforeAgentInput),
+        agent
+      );
     });
 
     it("should handle hook execution in agent context", async () => {
@@ -159,13 +166,16 @@ describe("Agent Integration Tests", () => {
         type: "input.received" as const,
         requestId: "test-request",
         timestamp: Date.now(),
-        input: { from: "test", message: "test" },
+        input: { from: "test", message: "test" }
       };
 
       await lifecycleService.executeHooks(new AfterAgentInputSuccess(requestData, responseData), agent);
 
       const callback = testHook.callbacks.find(c => c.hookConstructor === AfterAgentInputSuccess);
-      expect(callback?.callback).toHaveBeenCalledWith(expect.any(AfterAgentInputSuccess), agent);
+      expect(callback?.callback).toHaveBeenCalledWith(
+        expect.any(AfterAgentInputSuccess),
+        agent
+      );
     });
 
     it("should manage hook state correctly", () => {
@@ -191,7 +201,7 @@ describe("Agent Integration Tests", () => {
     it("should create agents through manager", async () => {
       manager.addAgentConfigs(mockConfig);
 
-      const managedAgent = manager.spawnAgent({ agentType: "integration-test", headless: true });
+      const managedAgent = await manager.spawnAgent({ agentType: "integration-test", headless: true });
 
       expect(managedAgent).toBeInstanceOf(Agent);
       expect(managedAgent.config.displayName).toBe("Integration Test Agent");
@@ -200,8 +210,8 @@ describe("Agent Integration Tests", () => {
     it("should handle sub-agent creation", async () => {
       manager.addAgentConfigs(mockConfig);
 
-      const subAgent = manager.spawnSubAgent(agent, "integration-test", {
-        headless: true,
+      const subAgent = await manager.spawnSubAgent(agent, "integration-test", {
+        headless: true
       });
 
       expect(subAgent).toBeInstanceOf(Agent);
@@ -252,7 +262,11 @@ describe("Agent Integration Tests", () => {
 
       const historyState = agent.getState(CommandHistoryState);
       expect(historyState.commands).toHaveLength(3);
-      expect(historyState.commands).toEqual(["message 1", "message 2", "message 3"]);
+      expect(historyState.commands).toEqual([
+        "message 1",
+        "message 2",
+        "message 3",
+      ]);
     });
   });
 
@@ -266,7 +280,7 @@ describe("Agent Integration Tests", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock().mockRejectedValue(new Error("Command failed")),
         help: "Failing help",
@@ -275,7 +289,8 @@ describe("Agent Integration Tests", () => {
       commandService.addAgentCommands(failingCommand);
 
       // First call should fail
-      expect(commandService.executeAgentCommand(agent, "/fail")).rejects.toThrow();
+      await expect(commandService.executeAgentCommand(agent, "/fail"))
+        .rejects.toThrow();
 
       // Second call should still work (but will fail due to missing input item)
       const workingCommand = {
@@ -286,7 +301,7 @@ describe("Agent Integration Tests", () => {
             name: "input",
             description: "Input",
             required: true,
-          },
+          }
         },
         execute: mock().mockResolvedValue("Success"),
         help: "Working help",
@@ -296,7 +311,8 @@ describe("Agent Integration Tests", () => {
 
       // The command service will throw because there's no executing input item
       // This is expected behavior - the command service requires an input item to be executing
-      expect(commandService.executeAgentCommand(agent, "/work")).rejects.toThrow("Cannot get abort signal");
+      await expect(commandService.executeAgentCommand(agent, "/work"))
+        .rejects.toThrow("Cannot get abort signal");
       expect(workingCommand.execute).not.toHaveBeenCalled();
     });
 

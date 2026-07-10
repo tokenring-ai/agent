@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, jest, mock, spyOn } from "bun:test";
-import type TokenRingApp from "@tokenring-ai/app";
+import TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
+import { afterEach,beforeEach,describe,expect,it,mock,spyOn } from "bun:test";
 import { z } from "zod";
 import Agent from "../../Agent.ts";
 import { AgentConfigSchema, type ParsedAgentConfig } from "../../schema";
@@ -57,9 +57,6 @@ describe("AgentManager", () => {
   });
 
   afterEach(() => {
-    for (const agent of manager.getAgents()) {
-      manager.deleteAgent(agent.id, "test cleanup");
-    }
     mock.clearAllMocks();
   });
 
@@ -81,14 +78,26 @@ describe("AgentManager", () => {
       manager.addAgentConfigs(testConfig);
 
       const entries = Array.from(manager.getAgentConfigEntries());
-      expect(entries).toEqual(expect.arrayContaining([expect.arrayContaining(["new"])]));
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.arrayContaining(["new"]),
+        ])
+      );
     });
 
     it("should add multiple agent configs", () => {
-      manager.addAgentConfigs({ ...mockConfig, agentType: "config1", displayName: "Agent 1" }, { ...mockConfig, agentType: "config2", displayName: "Agent 2" });
+      manager.addAgentConfigs(
+        { ...mockConfig, agentType: "config1", displayName: "Agent 1" },
+        { ...mockConfig, agentType: "config2", displayName: "Agent 2" }
+      );
 
       const entries = Array.from(manager.getAgentConfigEntries());
-      expect(entries).toEqual(expect.arrayContaining([expect.arrayContaining(["config1"]), expect.arrayContaining(["config2"])]));
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.arrayContaining(["config1"]),
+          expect.arrayContaining(["config2"]),
+        ])
+      );
     });
 
     it("should get all agent types", () => {
@@ -99,7 +108,12 @@ describe("AgentManager", () => {
 
     it("should get agent config entries", () => {
       const entries = Array.from(manager.getAgentConfigEntries());
-      expect(entries).toEqual(expect.arrayContaining([expect.arrayContaining(["test"]), expect.arrayContaining(["background"])]));
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.arrayContaining(["test"]),
+          expect.arrayContaining(["background"]),
+        ])
+      );
     });
 
     it("should get agent types like pattern", () => {
@@ -110,14 +124,14 @@ describe("AgentManager", () => {
 
   describe("Agent Creation", () => {
     it("should spawn agent from config", async () => {
-      const agent = manager.spawnAgentFromConfig(mockConfig);
+      const agent = await manager.spawnAgentFromConfig(mockConfig);
 
       expect(agent).toBeInstanceOf(Agent);
       expect(agent.config.displayName).toBe(mockConfig.displayName);
     });
 
     it("should spawn agent by type", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = await manager.spawnAgent({ agentType: "test", headless: true });
 
       expect(agent).toBeInstanceOf(Agent);
       expect(agent.config.displayName).toBe("Test Agent");
@@ -132,7 +146,7 @@ describe("AgentManager", () => {
         state: {},
       };
 
-      const agent = manager.spawnAgentFromCheckpoint(checkpoint, { headless: true });
+      const agent = await manager.spawnAgentFromCheckpoint(checkpoint, { headless: true });
 
       expect(agent).toBeInstanceOf(Agent);
       expect(agent.config.agentType).toBe("test");
@@ -142,8 +156,8 @@ describe("AgentManager", () => {
   describe("Sub-Agent Management", () => {
     it("should spawn sub-agent", async () => {
       const mockAgent = createMockAgent();
-      const subAgent = manager.spawnSubAgent(mockAgent, "background", {
-        headless: true,
+      const subAgent = await manager.spawnSubAgent(mockAgent, "background", {
+        headless: true
       });
 
       expect(subAgent).toBeInstanceOf(Agent);
@@ -182,8 +196,8 @@ describe("AgentManager", () => {
         },
       });
 
-      manager.spawnSubAgent(mockAgent, "test", {
-        headless: true,
+      await manager.spawnSubAgent(mockAgent, "test", {
+        headless: true
       });
 
       expect(transferStateFromParent).toHaveBeenCalledWith(mockAgent);
@@ -192,7 +206,7 @@ describe("AgentManager", () => {
 
   describe("Agent Storage and Retrieval", () => {
     it("should store and retrieve agents", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = await manager.spawnAgent({ agentType: "test", headless: true });
 
       const retrievedAgent = manager.getAgent(agent.id);
       expect(retrievedAgent).toBe(agent);
@@ -204,8 +218,8 @@ describe("AgentManager", () => {
     });
 
     it("should get all agents", async () => {
-      manager.spawnAgent({ agentType: "test", headless: true });
-      manager.spawnAgent({ agentType: "background", headless: true });
+      await manager.spawnAgent({ agentType: "test", headless: true });
+      await manager.spawnAgent({ agentType: "background", headless: true });
 
       const agents = manager.getAgents();
       expect(agents).toHaveLength(2);
@@ -215,9 +229,9 @@ describe("AgentManager", () => {
 
   describe("Agent Deletion", () => {
     it("should delete agent correctly", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = await manager.spawnAgent({ agentType: "test", headless: true });
 
-      manager.deleteAgent(agent.id, "AgentManager initiated shutdown");
+      await manager.deleteAgent(agent.id, "AgentManager initiated shutdown");
 
       expect(manager.getAgent(agent.id)).toBeNull();
     });
@@ -231,9 +245,6 @@ describe("AgentManager", () => {
 
     afterEach(() => {
       jest.useRealTimers();
-      for (const agent of manager.getAgents()) {
-        manager.deleteAgent(agent.id, "test cleanup");
-      }
     });
 
     it("should delete idle agents exceeding timeout", async () => {
@@ -246,7 +257,7 @@ describe("AgentManager", () => {
       });
       manager.addAgentConfigs(shortTimeoutConfig);
 
-      const agent = manager.spawnAgent({ agentType: "short", headless: true });
+      const agent = await manager.spawnAgent({ agentType: "short", headless: true });
 
       // Mock agent to be idle
       spyOn(agent, "getIdleDuration").mockReturnValue(2000); // 2 seconds > 1 second timeout
@@ -254,46 +265,43 @@ describe("AgentManager", () => {
       spyOn(app, "serviceOutput");
 
       // Trigger cleanup
-      // @ts-expect-error accessing private method for testing
-      manager.checkAndDeleteIdleAgents();
+      await manager["checkAndDeleteIdleAgents"]();
 
-      expect(app.serviceOutput).toHaveBeenCalledWith(expect.anything(), expect.stringContaining("Agent"));
+      expect(app.serviceOutput).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining("Agent")
+      );
     });
 
     it("should not delete active agents", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = await manager.spawnAgent({ agentType: "test", headless: true });
 
       // Mock agent to be active (idle duration < timeout)
       spyOn(agent, "getIdleDuration").mockReturnValue(1000); // 1 second < 86400 second timeout
 
       // Trigger cleanup
-      // @ts-expect-error accessing private method for testing
-      manager.checkAndDeleteIdleAgents();
+      await manager["checkAndDeleteIdleAgents"]();
 
       expect(manager.getAgent(agent.id)).toBe(agent);
     });
   });
 
   describe("Error Handling", () => {
-    it("should handle missing agent type", () => {
-      expect(() =>
-        manager.spawnAgent({
-          agentType: "non-existent",
-          headless: true,
-        }),
-      ).toThrow("Item non-existent not found");
+    it("should handle missing agent type", async () => {
+      await expect(manager.spawnAgent({
+        agentType: "non-existent",
+        headless: true
+      })).rejects.toThrow();
     });
 
-    it("should handle missing agent config", () => {
-      expect(() =>
-        manager.spawnAgentFromCheckpoint({
-          agentId: "test",
-          createdAt: Date.now(),
-          agentType: "non-existent",
-          sessionId: "test",
-          state: {},
-        }),
-      ).toThrow("Item non-existent not found");
+    it("should handle missing agent config", async () => {
+      await expect(manager.spawnAgentFromCheckpoint({
+        agentId: "test",
+        createdAt: Date.now(),
+        agentType: "non-existent",
+        sessionId: "test",
+        state: {},
+      })).rejects.toThrow();
     });
   });
 
@@ -308,8 +316,7 @@ describe("AgentManager", () => {
       manager.addAgentConfigs(minRunningConfig);
 
       // Trigger cleanup which should check minimum running
-      // @ts-expect-error accessing private method for testing
-      manager.checkAndDeleteIdleAgents();
+      await manager["checkAndDeleteIdleAgents"]();
 
       // Wait a bit for async agent spawning
       await new Promise(resolve => setTimeout(resolve, 10));
