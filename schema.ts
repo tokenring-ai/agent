@@ -52,16 +52,16 @@ export type ParsedAgentCommandConfig = z.output<typeof AgentCommandConfigSchema>
 
 export const AgentConfigSchema = z.object({
   agentType: z.string(),
-  displayName: z.string(),
-  description: z.string(),
-  category: z.string(),
-  debug: z.boolean().default(false),
-  initialCommands: z.array(z.string()).default([]),
-  createMessage: z.string().default("Agent Created"),
-  headless: z.boolean().default(false),
-  minimumRunning: z.number().default(0),
-  idleTimeout: z.number().default(0), // In seconds
-  maxRunTime: z.number().default(0), // In seconds
+  displayName: z.string().meta({ description: "Human-readable name shown in agent pickers" }),
+  description: z.string().meta({ description: "What this agent type is for" }),
+  category: z.string().meta({ description: "Group this agent type appears under in pickers" }),
+  debug: z.boolean().default(false).meta({ advanced: true, description: "Log extra diagnostic output for this agent type" }),
+  initialCommands: z.array(z.string()).default([]).meta({ description: "Commands run automatically when an agent of this type starts" }),
+  createMessage: z.string().default("Agent Created").meta({ advanced: true, description: "Message logged when an agent of this type is created" }),
+  headless: z.boolean().default(false).meta({ description: "Run without an interactive chat surface" }),
+  minimumRunning: z.number().min(0).default(0).meta({ description: "Keep at least this many agents of this type running" }),
+  idleTimeout: z.number().min(0).default(0).meta({ unit: "s", description: "Shut idle agents down after this long (0 disables)" }),
+  maxRunTime: z.number().min(0).default(0).meta({ unit: "s", description: "Hard limit on agent runtime (0 disables)" }),
 });
 
 export const AgentPackageConfigSchema = z.object({
@@ -72,8 +72,12 @@ export const AgentPackageConfigSchema = z.object({
         agentType: true,
       }).loose(),
     )
-    .default({}),
-  commands: z.record(z.string(), AgentCommandConfigSchema).default({}),
+    .default({})
+    .meta({ label: "Agent Types", description: "Agent type definitions, keyed by type name" }),
+  commands: z
+    .record(z.string(), AgentCommandConfigSchema)
+    .default({})
+    .meta({ label: "Agent Commands", description: "Reusable multi-step commands, keyed by command name" }),
 });
 
 export type AgentPackageConfig = z.input<typeof AgentPackageConfigSchema>;
