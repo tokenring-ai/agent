@@ -3,12 +3,12 @@ import { QuestionSchema } from "./question.ts";
 
 export const BaseTextEventSchema = z.object({
   message: z.string(),
-  details: z.array(z.string()).exactOptional(),
   timestamp: z.number(),
 });
 
 export const AgentCreatedSchema = BaseTextEventSchema.extend({
   type: z.literal("agent.created"),
+  details: z.array(z.string()).exactOptional(),
 });
 
 export const AgentStoppedSchema = BaseTextEventSchema.extend({
@@ -90,11 +90,21 @@ export type ParsedToolCallAttachment = z.output<typeof ToolCallAttachmentSchema>
 export const ToolCallResultSchema = z.object({
   type: z.literal("toolCall"),
   timestamp: z.number(),
-  name: z.string(),
-  args: z.record(z.string(), z.unknown()),
-  summary: z.string(), //Markdown string, i.e. Bash(ls -la foo)
-  result: z.string(),
-  actions: z.array(z.string()).exactOptional(), // Markdown list of items
+  name: z.string().describe("The exact name of the tool that was called"),
+  args: z.record(z.string(), z.json()).describe("The arguments passed to the tool"),
+  message: z
+    .string()
+    .describe('A single line markdown string, with a bolded intent at the beginning, that summarizes what was done i.e. "**File** Read 3 files"'),
+  actions: z
+    .array(z.string())
+    .exactOptional()
+    .describe(
+      "An itemized list of actions taken, which is displayed as a list under the item in verbose mode." +
+        'Should not included the bolded intent, i.e. ["Read a.txt", "Read b.txt", "Read c.txt"]',
+    ),
+  failed: z.boolean().default(false).describe("Whether the tool call soft-failed, i.e. was not called properly or returned not-useful results"),
+  result: z.string().describe("The result of the tool call, sent to the LLM"),
+  summary: z.never().exactOptional(),
   attachments: z.array(ToolCallAttachmentSchema).exactOptional(),
 });
 

@@ -38,7 +38,6 @@ bun add @tokenring-ai/agent
 ## Dev Dependencies
 
 - `typescript` - TypeScript language support
-- `vitest` - Testing framework
 
 ## Package Exports
 

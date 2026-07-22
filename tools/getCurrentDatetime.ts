@@ -11,12 +11,15 @@ export function execute(_args: z.output<typeof inputSchema>, _agent: Agent): Tok
   const now = new Date();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  return `
+  return {
+    message: "**Retrieved** current date & time",
+    result: `
 Date: ${now.toLocaleDateString("en-US")} 
 Time: ${now.toLocaleTimeString("en-US")} 
 Day of Week: ${DAYS[now.getDay()]} 
 Timezone: ${timezone}
-  `;
+  `,
+  };
 }
 
 const description =

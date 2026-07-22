@@ -13,13 +13,16 @@ export async function execute({ seconds }: z.output<typeof inputSchema>, _agent:
   const now = new Date();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  return `
+  return {
+    message: `**Slept** ${seconds}s`,
+    result: `
 Slept for ${seconds} seconds.
 Current Date: ${now.toLocaleDateString("en-US")}
 Current Time: ${now.toLocaleTimeString("en-US")}
 Day of Week: ${DAYS[now.getDay()]}
 Timezone: ${timezone}
-  `;
+  `,
+  };
 }
 
 const description =

@@ -169,8 +169,22 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
   }
 
   serialize(): z.output<typeof serializationSchema> {
+    const compressedEvents: AgentEventEnvelope[] = [];
+    let lastEvent: AgentEventEnvelope | undefined;
+
+    for (const event of this.events) {
+      if (event.type === "output.chat" || event.type === "output.reasoning") {
+        if (lastEvent?.type === event.type) {
+          lastEvent.message += event.message;
+          continue;
+        }
+      }
+
+      compressedEvents.push((lastEvent = event));
+    }
+
     return {
-      events: this.events,
+      events: compressedEvents,
     };
   }
 

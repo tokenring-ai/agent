@@ -1,4 +1,5 @@
 import type TokenRingApp from "@tokenring-ai/app";
+import type Agent from "../Agent.ts";
 import { AgentManager } from "../index.ts";
 import type { AgentStateSlice } from "../types.ts";
 
@@ -10,7 +11,7 @@ export type StateSubscribable<Slice> = {
 
 export type CreateAgentStateSliceStreamOptions<Slice, Projection> = {
   SliceClass: new (...args: any[]) => Slice;
-  project: (state: Slice) => Projection;
+  project: (state: Slice, agent: Agent) => Projection;
   equals?: (a: Projection, b: Projection) => boolean;
 };
 
@@ -27,7 +28,7 @@ export function createAgentStateSliceStream<Slice extends AgentStateSlice<any>, 
     let last: Result | undefined;
 
     for await (const slice of agent.subscribeStateAsync(opts.SliceClass, signal)) {
-      const data = opts.project(slice);
+      const data = opts.project(slice, agent);
       if (last !== undefined && opts.equals?.(last, data)) {
         continue;
       }

@@ -16,7 +16,10 @@ const inputSchema = z.object({
 export function execute({ reason }: z.output<typeof inputSchema>, agent: Agent): TokenRingToolResult {
   agent.abortCurrentOperation(`Agent decided to call the give_up tool, indicating that the task could not be completed.
 Reason: ${reason}`);
-  return `Immediately stop what you are doing, and wait for input from the user on what to do next.`;
+  return {
+    message: `**Gave up** ${reason}`,
+    result: `Immediately stop what you are doing, and wait for input from the user on what to do next.`,
+  };
 }
 
 export default {
