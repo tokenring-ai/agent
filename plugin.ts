@@ -45,5 +45,5 @@ export default {
       agentCommandService.addAgentCommands(createAgentCommand(name, commandConfig));
     }
   },
-  config: AgentPackageConfigSchema,
+  configSchema: AgentPackageConfigSchema,
 } satisfies TokenRingPlugin<typeof AgentPackageConfigSchema>;
