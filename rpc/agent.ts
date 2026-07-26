@@ -1,5 +1,6 @@
 import type TokenRingApp from "@tokenring-ai/app";
 import { createRPCEndpoint } from "@tokenring-ai/rpc/createRPCEndpoint";
+import EnhancedMap from "@tokenring-ai/utility/map/enhancedMap";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import AgentManager from "../services/AgentManager.ts";
 import { projectAgentList } from "../services/projectAgentList.ts";
@@ -148,7 +149,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
       return { status: "agentNotFound" };
     }
     const commandService = agent.requireServiceByType(AgentCommandService);
-    const uniqueCommands = new Map<string, { name: string; description: string }>();
+    const uniqueCommands = new EnhancedMap<string, { name: string; description: string }>();
     for (const [, command] of commandService.getCommandEntries()) {
       uniqueCommands.set(command.name, {
         name: command.name,
@@ -157,7 +158,7 @@ export default createRPCEndpoint(AgentRpcSchema, {
     }
     return {
       status: "success",
-      commands: Array.from(uniqueCommands.values()).sort((l, r) => l.name.localeCompare(r.name)),
+      commands: uniqueCommands.sortedValues((l, r) => l.name.localeCompare(r.name)),
     };
   },
 });

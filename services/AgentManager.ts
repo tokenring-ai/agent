@@ -1,6 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
+import EnhancedMap from "@tokenring-ai/utility/map/enhancedMap";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import { deepEquals } from "bun";
 import Agent from "../Agent.ts";
@@ -14,9 +15,9 @@ export default class AgentManager implements TokenRingService {
   readonly name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
   private readonly cleanupCheckIntervalMs = 15000;
-  private agents = new Map<string, { agent: Agent; shutdownController: AbortController }>();
+  private agents = new EnhancedMap<string, { agent: Agent; shutdownController: AbortController }>();
   private agentListeners = new Set<() => void>();
-  private agentStateUnsubscribers = new Map<string, () => void>();
+  private agentStateUnsubscribers = new EnhancedMap<string, () => void>();
   private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
   getAgentConfigEntries = this.agentConfigRegistry.entriesArray;
   getAgentConfig = this.agentConfigRegistry.get;
@@ -167,7 +168,7 @@ export default class AgentManager implements TokenRingService {
   }
 
   getAgents(): Agent[] {
-    return Array.from(this.agents.values()).map(({ agent }) => agent);
+    return this.agents.mapValues(({ agent }) => agent);
   }
 
   getAgent(id: string): Agent | null {
@@ -225,12 +226,12 @@ export default class AgentManager implements TokenRingService {
   }
 
   private untrackAgentState(agentId: string) {
-    this.agentStateUnsubscribers.get(agentId)?.();
-    this.agentStateUnsubscribers.delete(agentId);
+    const callback = this.agentStateUnsubscribers.deleteAndReturnItem(agentId);
+    callback?.();
   }
 
   private checkAndDeleteIdleAgents() {
-    for (const [agentId, { agent }] of this.agents.entries()) {
+    for (const [agentId, { agent }] of this.agents) {
       const idleTimeout = agent.config.idleTimeout;
       const maxRunTime = agent.config.maxRunTime;
       if (idleTimeout && agent.getIdleDuration() > idleTimeout * 1000) {

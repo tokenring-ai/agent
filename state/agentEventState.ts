@@ -94,16 +94,6 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
             } else {
               throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
             }
-
-            /*const inputQueueItem = this.inputQueue.find(item => item.request.requestId === event.requestId);
-      if (inputQueueItem) {
-        inputQueueItem.executionState.status = event.status;
-        inputQueueItem.executionState.currentActivity = event.currentActivity ?? inputQueueItem.executionState.currentActivity;
-        inputQueueItem.executionState.availableInteractions = event.availableInteractions ?? inputQueueItem.executionState.availableInteractions;
-      } else {
-        throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
-      }*/
-            //this.currentActivity = this.currentlyExecutingInputItem?.executionState.currentActivity ?? this.currentActivity
           }
           this.pushAgentStatus();
         }
@@ -228,7 +218,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
       }
     }
 
-    for (const requestId of receivedEvents.values()) {
+    for (const requestId of receivedEvents) {
       this.emit({
         type: "agent.response",
         requestId: requestId,

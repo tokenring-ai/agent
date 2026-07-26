@@ -1,3 +1,4 @@
+import EnhancedSet from "@tokenring-ai/utility/set/enhancedSet";
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService";
@@ -93,7 +94,7 @@ describe("AgentLifecycleService", () => {
       service.setEnabledHooks(["test-hook"], mockAgent);
 
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks).toEqual(new Set(["test-hook"]));
+      expect(enabledHooks).toEqual(new EnhancedSet(["test-hook"]));
     });
 
     it("should set enabled hooks", () => {
@@ -117,7 +118,7 @@ describe("AgentLifecycleService", () => {
       service.disableHooks(["test-hook"], mockAgent);
 
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks).toEqual(new Set(["another-hook"]));
+      expect(enabledHooks).toEqual(new EnhancedSet(["another-hook"]));
     });
 
     it("should not duplicate enabled hooks", () => {
@@ -341,7 +342,7 @@ describe("AgentLifecycleService", () => {
       service.attach(mockAgent);
 
       const enabledHooks = service.getEnabledHooks(mockAgent);
-      expect(enabledHooks).toEqual(new Set());
+      expect(enabledHooks.empty());
     });
 
     it("should handle non-existent hooks when enabling", () => {

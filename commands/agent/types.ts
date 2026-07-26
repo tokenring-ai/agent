@@ -9,7 +9,7 @@ function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
 
   return (
     "**Available agent types:**\n" +
-    Array.from(configs)
+    configs
       .map(([type, config]) => `- **${type}**: ${config.description}`)
       .join("\n")
   );

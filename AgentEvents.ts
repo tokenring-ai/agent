@@ -37,7 +37,7 @@ export const audioMimeTypes = ["audio/wav", "audio/mpeg", "audio/webm"] as const
 
 export const videoMimeTypes = ["video/mp4", "video/webm"] as const;
 
-export const imageMimeTypes = ["image/png", "image/jpeg"] as const;
+export const imageMimeTypes = ["image/png", "image/jpeg", "image/webp"] as const;
 
 export const textMimeTypes = ["text/plain", "text/markdown", "text/html", "text/x-diff", "application/json", "message/rfc822"] as const;
 

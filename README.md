@@ -45,10 +45,13 @@ The package exports the following from `index.ts`:
 
 ```typescript
 // Main exports
-import Agent from "@tokenring-ai/agent";
-import AgentManager from "@tokenring-ai/agent";
-import AgentCommandService from "@tokenring-ai/agent";
-import SubAgentService from "@tokenring-ai/agent";
+import { Agent } from "@tokenring-ai/agent";
+import { AgentManager } from "@tokenring-ai/agent";
+import { AgentCommandService } from "@tokenring-ai/agent";
+import { SubAgentService } from "@tokenring-ai/agent";
+
+// Lifecycle hooks
+import { AfterInputReceived } from "@tokenring-ai/agent";
 
 // Type exports
 import type { RunSubAgentOptions, RunSubAgentResult } from "@tokenring-ai/agent";
@@ -73,7 +76,6 @@ import {
   AgentEventEnvelopeSchema,
   InputMessageSchema,
   InteractionResponseSchema,
-  OutputArtifactSchema,
   ToolCallResultSchema,
 } from "@tokenring-ai/agent/AgentEvents";
 
@@ -95,7 +97,7 @@ import agentTools from "@tokenring-ai/agent/tools";
 The central agent implementation providing comprehensive AI agent functionality:
 
 ```typescript
-import Agent from "@tokenring-ai/agent";
+import { Agent } from "@tokenring-ai/agent";
 import TokenRingApp from "@tokenring-ai/app";
 import type { ParsedAgentConfig } from "@tokenring-ai/agent/schema";
 
@@ -126,6 +128,7 @@ const agent = new Agent(app, {}, config, shutdownController.signal);
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | `string` | Unique agent identifier (human-readable ID) |
+| `createdAt` | `number` | Timestamp when the agent was created |
 | `displayName` | `string` | Agent display name from config |
 | `config` | `ParsedAgentConfig` | Parsed agent configuration |
 | `debugEnabled` | `boolean` | Debug logging toggle |
@@ -167,7 +170,6 @@ const agent = new Agent(app, {}, config, shutdownController.signal);
 | `warningMessage(...messages)` | Emit warning messages |
 | `errorMessage(...messages)` | Emit error messages |
 | `debugMessage(...messages)` | Emit debug messages (if debug enabled) |
-| `artifactOutput({name, encoding, mimeType, body})` | Emit output artifact |
 | `toolCallResult(result)` | Emit tool call result |
 
 **Human Interface:**
@@ -202,7 +204,7 @@ const checkpoint = agent.generateCheckpoint();
 Central service for managing agent lifecycles and configurations:
 
 ```typescript
-import AgentManager from "@tokenring-ai/agent/services/AgentManager";
+import { AgentManager } from "@tokenring-ai/agent";
 import TokenRingApp from "@tokenring-ai/app";
 
 const app = new TokenRingApp();
@@ -262,6 +264,7 @@ agentManager.deleteAgent(agentId, "Reason for deletion");
 | `getAgent(id)` | Get agent by ID, returns `Agent \| null` |
 | `getAgents()` | Get all active agents |
 | `deleteAgent(agentId, reason)` | Shutdown and remove agent |
+| `subscribeAgentsAsync(signal)` | Async generator yielding agent list snapshots |
 
 **Automatic Lifecycle Management:**
 
@@ -275,7 +278,7 @@ agentManager.deleteAgent(agentId, "Reason for deletion");
 Service for managing and executing agent commands:
 
 ```typescript
-import AgentCommandService from "@tokenring-ai/agent/services/AgentCommandService";
+import { AgentCommandService } from "@tokenring-ai/agent";
 import type { TokenRingAgentCommand } from "@tokenring-ai/agent/types";
 
 const commandService = new AgentCommandService(app);
@@ -311,6 +314,7 @@ commandService.addAgentCommands({
 - Agent mention handling (`@agentName message` converts to `/agent run agentName message`)
 - Error handling for unknown commands with suggestions
 - Support for command attachments
+- Command alias support via `alias` property
 
 **Key Methods:**
 
@@ -322,6 +326,7 @@ commandService.addAgentCommands({
 | `getCommand(name)` | Get specific command by name |
 | `executeAgentCommand(agent, message, attachments)` | Execute command |
 | `runAgentLoop(agent, signal)` | Run the agent command processing loop |
+| `attach(agent)` | Attach service to agent, starts command loop |
 
 **Command Input Schema Types:**
 
@@ -357,7 +362,7 @@ type AgentCommandInputSchema = {
 Service for managing sub-agent execution and permissions:
 
 ```typescript
-import SubAgentService from "@tokenring-ai/agent/services/SubAgentService";
+import { SubAgentService } from "@tokenring-ai/agent";
 
 const subAgentService = new SubAgentService(app);
 
@@ -420,19 +425,20 @@ The agent package includes the following built-in chat commands:
 
 | Command | Description |
 |---------|-------------|
-| `/agent types` | List all available agent types |
 | `/agent list` | List all currently running agents |
 | `/agent run` | Run an agent with a message |
 | `/agent shutdown` | Shut down an agent |
+| `/agent types` | List all available agent types |
 | `/help` | Display help information |
 | `/settings` | Display settings |
+| `/debug app shutdown` | Send an abort command to the app |
+| `/debug chat throwError` | Throw an error in the chat handler |
+| `/debug checkpoint` | Debug checkpoint test |
+| `/debug commands` | Debug commands display |
 | `/debug logging` | Debug logging controls |
 | `/debug markdown` | Markdown rendering test |
-| `/debug services` | Service logs display |
 | `/debug questions` | Debug questions display |
-| `/debug checkpoint` | Debug checkpoint test |
-| `/debug app` | Debug app info |
-| `/debug commands` | Debug commands display |
+| `/debug services` | Service logs display |
 
 ### `/agent run` Command Options
 
@@ -446,16 +452,15 @@ The agent package includes the following built-in chat commands:
 | `--noHumanRequests` | Do not forward human requests |
 | `--forwardReasoning` | Forward reasoning output |
 | `--noInputCommands` | Do not forward input commands |
-| `--forwardArtifacts` | Forward artifacts from the sub-agent |
-| `--timeout` | Timeout in milliseconds (0 = no timeout) |
+| `--timeout` | Timeout in milliseconds for the sub-agent (0 = no timeout) |
 | `--maxResponseLength` | Maximum response length from the sub-agent |
 | `--minContextLength` | Minimum context length for the sub-agent |
-| `--neverFail` | Ignore errors, print as warnings instead |
+| `--neverFail` | Ignore errors from the sub-agent, printing them as warnings instead |
 
 **Examples:**
 
 ```bash
-/agent run --type leader --forwardChatOutput analyze the codebase
+/agent run --type leader analyze the codebase
 /agent run --bg --type researcher find information about AI
 ```
 
@@ -463,15 +468,15 @@ The agent package includes the following built-in chat commands:
 
 The agent package includes the following built-in tools:
 
-| Tool | Description |
-|------|-------------|
-| `get_current_datetime` | Returns the current date, time, day of week, and timezone |
-| `sleep` | Sleeps for a specified number of seconds |
-| `give_up` | Indicates that the task cannot be completed |
+| Tool | Display Name | Description |
+|------|--------------|-------------|
+| `get_current_datetime` | Agent/Get Current Date & Time | Returns the current date, time, day of week, and timezone |
+| `sleep` | Agent/Sleep | Sleeps for a specified number of seconds |
+| `give_up` | Agent/Give Up | Indicates that the task cannot be completed |
 
 ### `get_current_datetime`
 
-Returns the current date, time, day of week, and the user's local timezone. Use this tool any time you need to determine what date and time it is.
+Returns the current date, time, day of week, and the user's local timezone. Use this tool any time you need to determine what date and time it is. Do not rely on your internal knowledge of what date and time it is, since that date and time is when you were trained, and is not reflective of the current date and time.
 
 **Input Schema:**
 
@@ -536,24 +541,12 @@ import { AgentPackageConfigSchema } from "@tokenring-ai/agent/schema";
 // Allows defining multiple agent configurations in app config
 const config = {
   agents: {
-    app: [
-      {
-        agentType: "teamLeader",
-        displayName: "Team Leader",
-        description: "Coordinates development tasks",
-        category: "development",
-        // ... other config
-      }
-    ],
-    user: [
-      {
-        agentType: "researcher",
-        displayName: "Researcher",
-        description: "Researches topics",
-        category: "research",
-        // ... other config
-      }
-    ]
+    myAgent: {
+      displayName: "My Agent",
+      description: "Custom agent",
+      category: "development",
+      // ... other config
+    }
   },
   commands: {} // Command configurations
 };
@@ -571,7 +564,6 @@ const subAgentConfig = {
   forwardHumanRequests: boolean,   // Forward human requests (default: true)
   forwardReasoning: boolean,       // Forward reasoning (default: false)
   forwardInputCommands: boolean,   // Forward input commands (default: true)
-  forwardArtifacts: boolean,       // Forward artifacts (default: false)
   timeout: number,                 // Sub-agent timeout in seconds (default: 0)
   maxResponseLength: number,       // Max response length in characters (default: 10000)
   minContextLength: number,        // Minimum context length in characters (default: 1000)
@@ -595,6 +587,7 @@ const commandConfig = {
   },
   help: string,                    // Custom help text
   background: boolean,             // Whether to run in background (default: false)
+  requireNewAgent: boolean,        // Require new agent even if type matches (default: false)
   steps: string[],                 // Steps to execute (min 1)
   subAgent: SubAgentConfig         // Sub-agent configuration
 };
@@ -618,7 +611,6 @@ const commandConfig = {
 - `output.info` - Informational messages
 - `output.warning` - Warning messages
 - `output.error` - Error messages
-- `output.artifact` - Output artifact (files, documents, etc.)
 
 **State Events:**
 
@@ -643,7 +635,6 @@ import { AgentEventEnvelopeSchema } from "@tokenring-ai/agent/AgentEvents";
 // - AgentStoppedSchema
 // - AgentStatusSchema
 // - AgentResponseSchema (discriminated by status: success/error/cancelled)
-// - OutputArtifactSchema
 // - OutputChatSchema
 // - OutputReasoningSchema
 // - OutputInfoSchema
@@ -654,6 +645,28 @@ import { AgentEventEnvelopeSchema } from "@tokenring-ai/agent/AgentEvents";
 // - InputExecutionStateSchema
 // - InteractionResponseSchema
 // - ToolCallResultSchema
+```
+
+## Lifecycle Hooks
+
+### AfterInputReceived
+
+Triggered after an input message is received by the agent. Used to process or react to incoming input before command execution begins.
+
+```typescript
+import { AfterInputReceived } from "@tokenring-ai/agent";
+
+// Automatically executed by AgentCommandService when input is received
+```
+
+### AfterSubAgentResponse
+
+Triggered after a sub-agent completes execution. Provides access to both the request options and the result.
+
+```typescript
+import { AfterSubAgentResponse } from "@tokenring-ai/agent/hooks";
+
+// Automatically executed by /agent run command and createAgentCommand utility
 ```
 
 ## Plugin Configuration
@@ -667,21 +680,18 @@ const app = new TokenRingApp();
 // Agents configured in app config
 const config = {
   agents: {
-    app: [
-      {
-        agentType: "myAgent",
-        displayName: "My Agent",
-        description: "Custom agent",
-        category: "development",
-        debug: false,
-        initialCommands: [],
-        headless: false,
-        idleTimeout: 0,
-        maxRunTime: 0,
-        minimumRunning: 0,
-        createMessage: "Agent Created"
-      }
-    ]
+    myAgent: {
+      displayName: "My Agent",
+      description: "Custom agent",
+      category: "development",
+      debug: false,
+      initialCommands: [],
+      headless: false,
+      idleTimeout: 0,
+      maxRunTime: 0,
+      minimumRunning: 0,
+      createMessage: "Agent Created"
+    }
   },
   commands: {}
 };
@@ -697,6 +707,7 @@ The package provides the following RPC endpoints via `/rpc/agent`:
 | `getAgentEvents` | query | `{agentId, fromPosition}` | Events from position |
 | `streamAgentEvents` | stream | `{agentId, fromPosition}` | Streaming events |
 | `listAgents` | query | `{}` | Array of agent information |
+| `streamAgents` | stream | `{}` | Streaming agent list snapshots |
 | `getAgentTypes` | query | `{}` | Array of agent types |
 | `createAgent` | mutation | `{agentType, headless}` | Created agent details |
 | `deleteAgent` | mutation | `{agentId, reason}` | Success status or `agentNotFound` |
@@ -889,6 +900,71 @@ if (isTreeValueLeaf(node)) {
 const value = getTreeNodeValue(node);
 ```
 
+## Utilities
+
+### createAgentCommand
+
+Registers an agent as a callable command. When `requireNewAgent` is false (default) and the invoking agent already has the same `agentType` as the command, steps run in-place via `/chat send`. Otherwise a new agent of the target type is spawned.
+
+```typescript
+import { createAgentCommand } from "@tokenring-ai/agent/util/createAgentCommand";
+import type { ParsedAgentCommandConfig } from "@tokenring-ai/agent/schema";
+
+const config: ParsedAgentCommandConfig = {
+  agentType: "researcher",
+  description: "Research a topic",
+  commandSchema: {
+    remainder: {
+      name: "topic",
+      description: "Topic to research",
+      required: true,
+    }
+  },
+  steps: ["Research {topic}"],
+  subAgent: {
+    forwardChatOutput: true,
+  }
+};
+
+const command = createAgentCommand("research", config);
+```
+
+### formatAgentId
+
+Formats agent ID consistently (8 characters):
+
+```typescript
+import { formatAgentId } from "@tokenring-ai/agent/util/formatAgentId";
+
+const shortId = formatAgentId(agent.id); // "fancy-fox"
+```
+
+### projectAgentList
+
+Projects agent instances into a serializable list format:
+
+```typescript
+import { projectAgentList } from "@tokenring-ai/agent/services/projectAgentList";
+import type { AgentListEntry } from "@tokenring-ai/agent/services/projectAgentList";
+
+const entries: AgentListEntry[] = projectAgentList(agents);
+// Each entry: { id, createdAt, agentType, displayName, description, idle, currentActivity }
+```
+
+### createAgentStateSliceStream
+
+Creates an async generator for streaming agent state slices over RPC:
+
+```typescript
+import { createAgentStateSliceStream } from "@tokenring-ai/agent/rpc/createAgentStateStream";
+import { AgentEventState } from "@tokenring-ai/agent/state/agentEventState";
+
+const stream = createAgentStateSliceStream({
+  SliceClass: AgentEventState,
+  project: (state, agent) => ({ events: state.events.length }),
+});
+```
+
 ## Error Handling
 
 ### CommandFailedError
@@ -912,8 +988,7 @@ try {
 ### Basic Agent Creation and Usage
 
 ```typescript
-import Agent from "@tokenring-ai/agent";
-import AgentManager from "@tokenring-ai/agent/services/AgentManager";
+import { Agent, AgentManager } from "@tokenring-ai/agent";
 import TokenRingApp from "@tokenring-ai/app";
 import { AgentEventState } from "@tokenring-ai/agent/state/agentEventState";
 
@@ -993,14 +1068,12 @@ subAgent.handleInput({ from: "parent", message: "Process this data" });
 agentManager.deleteAgent(subAgent.id, "Cleanup");
 ```
 
-**Note**: Sub-agent permissions are managed by `SubAgentService`. The `allowedSubAgents` config is resolved from wildcard patterns to actual agent types during agent attachment.
-
 ### Using SubAgentService Directly
 
 For more advanced sub-agent execution with fine-grained control:
 
 ```typescript
-import SubAgentService from "@tokenring-ai/agent/services/SubAgentService";
+import { SubAgentService } from "@tokenring-ai/agent";
 
 const subAgentService = agent.getServiceByType(SubAgentService);
 
@@ -1017,7 +1090,6 @@ const result = await subAgentService.runSubAgent({
     forwardReasoning: false,
     forwardHumanRequests: true,
     forwardInputCommands: true,
-    forwardArtifacts: false,
     timeout: 60,
     maxResponseLength: 500,
     minContextLength: 300
@@ -1123,25 +1195,16 @@ agent.sendInteractionResponse({
 });
 ```
 
-### Output Artifacts
+### Tool Call Results
 
 ```typescript
-// Emit an artifact (e.g., markdown file)
-agent.artifactOutput({
-  name: "report.md",
-  encoding: "text",
-  mimeType: "text/markdown",
-  body: `# Report
-
-Generated content...`
-});
-
-// Emit binary artifact
-agent.artifactOutput({
-  name: "image.png",
-  encoding: "base64",
-  mimeType: "image/png",
-  body: "base64_encoded_data..."
+// Emit a tool call result event
+agent.toolCallResult({
+  name: "my_tool",
+  args: { input: "test" },
+  message: "**Tool** Executed my_tool",
+  result: "Tool execution result",
+  failed: false,
 });
 ```
 
@@ -1171,7 +1234,7 @@ bun run test:coverage
 ### Package Structure
 
 ```text
-pkg/agent/
+plugin/agent/
 ├── Agent.ts                          # Core Agent class implementation
 ├── AgentEvents.ts                    # Event type definitions and schemas
 ├── AgentError.ts                     # Error class definitions
@@ -1184,6 +1247,7 @@ pkg/agent/
 ├── commands.ts                       # Built-in command exports
 ├── tools.ts                          # Tool exports
 ├── hooks.ts                          # Lifecycle hook definitions
+├── lifecycle.ts                      # Lifecycle event definitions
 ├── commands/                         # Built-in commands
 │   ├── agent/
 │   │   ├── types.ts                  # Agent types command
@@ -1191,19 +1255,21 @@ pkg/agent/
 │   │   ├── run.ts                    # Agent run command
 │   │   └── shutdown.ts               # Agent shutdown command
 │   ├── debug/
+│   │   ├── app.ts                    # Debug app shutdown
+│   │   ├── chat.ts                   # Debug chat error throw
 │   │   ├── logging.ts                # Debug logging controls
 │   │   ├── markdown.ts               # Markdown rendering test
 │   │   ├── services.ts               # Service logs display
 │   │   ├── questions.ts              # Debug questions display
 │   │   ├── checkpoint.ts             # Debug checkpoint test
-│   │   ├── app.ts                    # Debug app info
 │   │   └── commands.ts               # Debug commands display
 │   ├── settings.ts                   # Settings display
 │   └── help.ts                       # Help system
 ├── services/                         # Core services
 │   ├── AgentManager.ts               # Agent management service
 │   ├── AgentCommandService.ts        # Command execution service
-│   └── SubAgentService.ts            # Sub-agent execution service
+│   ├── SubAgentService.ts            # Sub-agent execution service
+│   └── projectAgentList.ts           # Agent list projection utility
 ├── state/                            # State management
 │   ├── agentEventState.ts            # Event state management
 │   └── commandHistoryState.ts        # Command history tracking
@@ -1213,7 +1279,8 @@ pkg/agent/
 │   └── giveUp.ts                     # Give up tool
 ├── rpc/                              # RPC endpoints
 │   ├── agent.ts                      # Agent RPC implementation
-│   └── schema.ts                     # RPC schema definitions
+│   ├── schema.ts                     # RPC schema definitions
+│   └── createAgentStateStream.ts     # State stream utility
 ├── util/                             # Utilities
 │   ├── createAgentCommand.ts         # Agent command creation utility
 │   ├── formatAgentCommandUsage.ts    # Command usage formatting
@@ -1224,12 +1291,15 @@ pkg/agent/
     │   └── agent-integration.test.ts
     └── unit/
         ├── commands/
-        │   ├── help.test.ts
-        │   └── work.test.ts
-        ├── agent.test.ts
+        │   └── help.test.ts
         ├── AgentCommandService.test.ts
         ├── AgentLifecycleService.test.ts
-        └── AgentManager.test.ts
+        ├── AgentManager.test.ts
+        ├── AgentManager.subscribeAgentsAsync.test.ts
+        ├── agent.test.ts
+        ├── createAgentCommand.test.ts
+        ├── parseAgentCommandInput.test.ts
+        └── streamAgents.rpc.test.ts
 ```
 
 ## License
