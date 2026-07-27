@@ -1,10 +1,10 @@
-import EnhancedSet from "@tokenring-ai/utility/set/enhancedSet";
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService";
 import { LifecycleState } from "@tokenring-ai/lifecycle/state/lifecycleState";
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { AfterAgentInputSuccess, BeforeAgentInput, HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
+import EnhancedSet from "@tokenring-ai/utility/set/enhancedSet";
 import type Agent from "../../Agent";
 import createTestingAgent from "../createTestingAgent.test";
 

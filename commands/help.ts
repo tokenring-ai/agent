@@ -23,11 +23,7 @@ function execute({ remainder, agent }: AgentCommandInputType<typeof inputSchema>
 
   const lines = [
     "**Available chat commands:**",
-    markdownList(
-       commands
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([_cmdName, command]) => `/${command.name} - ${command.description}`),
-    ),
+    markdownList(commands.sort((a, b) => a[0].localeCompare(b[0])).map(([_cmdName, command]) => `/${command.name} - ${command.description}`)),
   ];
 
   lines.push("", "Use /help <command> to get detailed help for a specific command.");

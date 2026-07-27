@@ -7,12 +7,7 @@ function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
   const agentManager = agent.requireServiceByType(AgentManager);
   const configs = agentManager.getAgentConfigEntries();
 
-  return (
-    "**Available agent types:**\n" +
-    configs
-      .map(([type, config]) => `- **${type}**: ${config.description}`)
-      .join("\n")
-  );
+  return "**Available agent types:**\n" + configs.map(([type, config]) => `- **${type}**: ${config.description}`).join("\n");
 }
 
 export default {
