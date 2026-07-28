@@ -81,6 +81,7 @@ export const AgentPackageConfigSchema = z.object({
 });
 
 export type AgentPackageConfig = z.input<typeof AgentPackageConfigSchema>;
+export type ParsedAgentPackageConfig = z.output<typeof AgentPackageConfigSchema>;
 
 export type AgentConfig = z.input<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = z.output<typeof AgentConfigSchema>;

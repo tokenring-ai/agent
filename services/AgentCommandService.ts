@@ -8,8 +8,10 @@ import {
   AfterAgentInputSuccess,
   BeforeAgentInput,
 } from "@tokenring-ai/lifecycle/util/hooks";
+import { deepEqual } from "@tokenring-ai/one-frontend/src/lib/utils";
 import { arrayableToArray } from "@tokenring-ai/utility/array/arrayable";
 import formatError from "@tokenring-ai/utility/error/formatError";
+import EnhancedStringMap from "@tokenring-ai/utility/map/enhancedStringMap";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import codeBlock from "@tokenring-ai/utility/string/codeBlock";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
@@ -23,15 +25,21 @@ import type {
   ParsedAgentResponse,
   ParsedAgentSuccessResponse,
 } from "../AgentEvents.ts";
+import type { ParsedAgentCommandConfig } from "../schema.ts";
 import { AgentEventState, agentMessages, type InputQueueItem } from "../state/agentEventState.ts";
 import type { AgentCommandInputSchema, TokenRingAgentCommand, TokenRingAgentCommandResult } from "../types.ts";
+import { createAgentCommand } from "../util/createAgentCommand.ts";
 import { parseAgentCommandInput } from "../util/parseAgentCommandInput.ts";
+import type AgentManager from "./AgentManager.ts";
 
 export default class AgentCommandService implements TokenRingService {
   readonly name = "AgentCommandService";
   description = "A service which registers and dispatches agent commands.";
 
   private agentCommands = new KeyedRegistry<TokenRingAgentCommand<any>>();
+
+  private currentlyRegisteredCommands = new EnhancedStringMap<ParsedAgentCommandConfig>();
+
   getCommandNames = this.agentCommands.keysArray;
   getCommandEntries = this.agentCommands.entriesArray;
   getCommand = this.agentCommands.get;
@@ -46,6 +54,34 @@ export default class AgentCommandService implements TokenRingService {
         this.agentCommands.set(alias, command);
       }
     }
+  }
+
+  /**
+   * Reconciles package-config agent commands against the live command registry.
+   * Built-in commands registered via {@link addAgentCommands} are left alone.
+   */
+  reconfigure(commandConfigs: Record<string, ParsedAgentCommandConfig>, agentManager: AgentManager): void {
+    this.currentlyRegisteredCommands.reconcileAgainst(commandConfigs, {
+      creating: (name, commandConfig) => {
+        if (!agentManager.getAgentConfig(commandConfig.agentType)) {
+          throw new Error(`Error while processing command ${name}: Agent ${commandConfig.agentType} not found`);
+        }
+        this.agentCommands.set(name, createAgentCommand(name, commandConfig));
+        return commandConfig;
+      },
+      deleting: name => {
+        this.agentCommands.unregister(name);
+      },
+      updating: (name, existing, commandConfig) => {
+        if (deepEqual(existing, commandConfig)) return existing;
+
+        if (!agentManager.getAgentConfig(commandConfig.agentType)) {
+          throw new Error(`Error while processing command ${name}: Agent ${commandConfig.agentType} not found`);
+        }
+        this.agentCommands.set(name, createAgentCommand(name, commandConfig));
+        return commandConfig;
+      },
+    });
   }
 
   async executeAgentCommand(agent: Agent, message: string, attachments: BaseAttachment[] = []): Promise<TokenRingAgentCommandResult> {

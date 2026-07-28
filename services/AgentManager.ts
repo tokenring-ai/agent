@@ -43,6 +43,17 @@ export default class AgentManager implements TokenRingService {
     }
   }
 
+  /**
+   * Reconciles agent type configs against the latest package config: creates missing
+   * types, updates existing ones, and removes types that are no longer defined.
+   */
+  reconfigure(agents: Record<string, Omit<ParsedAgentConfig, "agentType">>): void {
+    this.agentConfigRegistry.reconcileAgainst(agents, {
+      creating: (name, config) => ({ agentType: name, ...config }),
+      updating: (name, _existing, config) => ({ agentType: name, ...config }),
+    });
+  }
+
   spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig> = {}) {
     const agentConfig = this.agentConfigRegistry.require(checkpoint.agentType);
     return this.createAgent(

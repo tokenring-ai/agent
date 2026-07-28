@@ -9,14 +9,13 @@ import AgentCommandService from "./services/AgentCommandService.ts";
 import AgentManager from "./services/AgentManager.ts";
 import SubAgentService from "./services/SubAgentService.ts";
 import tools from "./tools.ts";
-import { createAgentCommand } from "./util/createAgentCommand.ts";
 
 export default {
   name: packageJSON.name,
   displayName: "Agent Core",
   version: packageJSON.version,
   description: packageJSON.description,
-  install(app, config) {
+  install(app) {
     app.waitForService(ChatService, chatService => {
       chatService.addTools(...tools);
     });
@@ -25,25 +24,18 @@ export default {
     agentCommandService.addAgentCommands(agentCommands);
     app.addServices(agentCommandService);
 
-    const agentManager = new AgentManager(app);
-    const agentConfigs = Object.entries(config.agents).map(([agentType, agentConfig]) => ({ agentType, ...agentConfig }));
-    agentManager.addAgentConfigs(...agentConfigs);
-
-    app.addServices(agentManager);
-
+    app.addServices(new AgentManager(app));
     app.addServices(new SubAgentService(app));
 
     app.waitForService(RpcService, rpcService => {
       rpcService.registerEndpoint(agentRPC);
     });
+  },
+  reconfigure(app, config) {
+    const agentManager = app.requireService(AgentManager);
+    agentManager.reconfigure(config.agents);
 
-    for (const [name, commandConfig] of Object.entries(config.commands)) {
-      const agentType = commandConfig.agentType;
-      if (!agentManager.getAgentConfig(agentType)) {
-        throw new Error(`Error while processing command ${name}: Agent ${agentType} not found`);
-      }
-      agentCommandService.addAgentCommands(createAgentCommand(name, commandConfig));
-    }
+    app.requireService(AgentCommandService).reconfigure(config.commands, agentManager);
   },
   configSchema: AgentPackageConfigSchema,
 } satisfies TokenRingPlugin<typeof AgentPackageConfigSchema>;
