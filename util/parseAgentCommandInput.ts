@@ -118,6 +118,12 @@ function parseArgumentValue(argumentName: string, argumentSchema: AgentCommandAr
   if (argumentSchema.type === "date") {
     return parseDateValue(argumentName, rawValue);
   }
+  if (argumentSchema.type === "enum") {
+    if (!argumentSchema.values.includes(rawValue)) {
+      throw new CommandFailedError(`Argument ${argumentName} must be one of: ${argumentSchema.values.join(", ")}`);
+    }
+    return rawValue;
+  }
 
   return validateStringRange(argumentName, rawValue, argumentSchema.minimum, argumentSchema.maximum);
 }

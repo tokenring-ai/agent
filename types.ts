@@ -61,6 +61,20 @@ export type AgentCommandArgumentSchema =
       description: string;
       defaultValue?: never;
       required: true;
+    }
+  | {
+      type: "enum";
+      description: string;
+      values: string[];
+      defaultValue?: never;
+      required: true;
+    }
+  | {
+      type: "enum";
+      description: string;
+      values: string[];
+      defaultValue?: string;
+      required?: false;
     };
 
 export type AgentCommandArgumentsSchema = Record<string, AgentCommandArgumentSchema>;
@@ -102,13 +116,15 @@ export type AgentCommandInputSchema = {
 
 type Expand<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
 
-type AgentCommandArgumentValue<Schema extends AgentCommandArgumentSchema> = Schema["type"] extends "flag"
+type AgentCommandArgumentValue<Schema extends AgentCommandArgumentSchema> = Schema extends { type: "flag" }
   ? boolean
-  : Schema["type"] extends "number"
+  : Schema extends { type: "number" }
     ? number
-    : Schema["type"] extends "date"
+    : Schema extends { type: "date" }
       ? number
-      : string;
+      : Schema extends { type: "enum"; values: infer Values extends readonly string[] }
+        ? Values[number]
+        : string;
 
 type AgentCommandArgumentHasDefault<Schema extends AgentCommandArgumentSchema> = Schema extends { defaultValue: AgentCommandArgumentValue<Schema> }
   ? true
