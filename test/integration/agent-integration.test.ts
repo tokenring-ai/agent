@@ -1,10 +1,10 @@
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService";
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { AfterAgentInputSuccess, BeforeAgentInput, HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { setTimeout as delay } from "node:timers/promises";
 import Agent from "../../Agent.ts";
 import { AfterInputReceived } from "../../lifecycle.ts";
 import { AgentConfigSchema } from "../../schema";
@@ -47,7 +47,7 @@ describe("Agent Integration Tests", () => {
     });
     manager = new AgentManager(app);
 
-    app.addService(commandService, lifecycleService, manager);
+    app.addServices([commandService, lifecycleService, manager]);
 
     // Create agent
     agent = new Agent(app, {}, mockConfig, new AbortController().signal);

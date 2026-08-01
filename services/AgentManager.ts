@@ -187,36 +187,41 @@ export default class AgentManager implements TokenRingService {
   }
 
   private createAgent(options: ParsedAgentConfig, state: AgentCheckpointData["state"] = {}) {
-    const shutdownController = new AbortController();
+    try {
+      const shutdownController = new AbortController();
 
-    const agent = new Agent(this.app, state, options, shutdownController.signal);
+      const agent = new Agent(this.app, state, options, shutdownController.signal);
 
-    this.agents.set(agent.id, { agent, shutdownController });
-    this.trackAgentState(agent);
-    this.notifyAgentListChanged();
+      this.agents.set(agent.id, { agent, shutdownController });
+      this.trackAgentState(agent);
+      this.notifyAgentListChanged();
 
-    const creationContext: AgentCreationContext = {
-      items: [],
-    };
+      const creationContext: AgentCreationContext = {
+        items: [],
+      };
 
-    for (const service of this.app.getServices()) {
-      try {
-        service.attach?.(agent, creationContext);
-      } catch (err) {
-        agent.errorMessage("Agent threw error during creation: ", err as Error);
+      for (const service of this.app.getServices()) {
+        try {
+          service.attach?.(agent, creationContext);
+        } catch (err) {
+          this.app.serviceError(this, "Error attaching service to agent:", err as Error);
+          agent.errorMessage("Agent threw error during creation: ", err as Error);
+        }
       }
-    }
 
-    agent.mutateState(AgentEventState, state => {
-      state.emit({
-        type: "agent.created",
-        timestamp: Date.now(),
-        message: agent.config.createMessage,
-        details: creationContext.items,
+      agent.mutateState(AgentEventState, state => {
+        state.emit({
+          type: "agent.created",
+          timestamp: Date.now(),
+          message: agent.config.createMessage,
+          details: creationContext.items,
+        });
       });
-    });
-
-    return agent;
+      return agent;
+    } catch (err) {
+      this.app.serviceError(this, "Error creating agent:", err);
+      throw err;
+    }
   }
 
   private notifyAgentListChanged() {

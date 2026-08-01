@@ -70,15 +70,15 @@ function getPendingChildQuestion(state: AgentEventState, requestId: string): Pen
  * @returns Promise resolving to the execution result
  */
 export async function runSubAgent({
-                                    agentType,
-                                    background,
-                                    headless,
-                                    from,
-                                    steps,
-                                    options,
-                                    parentAgent,
-                                    autoCleanup = true,
-                                  }: RunSubAgentOptions): Promise<RunSubAgentResult> {
+  agentType,
+  background,
+  headless,
+  from,
+  steps,
+  options,
+  parentAgent,
+  autoCleanup = true,
+}: RunSubAgentOptions): Promise<RunSubAgentResult> {
   const {
     forwardChatOutput,
     forwardReasoning,
@@ -108,14 +108,13 @@ export async function runSubAgent({
   const timer =
     timeoutSeconds > 0
       ? setTimeout(() => {
-        timeoutExceeded = true;
-        childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
-        listenerAbortController.abort();
-      }, timeoutSeconds * 1000)
+          timeoutExceeded = true;
+          childAgent.abortCurrentOperation(`Sub-agent timed out after ${timeoutSeconds} seconds.`);
+          listenerAbortController.abort();
+        }, timeoutSeconds * 1000)
       : null;
 
-  let removeParentAbortListener = () => {
-  };
+  let removeParentAbortListener = () => {};
   if (!background) {
     const parentAbortSignal = parentAgent.getAbortSignal();
     const onParentAbort = () => {
@@ -183,9 +182,7 @@ export async function runSubAgent({
             throw new Error("Cannot forward a sub-agent interaction when the parent agent has no active input.");
           }
 
-          if (
-            !currentItem.executionState.availableInteractions.some(interaction => interaction.interactionId === pendingQuestion.interaction.interactionId)
-          ) {
+          if (!currentItem.executionState.availableInteractions.some(interaction => interaction.interactionId === pendingQuestion.interaction.interactionId)) {
             currentItem.executionState.availableInteractions.push(pendingQuestion.interaction);
           }
 

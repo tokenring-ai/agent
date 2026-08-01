@@ -1,6 +1,4 @@
-import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
-import { ChatServiceState } from "@tokenring-ai/chat";
 import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import {
   AfterAgentInputCancelled,

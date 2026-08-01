@@ -1,9 +1,20 @@
-import { spyOn } from "bun:test";
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type Agent from "../../Agent.ts";
 import type { ParsedAgentCommandConfig } from "../../schema.ts";
-import { createAgentCommand } from "../../util/createAgentCommand.ts";
-import { runSubAgent } from "../../util/runSubAgent.ts";
+import type { RunSubAgentOptions, RunSubAgentResult } from "../../util/runSubAgent.ts";
+
+const runSubAgent = mock(
+  async (_options: RunSubAgentOptions): Promise<RunSubAgentResult> => ({
+    status: "success",
+    response: "subagent done",
+  }),
+);
+
+void mock.module("../../util/runSubAgent.ts", () => ({
+  runSubAgent,
+}));
+
+const { createAgentCommand } = await import("../../util/createAgentCommand.ts");
 
 function makeCommandConfig(overrides: Partial<ParsedAgentCommandConfig> = {}): ParsedAgentCommandConfig {
   return {
@@ -53,7 +64,8 @@ describe("createAgentCommand requireNewAgent", () => {
 
   beforeEach(() => {
     executeAgentCommand = mock(async () => ({ message: "chat done" }));
-    spyOn(runSubAgent).mockImplementation(async () => ({
+    runSubAgent.mockClear();
+    runSubAgent.mockImplementation(async () => ({
       status: "success" as const,
       response: "subagent done",
     }));
@@ -82,7 +94,7 @@ describe("createAgentCommand requireNewAgent", () => {
   test("spawns background subagent when agent types differ", async () => {
     const command = createAgentCommand("deep research", makeCommandConfig({ requireNewAgent: false }));
     const agent = makeAgent("code", {
-      AgentCommandService: { executeAgentCommand }
+      AgentCommandService: { executeAgentCommand },
     });
 
     const result = await command.execute({
@@ -102,7 +114,7 @@ describe("createAgentCommand requireNewAgent", () => {
   test("always spawns subagent when requireNewAgent is true even if types match", async () => {
     const command = createAgentCommand("deep research", makeCommandConfig({ requireNewAgent: true, background: false }));
     const agent = makeAgent("research", {
-      AgentCommandService: { executeAgentCommand }
+      AgentCommandService: { executeAgentCommand },
     });
 
     const result = await command.execute({

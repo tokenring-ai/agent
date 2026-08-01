@@ -2,8 +2,8 @@ import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import { CommandFailedError } from "../../AgentError.ts";
 import { AfterSubAgentResponse } from "../../hooks.ts";
 import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
-import { runSubAgent } from "../../util/runSubAgent.ts";
 import type { RunSubAgentOptions } from "../../util/runSubAgent.ts";
+import { runSubAgent } from "../../util/runSubAgent.ts";
 
 const inputSchema = {
   args: {

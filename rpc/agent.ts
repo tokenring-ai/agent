@@ -3,9 +3,9 @@ import { createRPCEndpoint } from "@tokenring-ai/rpc/createRPCEndpoint";
 import EnhancedMap from "@tokenring-ai/utility/map/enhancedMap";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import AgentManager from "../services/AgentManager.ts";
-import { projectAgentList } from "../util/projectAgentList.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
 import { CommandHistoryState } from "../state/commandHistoryState.ts";
+import { projectAgentList } from "../util/projectAgentList.ts";
 import AgentRpcSchema, { type AvailableAgentCommand } from "./schema.ts";
 
 export default createRPCEndpoint(AgentRpcSchema, {

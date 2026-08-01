@@ -5,8 +5,8 @@ import { AfterSubAgentResponse } from "../hooks.ts";
 import type { ParsedAgentCommandConfig } from "../schema.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import type { AgentCommandInputType, TokenRingAgentCommand, TokenRingAgentCommandResult } from "../types.ts";
-import { runSubAgent } from "./runSubAgent.ts";
 import type { RunSubAgentOptions } from "./runSubAgent.ts";
+import { runSubAgent } from "./runSubAgent.ts";
 
 /**
  * Register an agent as a callable command.

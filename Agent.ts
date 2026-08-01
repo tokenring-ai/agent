@@ -19,7 +19,6 @@ import {
 import { AfterInputReceived } from "./lifecycle.ts";
 import { getDefaultQuestionValue, type ResultTypeForQuestion } from "./question.ts";
 import type { AgentConfig, ParsedAgentConfig } from "./schema.ts";
-import AgentCommandService from "./services/AgentCommandService.ts";
 import { AgentEventState } from "./state/agentEventState.ts";
 import { CommandHistoryState } from "./state/commandHistoryState.ts";
 import type { AgentCheckpointData, AgentStateSlice } from "./types.ts";
