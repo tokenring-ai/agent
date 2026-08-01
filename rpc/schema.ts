@@ -14,6 +14,77 @@ export const AgentListEntrySchema = z.object({
   currentActivity: z.string(),
 });
 
+/** Mirrors {@link import("../types.ts").AgentCommandArgumentSchema} for RPC transport. */
+export const AgentCommandArgumentSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("string"),
+    description: z.string(),
+    defaultValue: z.string().optional(),
+    minimum: z.number().optional(),
+    maximum: z.number().optional(),
+    required: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("number"),
+    description: z.string(),
+    defaultValue: z.number().optional(),
+    minimum: z.number().optional(),
+    maximum: z.number().optional(),
+    required: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("flag"),
+    description: z.string(),
+  }),
+  z.object({
+    type: z.literal("date"),
+    description: z.string(),
+    defaultValue: z.number().optional(),
+    required: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("enum"),
+    description: z.string(),
+    values: z.array(z.string()),
+    defaultValue: z.string().optional(),
+    required: z.boolean().optional(),
+  }),
+]);
+
+export const AgentCommandPositionalSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  required: z.boolean().optional(),
+  defaultValue: z.string().optional(),
+});
+
+export const AgentCommandRemainderSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  required: z.boolean().optional(),
+  defaultValue: z.string().optional(),
+});
+
+/** Mirrors {@link import("../types.ts").AgentCommandInputSchema} for RPC transport. */
+export const AgentCommandInputSchema = z.object({
+  args: z.record(z.string(), AgentCommandArgumentSchema).optional().readonly(),
+  positionals: z.array(AgentCommandPositionalSchema).optional().readonly(),
+  remainder: AgentCommandRemainderSchema.optional().readonly(),
+  allowAttachments: z.boolean().optional(),
+});
+
+export const AvailableAgentCommandSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  inputSchema: AgentCommandInputSchema.readonly(),
+});
+
+export type AvailableAgentCommand = z.infer<typeof AvailableAgentCommandSchema>;
+export type AgentCommandArgument = z.infer<typeof AgentCommandArgumentSchema>;
+export type AgentCommandPositional = z.infer<typeof AgentCommandPositionalSchema>;
+export type AgentCommandRemainder = z.infer<typeof AgentCommandRemainderSchema>;
+export type AgentCommandInput = z.infer<typeof AgentCommandInputSchema>;
+
 export default {
   name: "Agent RPC",
   path: "/rpc/agent",
@@ -139,17 +210,13 @@ export default {
     },
     getAvailableCommands: {
       type: "query",
+      /** When `agentId` is omitted, commands are listed from the app-level registry (same set agents use). */
       input: z.object({
-        agentId: z.string(),
+        agentId: z.string().optional(),
       }),
       result: z.discriminatedUnion("status", [
         SuccessSchema.extend({
-          commands: z.array(
-            z.object({
-              name: z.string(),
-              description: z.string(),
-            }),
-          ),
+          commands: z.array(AvailableAgentCommandSchema),
         }),
         AgentNotFoundSchema,
       ]),

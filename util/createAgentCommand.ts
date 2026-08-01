@@ -2,11 +2,11 @@ import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import interpolateString from "@tokenring-ai/utility/string/interpolateString";
 import { CommandFailedError } from "../AgentError.ts";
 import { AfterSubAgentResponse } from "../hooks.ts";
-import { SubAgentService } from "../index.ts";
 import type { ParsedAgentCommandConfig } from "../schema.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
-import type { RunSubAgentOptions } from "../services/SubAgentService.ts";
 import type { AgentCommandInputType, TokenRingAgentCommand, TokenRingAgentCommandResult } from "../types.ts";
+import { runSubAgent } from "./runSubAgent.ts";
+import type { RunSubAgentOptions } from "./runSubAgent.ts";
 
 /**
  * Register an agent as a callable command.
@@ -31,7 +31,7 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
       const canRunInPlace = !commandConfig.requireNewAgent && agent.config.agentType === commandConfig.agentType;
 
       if (canRunInPlace) {
-        const commandService = agent.requireServiceByType(AgentCommandService);
+        const commandService = agent.requireService(AgentCommandService);
         let lastMessage = "Agent completed successfully.";
 
         for (const step of steps) {
@@ -50,7 +50,6 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
       // Prefer background when spawning from a different agent type so the parent is not blocked.
       const useBackground = commandConfig.requireNewAgent ? commandConfig.background : true;
 
-      const subAgentService = agent.requireServiceByType(SubAgentService);
       const request: RunSubAgentOptions = {
         agentType: commandConfig.agentType,
         background: useBackground,
@@ -61,13 +60,13 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
         options: commandConfig.subAgent,
       };
 
-      const result = await subAgentService.runSubAgent(request);
+      const result = await runSubAgent(request);
 
       if (useBackground) {
         return `Agent ${commandConfig.agentType} started in background.`;
       }
 
-      const lifecycleService = agent.getServiceByType(AgentLifecycleService);
+      const lifecycleService = agent.getService(AgentLifecycleService);
       await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
 
       if (result.status === "success") {

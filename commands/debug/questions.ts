@@ -12,8 +12,8 @@ const inputSchema = {
   ],
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({ positionals, agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const type = positionals.type;
+async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const type = args.type;
 
   switch (type) {
     case "text": {

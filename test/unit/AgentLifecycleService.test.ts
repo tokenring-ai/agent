@@ -13,7 +13,7 @@ const app = createTestingApp();
 // Create a mock agent
 const createMockAgent = () => {
   const agent = createTestingAgent(app);
-  spyOn(agent, "requireServiceByType");
+  spyOn(agent, "requireService");
   spyOn(agent, "chatOutput");
   spyOn(agent, "infoMessage");
   spyOn(agent, "errorMessage");

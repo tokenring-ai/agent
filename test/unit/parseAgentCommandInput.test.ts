@@ -247,8 +247,8 @@ describe("parseAgentCommandInput", () => {
 
       const parsed = parseAgentCommandInput(command, "first second", [], {} as any);
 
-      expect(parsed.positionals?.first).toBe("first");
-      expect(parsed.positionals?.second).toBe("second");
+      expect(parsed.args?.first).toBe("first");
+      expect(parsed.args?.second).toBe("second");
     });
 
     it("throws error for missing required positional", () => {
@@ -282,7 +282,7 @@ describe("parseAgentCommandInput", () => {
 
       const parsed = parseAgentCommandInput(command, "", [], {} as any);
 
-      expect(parsed.positionals?.first).toBe("default");
+      expect(parsed.args?.first).toBe("default");
     });
 
     it("throws error for too many positional arguments", () => {

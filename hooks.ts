@@ -1,4 +1,4 @@
-import type { RunSubAgentOptions, RunSubAgentResult } from "./services/SubAgentService.ts";
+import type { RunSubAgentOptions, RunSubAgentResult } from "./util/runSubAgent.ts";
 
 export class AfterSubAgentResponse {
   readonly type = "hook";

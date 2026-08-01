@@ -9,7 +9,7 @@ import type { ParsedAgentConfig } from "../schema.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
 import type { AgentCheckpointData, AgentCreationContext } from "../types.js";
 import { formatAgentId } from "../util/formatAgentId.ts";
-import { type AgentListEntry, projectAgentList } from "./projectAgentList.ts";
+import { type AgentListEntry, projectAgentList } from "../util/projectAgentList.ts";
 
 export default class AgentManager implements TokenRingService {
   readonly name = "AgentManager";

@@ -28,8 +28,8 @@ export default class Agent {
   readonly id: string = generateHumanId();
   readonly createdAt: number = Date.now();
   debugEnabled = false;
-  requireServiceByType;
-  getServiceByType;
+  requireService;
+  getService;
 
   stateManager: StateManager<AgentStateSlice<any>>;
   initializeState;
@@ -46,8 +46,8 @@ export default class Agent {
     readonly agentShutdownSignal: AbortSignal,
   ) {
     this.stateManager = new StateManager<AgentStateSlice<any>>(initialState);
-    this.requireServiceByType = this.app.requireService;
-    this.getServiceByType = this.app.getService;
+    this.requireService = this.app.requireService;
+    this.getService = this.app.getService;
     this.debugEnabled = config.debug;
 
     this.initializeState = this.stateManager.initializeState.bind(this.stateManager);
@@ -85,10 +85,6 @@ export default class Agent {
     });
   }
 
-  runCommand(command: string) {
-    return this.requireServiceByType(AgentCommandService).executeAgentCommand(this, command);
-  }
-
   getAgentConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
     try {
       return schema.parse(this.config[key as keyof AgentConfig]);
@@ -112,7 +108,7 @@ export default class Agent {
     this.runBackgroundTask(async () => {
       const hook = new AfterInputReceived(input);
       try {
-        await this.getServiceByType(AgentLifecycleService)?.executeHooks(hook, this);
+        await this.getService(AgentLifecycleService)?.executeHooks(hook, this);
       } finally {
         this.mutateState(AgentEventState, state => {
           state.emit({

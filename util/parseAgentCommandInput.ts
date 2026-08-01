@@ -191,7 +191,6 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
 
     const tokens = tokenizeInput(input.trim());
     const parsedArgs: Record<string, string | number | boolean> = {};
-    const parsedPositionals: Record<string, string> = {};
     const argsSchema = inputSchema.args;
     const positionalSchema = inputSchema.positionals;
     const remainderSchema = inputSchema.remainder;
@@ -266,13 +265,13 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
         const value = remainingTokens[positionalTokenIndex];
 
         if (value !== undefined) {
-          parsedPositionals[positional.name] = value;
+          parsedArgs[positional.name] = value;
           positionalTokenIndex += 1;
           continue;
         }
 
         if (positional.defaultValue !== undefined) {
-          parsedPositionals[positional.name] = positional.defaultValue;
+          parsedArgs[positional.name] = positional.defaultValue;
           continue;
         }
 
@@ -308,8 +307,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
     const parsedInput = {
       agent,
       ...(inputSchema.allowAttachments ? { attachments } : {}),
-      ...(argsSchema ? { args: parsedArgs } : {}),
-      ...(positionalSchema ? { positionals: parsedPositionals } : {}),
+      ...(argsSchema || positionalSchema ? { args: parsedArgs } : {}),
       ...(remainderSchema ? { remainder: parsedRemainder } : {}),
     };
 

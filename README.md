@@ -1075,7 +1075,7 @@ For more advanced sub-agent execution with fine-grained control:
 ```typescript
 import { SubAgentService } from "@tokenring-ai/agent";
 
-const subAgentService = agent.getServiceByType(SubAgentService);
+const subAgentService = agent.getService(SubAgentService);
 
 // Run sub-agent with custom forwarding options
 const result = await subAgentService.runSubAgent({

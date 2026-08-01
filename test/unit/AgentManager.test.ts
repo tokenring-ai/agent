@@ -13,7 +13,7 @@ const app = createTestingApp();
 // Create a mock agent
 const createMockAgent = () => {
   const agent = createTestingAgent(app);
-  spyOn(agent, "requireServiceByType");
+  spyOn(agent, "requireService");
   spyOn(agent, "chatOutput");
   spyOn(agent, "infoMessage");
   spyOn(agent, "errorMessage");
@@ -45,7 +45,7 @@ describe("AgentManager", () => {
 
     app = createTestingApp();
     manager = new AgentManager(app);
-    app.addServices(manager);
+    app.addService(manager);
 
     // Add test configurations
     manager.addAgentConfigs(mockConfig);
@@ -174,7 +174,7 @@ describe("AgentManager", () => {
       }
 
       const mockAgent = createMockAgent();
-      app.addServices({
+      app.addService({
         name: "TestStateService",
         description: "Registers a test state slice",
         attach(agent: Agent) {

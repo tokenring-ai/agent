@@ -5,5 +5,4 @@ export { default as AgentManager } from "./services/AgentManager.js";
 export type {
   RunSubAgentOptions,
   RunSubAgentResult,
-} from "./services/SubAgentService.ts";
-export { default as SubAgentService } from "./services/SubAgentService.ts";
+} from "./util/runSubAgent.ts";

@@ -18,7 +18,7 @@ function execute({ remainder, agent }: AgentCommandInputType<typeof inputSchema>
     return getHelpOnCommand(command, agent);
   }
 
-  const agentCommandService = agent.requireServiceByType(AgentCommandService);
+  const agentCommandService = agent.requireService(AgentCommandService);
   const commands = agentCommandService.getCommandEntries();
 
   const lines = [
@@ -32,7 +32,7 @@ function execute({ remainder, agent }: AgentCommandInputType<typeof inputSchema>
 }
 
 function getHelpOnCommand(command: string, agent: Agent): string {
-  const agentCommandService = agent.requireServiceByType(AgentCommandService);
+  const agentCommandService = agent.requireService(AgentCommandService);
   const commandInfo = agentCommandService.getCommand(command);
   if (commandInfo) {
     return commandInfo.help.trim();

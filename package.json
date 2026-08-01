@@ -3,7 +3,6 @@
   "version": "0.2.0",
   "description": "Central orchestrator for managing AI agents, tools, commands, and state persistence.",
   "dependencies": {
-    "@tokenring-ai/chat": "workspace:*",
     "zod": "^4.4.3",
     "@tokenring-ai/lifecycle": "workspace:*",
     "@tokenring-ai/utility": "workspace:*",

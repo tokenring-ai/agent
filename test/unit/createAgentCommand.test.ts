@@ -1,7 +1,9 @@
+import { spyOn } from "bun:test";
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type Agent from "../../Agent.ts";
 import type { ParsedAgentCommandConfig } from "../../schema.ts";
 import { createAgentCommand } from "../../util/createAgentCommand.ts";
+import { runSubAgent } from "../../util/runSubAgent.ts";
 
 function makeCommandConfig(overrides: Partial<ParsedAgentCommandConfig> = {}): ParsedAgentCommandConfig {
   return {
@@ -36,23 +38,22 @@ function makeAgent(agentType: string, services: Record<string, unknown>) {
   return {
     config: { agentType, headless: false },
     headless: false,
-    requireServiceByType: (type: new (...args: any[]) => unknown) => {
+    requireService: (type: new (...args: any[]) => unknown) => {
       const name = type.name;
       const service = services[name];
       if (!service) throw new Error(`Missing service ${name}`);
       return service;
     },
-    getServiceByType: () => undefined,
+    getService: () => undefined,
   } as unknown as Agent;
 }
 
 describe("createAgentCommand requireNewAgent", () => {
   let executeAgentCommand: ReturnType<typeof mock>;
-  let runSubAgent: ReturnType<typeof mock>;
 
   beforeEach(() => {
     executeAgentCommand = mock(async () => ({ message: "chat done" }));
-    runSubAgent = mock(async () => ({
+    spyOn(runSubAgent).mockImplementation(async () => ({
       status: "success" as const,
       response: "subagent done",
     }));
@@ -62,7 +63,6 @@ describe("createAgentCommand requireNewAgent", () => {
     const command = createAgentCommand("deep research", makeCommandConfig({ requireNewAgent: false }));
     const agent = makeAgent("research", {
       AgentCommandService: { executeAgentCommand },
-      SubAgentService: { runSubAgent },
     });
 
     const result = await command.execute({
@@ -82,8 +82,7 @@ describe("createAgentCommand requireNewAgent", () => {
   test("spawns background subagent when agent types differ", async () => {
     const command = createAgentCommand("deep research", makeCommandConfig({ requireNewAgent: false }));
     const agent = makeAgent("code", {
-      AgentCommandService: { executeAgentCommand },
-      SubAgentService: { runSubAgent },
+      AgentCommandService: { executeAgentCommand }
     });
 
     const result = await command.execute({
@@ -103,8 +102,7 @@ describe("createAgentCommand requireNewAgent", () => {
   test("always spawns subagent when requireNewAgent is true even if types match", async () => {
     const command = createAgentCommand("deep research", makeCommandConfig({ requireNewAgent: true, background: false }));
     const agent = makeAgent("research", {
-      AgentCommandService: { executeAgentCommand },
-      SubAgentService: { runSubAgent },
+      AgentCommandService: { executeAgentCommand }
     });
 
     const result = await command.execute({

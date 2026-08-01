@@ -1,8 +1,9 @@
 import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import { CommandFailedError } from "../../AgentError.ts";
 import { AfterSubAgentResponse } from "../../hooks.ts";
-import { type RunSubAgentOptions, SubAgentService } from "../../index.ts";
 import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
+import { runSubAgent } from "../../util/runSubAgent.ts";
+import type { RunSubAgentOptions } from "../../util/runSubAgent.ts";
 
 const inputSchema = {
   args: {
@@ -82,8 +83,6 @@ async function execute({ remainder, args, agent }: AgentCommandInputType<typeof 
     minContextLength: args.minContextLength,
   };
 
-  const subAgentService = agent.requireServiceByType(SubAgentService);
-
   const request: RunSubAgentOptions = {
     agentType,
     background: isBg,
@@ -94,9 +93,9 @@ async function execute({ remainder, args, agent }: AgentCommandInputType<typeof 
     autoCleanup: true,
     options: subAgentOptions,
   };
-  const result = await subAgentService.runSubAgent(request);
+  const result = await runSubAgent(request);
 
-  const lifecycleService = agent.getServiceByType(AgentLifecycleService);
+  const lifecycleService = agent.getService(AgentLifecycleService);
   await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
 
   if (isBg) {

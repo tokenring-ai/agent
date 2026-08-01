@@ -159,9 +159,18 @@ export type AgentCommandPositionalsType<Schema extends readonly AgentCommandPosi
   }
 >;
 
-type AgentCommandPositionalsInput<Schema extends AgentCommandInputSchema> = Schema["positionals"] extends readonly AgentCommandPositionalSchema[]
-  ? { positionals: AgentCommandPositionalsType<Schema["positionals"]> }
-  : { positionals?: never };
+type AgentCommandNamedArgsType<Schema extends AgentCommandInputSchema> = Schema["args"] extends AgentCommandArgumentsSchema
+  ? AgentCommandArgsType<Schema["args"]>
+  : {};
+
+type AgentCommandPositionalArgsType<Schema extends AgentCommandInputSchema> = Schema["positionals"] extends readonly AgentCommandPositionalSchema[]
+  ? AgentCommandPositionalsType<Schema["positionals"]>
+  : {};
+
+/** Named `--args` and positional values are merged into a single `args` object. */
+export type AgentCommandCombinedArgsType<Schema extends AgentCommandInputSchema> = Expand<
+  AgentCommandNamedArgsType<Schema> & AgentCommandPositionalArgsType<Schema>
+>;
 
 type AgentCommandRemainderInput<Schema extends AgentCommandInputSchema> = Schema["remainder"] extends AgentCommandRemainderSchema
   ? {
@@ -170,8 +179,10 @@ type AgentCommandRemainderInput<Schema extends AgentCommandInputSchema> = Schema
   : { remainder?: never };
 
 type AgentCommandArgsInput<Schema extends AgentCommandInputSchema> = Schema["args"] extends AgentCommandArgumentsSchema
-  ? { args: AgentCommandArgsType<Schema["args"]> }
-  : { args?: never };
+  ? { args: AgentCommandCombinedArgsType<Schema> }
+  : Schema["positionals"] extends readonly AgentCommandPositionalSchema[]
+    ? { args: AgentCommandCombinedArgsType<Schema> }
+    : { args?: never };
 
 type AgentCommandAttachmentsInput<Schema extends AgentCommandInputSchema> = Schema["allowAttachments"] extends true
   ? { attachments: ChatAttachment[] }
@@ -179,8 +190,7 @@ type AgentCommandAttachmentsInput<Schema extends AgentCommandInputSchema> = Sche
 
 export type AgentCommandInputType<Schema extends AgentCommandInputSchema> = {
   agent: Agent;
-} & AgentCommandPositionalsInput<Schema> &
-  AgentCommandRemainderInput<Schema> &
+} & AgentCommandRemainderInput<Schema> &
   AgentCommandArgsInput<Schema> &
   AgentCommandAttachmentsInput<Schema>;
 

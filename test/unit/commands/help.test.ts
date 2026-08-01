@@ -5,8 +5,8 @@ import AgentCommandService from "../../../services/AgentCommandService.ts";
 // Mock agent
 const createMockAgent = () =>
   ({
-    requireServiceByType: mock(),
-    getServiceByType: mock(),
+    requireService: mock(),
+    getService: mock(),
     chatOutput: mock(),
     infoMessage: mock(),
     systemMessage: mock(),
@@ -76,7 +76,7 @@ describe("Help_Command", () => {
         ),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
@@ -96,7 +96,7 @@ describe("Help_Command", () => {
         }),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: "test", agent: mockAgent });
 
@@ -108,7 +108,7 @@ describe("Help_Command", () => {
         getCommand: mock().mockReturnValue(undefined),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       expect(() => helpCommand.execute({ remainder: "nonexistent", agent: mockAgent })).toThrow("No help available for command /nonexistent");
     });
@@ -128,7 +128,7 @@ describe("Help_Command", () => {
         }),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: "multi word", agent: mockAgent });
 
@@ -154,7 +154,7 @@ describe("Help_Command", () => {
         ),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
@@ -168,7 +168,7 @@ describe("Help_Command", () => {
         getCommandEntries: mock().mockReturnValue(new Map()),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
@@ -202,7 +202,7 @@ describe("Help_Command", () => {
         ),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
@@ -213,7 +213,7 @@ describe("Help_Command", () => {
 
   describe("Error Handling", () => {
     it("should handle service resolution errors", () => {
-      mockAgent.requireServiceByType.mockImplementation(() => {
+      mockAgent.requireService.mockImplementation(() => {
         throw new Error("Service not found");
       });
 
@@ -227,7 +227,7 @@ describe("Help_Command", () => {
         }),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       expect(() => helpCommand.execute({ remainder: undefined, agent: mockAgent })).toThrow("Failed to get commands");
     });
@@ -239,14 +239,14 @@ describe("Help_Command", () => {
         }),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       expect(() => helpCommand.execute({ remainder: "test", agent: mockAgent })).toThrow("Failed to get command");
     });
   });
 
   describe("Integration with Agent Interface", () => {
-    it("should use requireServiceByType correctly", async () => {
+    it("should use requireService correctly", async () => {
       const mockCommandService = {
         getCommandEntries: mock().mockReturnValue(
           new Map([
@@ -263,11 +263,11 @@ describe("Help_Command", () => {
         ),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
-      expect(mockAgent.requireServiceByType).toHaveBeenCalledWith(AgentCommandService);
+      expect(mockAgent.requireService).toHaveBeenCalledWith(AgentCommandService);
     });
 
     it("should handle chat output formatting", async () => {
@@ -296,7 +296,7 @@ describe("Help_Command", () => {
         ),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
@@ -312,7 +312,7 @@ describe("Help_Command", () => {
         getCommandEntries: mock().mockReturnValue(new Map()),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: undefined, agent: mockAgent });
 
@@ -343,7 +343,7 @@ Additional notes about usage.`,
         }),
       };
 
-      mockAgent.requireServiceByType.mockReturnValue(mockCommandService);
+      mockAgent.requireService.mockReturnValue(mockCommandService);
 
       const result = helpCommand.execute({ remainder: "multi", agent: mockAgent });
 

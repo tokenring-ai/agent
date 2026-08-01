@@ -3,10 +3,10 @@ import { createRPCEndpoint } from "@tokenring-ai/rpc/createRPCEndpoint";
 import EnhancedMap from "@tokenring-ai/utility/map/enhancedMap";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import AgentManager from "../services/AgentManager.ts";
-import { projectAgentList } from "../services/projectAgentList.ts";
+import { projectAgentList } from "../util/projectAgentList.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
 import { CommandHistoryState } from "../state/commandHistoryState.ts";
-import AgentRpcSchema from "./schema.ts";
+import AgentRpcSchema, { type AvailableAgentCommand } from "./schema.ts";
 
 export default createRPCEndpoint(AgentRpcSchema, {
   getAgentConfig(args, app: TokenRingApp) {
@@ -144,16 +144,23 @@ export default createRPCEndpoint(AgentRpcSchema, {
   },
 
   getAvailableCommands(args, app) {
-    const agent = app.requireService(AgentManager).getAgent(args.agentId);
-    if (!agent) {
-      return { status: "agentNotFound" };
+    let commandService: AgentCommandService;
+    if (args.agentId) {
+      const agent = app.requireService(AgentManager).getAgent(args.agentId);
+      if (!agent) {
+        return { status: "agentNotFound" };
+      }
+      commandService = agent.requireService(AgentCommandService);
+    } else {
+      commandService = app.requireService(AgentCommandService);
     }
-    const commandService = agent.requireServiceByType(AgentCommandService);
-    const uniqueCommands = new EnhancedMap<string, { name: string; description: string }>();
+
+    const uniqueCommands = new EnhancedMap<string, AvailableAgentCommand>();
     for (const [, command] of commandService.getCommandEntries()) {
       uniqueCommands.set(command.name, {
         name: command.name,
         description: command.description,
+        inputSchema: command.inputSchema,
       });
     }
     return {

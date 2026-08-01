@@ -39,9 +39,9 @@ describe("AgentCommandService", () => {
 
   beforeEach(() => {
     mock.clearAllMocks();
-    service = new AgentCommandService(mockApp);
+    service = new AgentCommandService();
 
-    service.addAgentCommands(mockCommand, mockChatCommand);
+    service.addAgentCommands([mockCommand, mockChatCommand]);
   });
 
   afterEach(() => {
@@ -116,7 +116,7 @@ describe("AgentCommandService", () => {
         help: "Test 2 help",
       };
 
-      service.addAgentCommands(newCommand1, newCommand2);
+      service.addAgentCommands([newCommand1, newCommand2]);
 
       const entries = service.getCommandEntries();
       const entriesArray = Array.from(entries);

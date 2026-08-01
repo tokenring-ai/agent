@@ -1,3 +1,4 @@
+import { jsonBlock } from "@tokenring-ai/utility/string/codeBlock";
 import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
@@ -5,11 +6,7 @@ const inputSchema = {} as const satisfies AgentCommandInputSchema;
 function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
   const checkpoint = agent.generateCheckpoint();
 
-  return `### Agent Checkpoint Dump
-\`\`\`json
-${JSON.stringify(checkpoint, null, 2)}     
-\`\`\`
-`;
+  return `### Agent Checkpoint Dump\n${jsonBlock(checkpoint)}`;
 }
 
 export default {

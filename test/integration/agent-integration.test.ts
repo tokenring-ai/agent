@@ -1,16 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { setTimeout as delay } from "node:timers/promises";
 import type TokenRingApp from "@tokenring-ai/app";
 import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService";
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { AfterAgentInputSuccess, BeforeAgentInput, HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setTimeout as delay } from "node:timers/promises";
 import Agent from "../../Agent.ts";
 import { AfterInputReceived } from "../../lifecycle.ts";
 import { AgentConfigSchema } from "../../schema";
 import AgentCommandService from "../../services/AgentCommandService.ts";
 import AgentManager from "../../services/AgentManager.ts";
-import SubAgentService from "../../services/SubAgentService.ts";
 import { AgentEventState } from "../../state/agentEventState";
 import { CommandHistoryState } from "../../state/commandHistoryState";
 
@@ -40,7 +39,7 @@ describe("Agent Integration Tests", () => {
     app = createTestingApp();
 
     // Create services
-    commandService = new AgentCommandService(app);
+    commandService = new AgentCommandService();
     lifecycleService = new AgentLifecycleService({
       agentDefaults: {
         enabledHooks: [],
@@ -48,7 +47,7 @@ describe("Agent Integration Tests", () => {
     });
     manager = new AgentManager(app);
 
-    app.addServices(commandService, lifecycleService, manager);
+    app.addService(commandService, lifecycleService, manager);
 
     // Create agent
     agent = new Agent(app, {}, mockConfig, new AbortController().signal);
@@ -264,17 +263,11 @@ describe("Agent Integration Tests", () => {
 
   describe("Service Registry Integration", () => {
     it("should resolve services through agent interface", () => {
-      const resolvedCommandService = agent.requireServiceByType(AgentCommandService);
+      const resolvedCommandService = agent.requireService(AgentCommandService);
       expect(resolvedCommandService).toBe(commandService);
 
-      const resolvedLifecycleService = agent.getServiceByType(AgentLifecycleService);
+      const resolvedLifecycleService = agent.getService(AgentLifecycleService);
       expect(resolvedLifecycleService).toBe(lifecycleService);
-    });
-
-    it("should handle missing services gracefully", () => {
-      // SubAgentService is not added to the app, so it will be undefined
-      const missingService = agent.getServiceByType(SubAgentService);
-      expect(missingService).toBeUndefined();
     });
   });
 

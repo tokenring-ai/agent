@@ -34,7 +34,7 @@ export function formatCommandUsage<Schema extends AgentCommandInputSchema>(comma
 }
 
 function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
-  const commandService = agent.requireServiceByType(AgentCommandService);
+  const commandService = agent.requireService(AgentCommandService);
 
   const commandList = commandService
     .getCommandEntries()

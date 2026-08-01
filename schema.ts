@@ -55,6 +55,7 @@ export const AgentConfigSchema = z.object({
   displayName: z.string().meta({ description: "Human-readable name shown in agent pickers" }),
   description: z.string().meta({ description: "What this agent type is for" }),
   category: z.string().meta({ description: "Group this agent type appears under in pickers" }),
+  defaultCommand: z.string().default("/chat send").meta({ description: "The default command to run when the message to the agent does not start with a '/'"}),
   debug: z.boolean().default(false).meta({ advanced: true, description: "Log extra diagnostic output for this agent type" }),
   initialCommands: z.array(z.string()).default([]).meta({ description: "Commands run automatically when an agent of this type starts" }),
   createMessage: z.string().default("Agent Created").meta({ advanced: true, description: "Message logged when an agent of this type is created" }),

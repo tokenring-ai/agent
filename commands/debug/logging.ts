@@ -12,8 +12,8 @@ const inputSchema = {
   ],
 } as const satisfies AgentCommandInputSchema;
 
-function execute({ positionals, agent }: AgentCommandInputType<typeof inputSchema>): string {
-  const enabled = positionals.enabled;
+function execute({ args, agent }: AgentCommandInputType<typeof inputSchema>): string {
+  const enabled = args.enabled;
 
   if (enabled === "on") {
     agent.debugEnabled = true;

@@ -1,5 +1,6 @@
 import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
+import { ChatServiceState } from "@tokenring-ai/chat";
 import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import {
   AfterAgentInputCancelled,
@@ -8,10 +9,11 @@ import {
   AfterAgentInputSuccess,
   BeforeAgentInput,
 } from "@tokenring-ai/lifecycle/util/hooks";
-import { deepEqual } from "@tokenring-ai/one-frontend/src/lib/utils";
+import type { Arrayable } from "@tokenring-ai/utility/array/arrayable";
 import { arrayableToArray } from "@tokenring-ai/utility/array/arrayable";
 import formatError from "@tokenring-ai/utility/error/formatError";
 import EnhancedStringMap from "@tokenring-ai/utility/map/enhancedStringMap";
+import deepEqual from "@tokenring-ai/utility/object/deepEqual";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import codeBlock from "@tokenring-ai/utility/string/codeBlock";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
@@ -36,19 +38,16 @@ export default class AgentCommandService implements TokenRingService {
   readonly name = "AgentCommandService";
   description = "A service which registers and dispatches agent commands.";
 
-  private agentCommands = new KeyedRegistry<TokenRingAgentCommand<any>>();
+  private agentCommands = new KeyedRegistry<TokenRingAgentCommand>();
 
   private currentlyRegisteredCommands = new EnhancedStringMap<ParsedAgentCommandConfig>();
 
   getCommandNames = this.agentCommands.keysArray;
   getCommandEntries = this.agentCommands.entriesArray;
   getCommand = this.agentCommands.get;
-  private readonly defaultCommand = "/chat send";
 
-  constructor(private readonly app: TokenRingApp) {}
-
-  addAgentCommands(...commands: (TokenRingAgentCommand<any> | TokenRingAgentCommand<any>[])[]) {
-    for (const command of commands.flat()) {
+  addAgentCommands(commands: Arrayable<TokenRingAgentCommand<any>>) {
+    for (const command of arrayableToArray(commands)) {
       this.agentCommands.set(command.name, command);
       for (const alias of arrayableToArray(command.alias)) {
         this.agentCommands.set(alias, command);
@@ -107,7 +106,7 @@ export default class AgentCommandService implements TokenRingService {
         throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
       }
     } else if (!message.startsWith("/")) {
-      message = `${this.defaultCommand} ${message}`;
+      message = `${agent.config.defaultCommand} ${message}`;
     }
 
     let commandInput = message.slice(1); // Remove leading '/'
@@ -217,8 +216,8 @@ Type /help for a list of commands.`);
   }
 
   private async processAgentInput(agent: Agent, item: InputQueueItem) {
-    const agentCommandService = agent.requireServiceByType(AgentCommandService);
-    const agentLifecycleService = agent.getServiceByType(AgentLifecycleService);
+    const agentCommandService = agent.requireService(AgentCommandService);
+    const agentLifecycleService = agent.getService(AgentLifecycleService);
 
     const signal = item.abortController.signal;
     const { input, requestId } = item.request;

@@ -4,7 +4,7 @@ import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentComm
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
-  const agentManager = agent.requireServiceByType(AgentManager);
+  const agentManager = agent.requireService(AgentManager);
   const agents = agentManager.getAgents();
 
   if (agents.length === 0) {
