@@ -27,7 +27,7 @@ async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema
       const result = await agent.askForApproval({
         message: "Testing confirmation dialog",
         label: "Do you agree?",
-        default: true,
+        defaultValue: true,
       });
       return `You selected: ${result ? "Yes" : "No"}`;
     }

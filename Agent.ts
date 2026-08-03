@@ -159,13 +159,12 @@ export default class Agent {
   async askForApproval({
     message,
     label = "Approve ?",
-    default: defaultValue,
-    timeout: autoSubmitAfter,
+    defaultValue,
   }: {
     message: string;
     label?: string | undefined;
-    default?: boolean | undefined;
-    timeout?: number | undefined;
+    defaultValue?: boolean | undefined;
+    timeout?: never;
   }): Promise<boolean | null> {
     const result = await this.askQuestion({
       message,
@@ -186,7 +185,6 @@ export default class Agent {
           },
         ],
       },
-      autoSubmitAfter,
     });
 
     return result !== null && result.length > 0 && result[0] === "Approved";
