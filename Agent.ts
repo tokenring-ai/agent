@@ -16,7 +16,7 @@ import {
   type ToolCallResult,
   ToolCallResultSchema,
 } from "./AgentEvents.js";
-import { AfterInputReceived } from "./lifecycle.ts";
+import { BeforeInputReceived } from "./lifecycle.ts";
 import { getDefaultQuestionValue, type ResultTypeForQuestion } from "./question.ts";
 import type { AgentConfig, ParsedAgentConfig } from "./schema.ts";
 import { AgentEventState } from "./state/agentEventState.ts";
@@ -84,7 +84,7 @@ export default class Agent {
     });
   }
 
-  getAgentConfigSlice<T extends z.ZodTypeAny>(key: string, schema: T): z.infer<T> {
+  getAgentConfigSlice<T extends z.ZodType>(key: string, schema: T): z.infer<T> {
     try {
       return schema.parse(this.config[key as keyof AgentConfig]);
     } catch (error: unknown) {
@@ -105,7 +105,7 @@ export default class Agent {
     });
 
     this.runBackgroundTask(async () => {
-      const hook = new AfterInputReceived(input);
+      const hook = new BeforeInputReceived(input);
       try {
         await this.getService(AgentLifecycleService)?.executeHooks(hook, this);
       } finally {
@@ -165,7 +165,7 @@ export default class Agent {
     label?: string | undefined;
     defaultValue?: boolean | undefined;
     timeout?: never;
-  }): Promise<boolean | null> {
+  }): Promise<boolean> {
     const result = await this.askQuestion({
       message,
       question: {

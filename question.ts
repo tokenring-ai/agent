@@ -137,7 +137,7 @@ export function getDefaultQuestionValue<T extends ParsedTextQuestion | ParsedFor
       return field.defaultValue as ResultTypeForQuestion<T>;
     default: {
       const exhaustive: any = field satisfies never;
-      throw new Error(`Unsupported field type: ${exhaustive.type}}`);
+      throw new Error(`Unsupported field type: ${exhaustive.type}`);
     }
   }
 }

@@ -92,7 +92,9 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
               }
               this.currentActivity = this.currentlyExecutingInputItem.executionState.currentActivity;
             } else {
-              throw new Error("Input execution finished outside of a currently executing task in the Agent event loop, and will be discarded");
+              throw new Error(
+                `Input execution status '${event.status}' received outside of a currently executing task in the Agent event loop, and will be discarded`,
+              );
             }
           }
           this.pushAgentStatus();
@@ -170,7 +172,7 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
         }
       }
 
-      compressedEvents.push((lastEvent = event));
+      compressedEvents.push((lastEvent = { ...event }));
     }
 
     return {

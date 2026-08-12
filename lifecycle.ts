@@ -1,6 +1,6 @@
 import type { InputMessage } from "./AgentEvents.js";
 
-export class AfterInputReceived {
+export class BeforeInputReceived {
   readonly type = "hook";
 
   constructor(readonly input: InputMessage) {}

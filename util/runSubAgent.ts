@@ -41,9 +41,9 @@ type PendingChildQuestion = {
   interaction: Extract<ParsedInteractionRequest, { type: "question" }>;
 };
 
-function getPendingChildQuestion(state: AgentEventState, requestId: string): PendingChildQuestion | null {
+function getPendingChildQuestion(state: AgentEventState): PendingChildQuestion | null {
   const currentItem = state.currentlyExecutingInputItem;
-  if (!currentItem || currentItem.request.requestId !== requestId) return null;
+  if (!currentItem) return null;
 
   const interaction = currentItem.executionState.availableInteractions.find(
     (availableInteraction): availableInteraction is Extract<ParsedInteractionRequest, { type: "question" }> => availableInteraction.type === "question",
@@ -115,30 +115,58 @@ export async function runSubAgent({
       : null;
 
   let removeParentAbortListener = () => {};
+  const parentAbortMessage = (signal: AbortSignal) => String(signal.reason ?? "Parent agent aborted sub-agent.");
+
   if (!background) {
     const parentAbortSignal = parentAgent.getAbortSignal();
     const onParentAbort = () => {
-      childAgent.abortCurrentOperation(String(parentAbortSignal.reason ?? "Parent agent aborted sub-agent."));
+      childAgent.abortCurrentOperation(parentAbortMessage(parentAbortSignal));
       listenerAbortController.abort(parentAbortSignal.reason);
     };
 
-    parentAbortSignal.addEventListener("abort", onParentAbort, {
-      once: true,
-    });
-    removeParentAbortListener = () => parentAbortSignal.removeEventListener("abort", onParentAbort);
+    // AbortSignal only fires on future abort events — handle already-aborted parents immediately.
+    if (parentAbortSignal.aborted) {
+      onParentAbort();
+    } else {
+      parentAbortSignal.addEventListener("abort", onParentAbort, {
+        once: true,
+      });
+      removeParentAbortListener = () => parentAbortSignal.removeEventListener("abort", onParentAbort);
+    }
   }
 
   try {
-    await childAgent.waitForState(AgentEventState, state => state.idle);
+    // If parent was already aborted before we started, do not queue work on the child.
+    if (!background && parentAgent.getAbortSignal().aborted) {
+      return {
+        status: "cancelled",
+        response: parentAbortMessage(parentAgent.getAbortSignal()),
+        ...(!autoCleanup && { childAgent }),
+      };
+    }
+
+    await childAgent.waitForState(AgentEventState, state => state.idle, parentAgent.getAbortSignal());
+
+    // waitForState resolves immediately when the child is already idle, even if the parent
+    // signal is aborted — re-check before queuing steps.
+    if (!background && parentAgent.getAbortSignal().aborted) {
+      return {
+        status: "cancelled",
+        response: parentAbortMessage(parentAgent.getAbortSignal()),
+        ...(!autoCleanup && { childAgent }),
+      };
+    }
+
     const eventCursor = childAgent.getState(AgentEventState).getEventCursorFromCurrentPosition();
 
-    let requestId: string;
+    // Queue all steps; completion is keyed off the final step's requestId.
+    let finalRequestId = "";
     for (const step of steps) {
       const inputMessage = {
         from,
         ...(typeof step === "string" ? { message: step } : step),
       };
-      requestId = childAgent.handleInput(inputMessage);
+      finalRequestId = childAgent.handleInput(inputMessage);
     }
 
     if (background) {
@@ -153,7 +181,7 @@ export async function runSubAgent({
       status: "error" | "cancelled" | "success";
       response: string;
     }> {
-      const response = [];
+      const response: string[] = [];
       const mirroredInteractionIds = new Set<string>();
 
       const removeMirroredInteraction = (interactionId: string) => {
@@ -161,16 +189,22 @@ export async function runSubAgent({
           const currentItem = parentState.currentlyExecutingInputItem;
           if (!currentItem) return;
 
+          const previousLength = currentItem.executionState.availableInteractions.length;
           currentItem.executionState.availableInteractions = currentItem.executionState.availableInteractions.filter(
             interaction => interaction.interactionId !== interactionId,
           );
           currentItem.interactionCallbacks.delete(interactionId);
+
+          // Event-stream clients only see interaction changes via input.execution events.
+          if (currentItem.executionState.availableInteractions.length !== previousLength) {
+            parentState.pushInputExecution(currentItem);
+          }
         });
         mirroredInteractionIds.delete(interactionId);
       };
 
       const clearMirroredInteractions = () => {
-        for (const interactionId of mirroredInteractionIds.values()) {
+        for (const interactionId of mirroredInteractionIds) {
           removeMirroredInteraction(interactionId);
         }
       };
@@ -182,13 +216,17 @@ export async function runSubAgent({
             throw new Error("Cannot forward a sub-agent interaction when the parent agent has no active input.");
           }
 
-          if (!currentItem.executionState.availableInteractions.some(interaction => interaction.interactionId === pendingQuestion.interaction.interactionId)) {
+          const alreadyMirrored = currentItem.executionState.availableInteractions.some(
+            interaction => interaction.interactionId === pendingQuestion.interaction.interactionId,
+          );
+          if (!alreadyMirrored) {
             currentItem.executionState.availableInteractions.push(pendingQuestion.interaction);
+            parentState.pushInputExecution(currentItem);
           }
 
           currentItem.interactionCallbacks.set(pendingQuestion.interaction.interactionId, result => {
             const childState = childAgent.getState(AgentEventState);
-            const activeInteraction = getPendingChildQuestion(childState, pendingQuestion.requestId);
+            const activeInteraction = getPendingChildQuestion(childState);
             if (!activeInteraction || activeInteraction.interaction.interactionId !== pendingQuestion.interaction.interactionId) {
               return;
             }
@@ -243,7 +281,8 @@ export async function runSubAgent({
               }
               break;
             case "agent.response":
-              if (event.requestId === requestId) {
+              // Multi-step runs queue several inputs; only the final step ends the wait.
+              if (event.requestId === finalRequestId) {
                 clearMirroredInteractions();
                 const truncatedResponse = trimMiddle(response.length > 0 ? response.join("") : event.message, minContextLength, maxResponseLength);
                 return {
@@ -262,11 +301,7 @@ export async function runSubAgent({
               }
               break;
             case "agent.created":
-              //parentAgent.infoMessage(`${agentType} > Agent Created: ${event.message}`);
-              break;
             case "agent.stopped":
-              //parentAgent.infoMessage(`${agentType} > Agent Stopped: ${event.message}`);
-              break;
             case "cancel":
             case "input.execution":
             case "input.interaction":
@@ -280,7 +315,8 @@ export async function runSubAgent({
           }
         }
 
-        const pendingQuestion = getPendingChildQuestion(state, requestId);
+        // Mirror questions for any currently executing step (not only the final one).
+        const pendingQuestion = getPendingChildQuestion(state);
         const activeInteractionIds = new Set(pendingQuestion ? [pendingQuestion.interaction.interactionId] : []);
 
         for (const interactionId of mirroredInteractionIds) {
@@ -304,45 +340,34 @@ export async function runSubAgent({
       clearMirroredInteractions();
       return {
         status: "cancelled",
-        response: "Child agent was aborted",
+        response: timeoutExceeded ? `Agent timed out after ${timeoutSeconds} seconds.` : "Child agent was aborted",
       };
     }
 
     const childResult = await forwardChildEventsToParent();
-
-    listenerAbortController.abort();
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- can be mutated asynchronously
-    if (!childResult) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- can be mutated asynchronously
-      if (timeoutExceeded) {
-        return {
-          status: "cancelled",
-          response: `Agent timed out after ${timeoutSeconds} seconds.`,
-          ...(!autoCleanup && { childAgent }),
-        };
-      }
-      return {
-        status: "error",
-        response: "Child agent did not produce a result",
-        ...(!autoCleanup && { childAgent }),
-      };
-    }
     return {
       ...childResult,
       ...(!autoCleanup && { childAgent }),
     };
   } catch (err) {
+    let parentAborted = false;
+    let parentReason = "Parent agent aborted sub-agent.";
+    try {
+      const parentSignal = parentAgent.getAbortSignal();
+      parentAborted = !background && parentSignal.aborted;
+      if (parentAborted) parentReason = parentAbortMessage(parentSignal);
+    } catch {
+      // Parent may no longer have an active input item; treat as a normal error.
+    }
     return {
-      status: "error",
-      response: formatLogMessages(["Error running sub-agent: ", err as Error]),
-      ...(autoCleanup && { childAgent }),
+      status: parentAborted ? "cancelled" : "error",
+      response: parentAborted ? parentReason : formatLogMessages(["Error running sub-agent: ", err as Error]),
+      ...(!autoCleanup && { childAgent }),
     };
   } finally {
     if (timer) clearTimeout(timer);
     removeParentAbortListener();
     listenerAbortController.abort();
-    // Clean up the agent if auto-cleanup is enabled
     if (autoCleanup && !background) {
       agentManager.deleteAgent(childAgent.id, "Parent agent triggered auto-cleanup of sub-agent.");
     }

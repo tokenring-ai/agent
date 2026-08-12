@@ -2,6 +2,7 @@ import agentList from "./commands/agent/list.ts";
 import agentRun from "./commands/agent/run.ts";
 import agentShutdown from "./commands/agent/shutdown.ts";
 import agentTypes from "./commands/agent/types.ts";
+import branch from "./commands/branch.ts";
 import debugAppShutdown from "./commands/debug/app.ts";
 import debugChat from "./commands/debug/chat.ts";
 import debugCheckpoint from "./commands/debug/checkpoint.ts";
@@ -17,6 +18,7 @@ import type { TokenRingAgentCommand } from "./types.ts";
 export default [
   settings,
   help,
+  branch,
   agentTypes,
   agentList,
   agentRun,

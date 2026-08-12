@@ -6,7 +6,7 @@ import AgentLifecycleService from "@tokenring-ai/lifecycle/AgentLifecycleService
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { AfterAgentInputSuccess, BeforeAgentInput, HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
 import Agent from "../../Agent.ts";
-import { AfterInputReceived } from "../../lifecycle.ts";
+import { BeforeInputReceived } from "../../lifecycle.ts";
 import { AgentConfigSchema } from "../../schema";
 import AgentCommandService from "../../services/AgentCommandService.ts";
 import AgentManager from "../../services/AgentManager.ts";
@@ -40,11 +40,7 @@ describe("Agent Integration Tests", () => {
 
     // Create services
     commandService = new AgentCommandService();
-    lifecycleService = new AgentLifecycleService({
-      agentDefaults: {
-        enabledHooks: [],
-      },
-    });
+    lifecycleService = new AgentLifecycleService();
     manager = new AgentManager(app);
 
     app.addServices([commandService, lifecycleService, manager]);
@@ -182,7 +178,7 @@ describe("Agent Integration Tests", () => {
         displayName: "After Input Received",
         description: "Mutates received input",
         callbacks: [
-          new HookCallback(AfterInputReceived, data => {
+          new HookCallback(BeforeInputReceived, data => {
             data.input.message = `[mutated] ${data.input.message}`;
           }),
         ],

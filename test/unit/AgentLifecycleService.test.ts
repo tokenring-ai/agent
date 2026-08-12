@@ -40,11 +40,7 @@ describe("AgentLifecycleService", () => {
 
   beforeEach(() => {
     mock.clearAllMocks();
-    service = new AgentLifecycleService({
-      agentDefaults: {
-        enabledHooks: [],
-      },
-    });
+    service = new AgentLifecycleService();
 
     service.registerHook("test-hook", mockHook);
     service.registerHook("another-hook", anotherHook);

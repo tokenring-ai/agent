@@ -91,17 +91,16 @@ export default class AgentCommandService implements TokenRingService {
     if (message === "") {
       message = "/help";
     } else if (message.startsWith("@")) {
-      const agentMention = message.slice(1);
-      const match = agentMention.match(/^@(\S+)\s+(.*)$/i) as [string, string, string] | undefined;
+      const match = message.match(/^@(\S+)\s+(.*)$/i) as [string, string, string] | undefined;
       if (match) {
         const [, agentName, prompt] = match;
         if (agentName && prompt) {
           message = `/agent run ${agentName} ${prompt}`;
         } else {
-          throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
+          throw new CommandFailedError(`Invalid agent invocation: ${message}`);
         }
       } else {
-        throw new CommandFailedError(`Invalid agent invocation: ${agentMention}`);
+        throw new CommandFailedError(`Invalid agent invocation: ${message}`);
       }
     } else if (!message.startsWith("/")) {
       message = `${agent.config.defaultCommand} ${message}`;
@@ -147,7 +146,7 @@ Type /help for a list of commands.`);
 
     signal.addEventListener("abort", handleAbort);
 
-    await agent.waitForState(AgentEventState, state => state.events.some(event => event.type === "agent.created"));
+    await agent.waitForState(AgentEventState, state => state.events.some(event => event.type === "agent.created"), signal);
 
     agent.mutateState(AgentEventState, state => {
       state.status = "running";
