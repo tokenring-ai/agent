@@ -45,7 +45,7 @@ describe("AgentManager", () => {
 
     app = createTestingApp();
     manager = new AgentManager(app);
-    app.addService(manager);
+    app.addService(AgentManager, manager);
 
     // Add test configurations
     manager.addAgentConfigs(mockConfig);
@@ -174,13 +174,14 @@ describe("AgentManager", () => {
       }
 
       const mockAgent = createMockAgent();
-      app.addService({
-        name: "TestStateService",
-        description: "Registers a test state slice",
+      class TestStateService {
+        name = "TestStateService";
+        description = "Registers a test state slice";
         attach(agent: Agent) {
           agent.initializeState(TestState, {});
-        },
-      });
+        }
+      }
+      app.addService(TestStateService, new TestStateService());
 
       manager.spawnSubAgent(mockAgent, "test", {
         headless: true,

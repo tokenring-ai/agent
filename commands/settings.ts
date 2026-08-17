@@ -5,7 +5,7 @@ const description = "Show current chat settings." as const;
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 export function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
-  const activeServiceNames = agent.app.getServices().map(s => s.name);
+  const activeServiceNames = agent.app.getServiceNames();
 
   return `
 # Current settings:

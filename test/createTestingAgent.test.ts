@@ -25,7 +25,7 @@ export default function createTestingAgent(app: TokenRingApp) {
   let agentManager = app.getService(AgentManager);
   if (!agentManager) {
     agentManager = new AgentManager(app);
-    app.addService(agentManager);
+    app.addService(AgentManager, agentManager);
   }
 
   return agentManager.spawnAgentFromConfig(config);

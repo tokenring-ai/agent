@@ -14,10 +14,10 @@ export default {
   version: packageJSON.version,
   description: packageJSON.description,
   install(app) {
-    const agentCommandService = app.addService(new AgentCommandService());
+    const agentCommandService = app.addService(AgentCommandService, new AgentCommandService());
     agentCommandService.addAgentCommands(agentCommands);
 
-    app.addService(new AgentManager(app));
+    app.addService(AgentManager, new AgentManager(app));
 
     app.waitForService(RpcService, rpcService => {
       rpcService.registerEndpoint(agentRPC);

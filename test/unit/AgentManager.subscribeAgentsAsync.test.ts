@@ -36,7 +36,7 @@ describe("AgentManager.subscribeAgentsAsync", () => {
   beforeEach(() => {
     const app = createTestingApp();
     manager = new AgentManager(app);
-    app.addService(manager);
+    app.addService(AgentManager, manager);
     manager.addAgentConfigs(mockConfig);
   });
 

@@ -284,14 +284,14 @@ describe("AgentLifecycleService", () => {
 
     it("should handle hook execution errors", async () => {
       const errorHook: HookSubscription = {
-        name: "error",
+        name: "error-hook",
         displayName: "Error Hook",
         description: "Error hook",
         callbacks: [new HookCallback(AfterAgentInputSuccess, mock().mockRejectedValue(new Error("Hook failed")))],
       };
 
-      service.registerHook("error", errorHook);
-      service.setEnabledHooks(["error"], mockAgent);
+      service.registerHook("error-hook", errorHook);
+      service.setEnabledHooks(["error-hook"], mockAgent);
 
       const requestData = {
         type: "input.received" as const,
@@ -308,7 +308,9 @@ describe("AgentLifecycleService", () => {
         message: "success",
       };
 
-      expect(service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent)).rejects.toThrow("Hook failed");
+      const results = await service.executeHooks(new AfterAgentInputSuccess(requestData, responseData), mockAgent);
+      expect(results).toEqual([]);
+      expect(mockAgent.errorMessage).toHaveBeenCalled();
     });
   });
 

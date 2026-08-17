@@ -43,7 +43,9 @@ describe("Agent Integration Tests", () => {
     lifecycleService = new AgentLifecycleService();
     manager = new AgentManager(app);
 
-    app.addServices([commandService, lifecycleService, manager]);
+    app.addService(AgentCommandService, commandService);
+    app.addService(AgentLifecycleService, lifecycleService);
+    app.addService(AgentManager, manager);
 
     // Create agent
     agent = new Agent(app, {}, mockConfig, new AbortController().signal);

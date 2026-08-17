@@ -117,7 +117,7 @@ export default class AgentManager implements TokenRingService {
       });
     });
 
-    for (const service of this.app.getServices()) {
+    for (const service of this.app.services.values()) {
       service.detach?.(agent);
     }
 
@@ -200,7 +200,7 @@ export default class AgentManager implements TokenRingService {
         items: [],
       };
 
-      for (const service of this.app.getServices()) {
+      for (const service of this.app.services.values()) {
         try {
           service.attach?.(agent, creationContext);
         } catch (err) {

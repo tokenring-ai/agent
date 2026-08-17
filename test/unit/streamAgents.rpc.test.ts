@@ -26,7 +26,7 @@ describe("streamAgents RPC", () => {
   it("streams agent list updates", async () => {
     const app = createTestingApp();
     const manager = new AgentManager(app);
-    app.addService(manager);
+    app.addService(AgentManager, manager);
     manager.addAgentConfigs(mockConfig);
 
     const controller = new AbortController();
