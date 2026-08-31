@@ -2,7 +2,24 @@ import type { RPCSchema } from "@tokenring-ai/rpc/types";
 import { AgentNotFoundSchema, SuccessSchema } from "@tokenring-ai/rpc/types";
 import { z } from "zod";
 import { AgentEventEnvelopeSchema, InputMessageSchema, InteractionResponseSchema } from "../AgentEvents.ts";
-import { AgentConfigSchema } from "../schema.ts";
+import { AgentConfigSchema, AgentDefinitionSchema, AgentItemSchema, AgentSourceSchema, InstallSourceSchema } from "../schema.ts";
+
+/** One registered agent type, as listed in pickers and the Agents app sidebar. */
+export const AgentTypeSummarySchema = z.object({
+  type: z.string(),
+  displayName: z.string(),
+  description: z.string(),
+  category: z.string().exactOptional(),
+  enabledTools: z.array(z.string()).default([]),
+  /** Bundled types are read-only; workspace types are backed by an editable file on disk. */
+  source: AgentSourceSchema.default("bundled"),
+  /** Set when the type was installed from a marketplace registry. */
+  installedFrom: InstallSourceSchema.exactOptional(),
+});
+
+export type AgentTypeSummary = z.infer<typeof AgentTypeSummarySchema>;
+
+export const AgentTypeNotFoundSchema = z.object({ status: z.literal("agentTypeNotFound") });
 
 export const AgentListEntrySchema = z.object({
   id: z.string(),
@@ -137,15 +154,65 @@ export default {
     getAgentTypes: {
       type: "query",
       input: z.object({}),
-      result: z.array(
-        z.object({
-          type: z.string(),
-          displayName: z.string(),
-          description: z.string(),
-          category: z.string().exactOptional(),
-          enabledTools: z.array(z.string()).default([]),
+      result: z.array(AgentTypeSummarySchema),
+    },
+    getAgentDirectory: {
+      type: "query",
+      input: z.object({}),
+      result: z.object({
+        directory: z.string(),
+      }),
+    },
+    listAgentDefinitions: {
+      type: "query",
+      input: z.object({}),
+      result: z.array(AgentDefinitionSchema),
+    },
+    /** The full config behind one agent type, for both editing workspace agents and cloning bundled ones. */
+    getAgentTypeDetail: {
+      type: "query",
+      input: z.object({
+        type: z.string(),
+      }),
+      result: z.discriminatedUnion("status", [
+        SuccessSchema.extend({
+          source: AgentSourceSchema,
+          /** The full agent body, including plugin slices such as `chat` and `filesystem`. */
+          agent: AgentItemSchema,
+          /** Only set for workspace agents; bundled ones have no file on disk. */
+          updatedAt: z.string().nullable(),
         }),
-      ),
+        AgentTypeNotFoundSchema,
+      ]),
+    },
+    createAgentDefinition: {
+      type: "mutation",
+      input: z.object({
+        name: z.string(),
+        agent: AgentItemSchema,
+      }),
+      result: z.object({
+        agent: AgentDefinitionSchema,
+      }),
+    },
+    updateAgentDefinition: {
+      type: "mutation",
+      input: z.object({
+        name: z.string(),
+        agent: AgentItemSchema,
+      }),
+      result: z.object({
+        agent: AgentDefinitionSchema,
+      }),
+    },
+    deleteAgentDefinition: {
+      type: "mutation",
+      input: z.object({
+        name: z.string(),
+      }),
+      result: z.object({
+        success: z.boolean(),
+      }),
     },
     createAgent: {
       type: "mutation",

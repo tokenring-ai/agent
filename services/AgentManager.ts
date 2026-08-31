@@ -3,9 +3,10 @@ import type TokenRingApp from "@tokenring-ai/app";
 import type { TokenRingService } from "@tokenring-ai/app/types";
 import EnhancedMap from "@tokenring-ai/utility/map/enhancedMap";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
+import { like } from "@tokenring-ai/utility/string/like";
 import { deepEquals } from "bun";
 import Agent from "../Agent.ts";
-import type { ParsedAgentConfig } from "../schema.ts";
+import type { AgentSource, ParsedAgentConfig } from "../schema.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
 import type { AgentCheckpointData, AgentCreationContext } from "../types.js";
 import { formatAgentId } from "../util/formatAgentId.ts";
@@ -18,13 +19,47 @@ export default class AgentManager implements TokenRingService {
   private agents = new EnhancedMap<string, { agent: Agent; shutdownController: AbortController }>();
   private agentListeners = new Set<() => void>();
   private agentStateUnsubscribers = new EnhancedMap<string, () => void>();
-  private agentConfigRegistry = new KeyedRegistry<ParsedAgentConfig>();
-  getAgentConfigEntries = this.agentConfigRegistry.entriesArray;
-  getAgentConfig = this.agentConfigRegistry.get;
-  getAgentTypes = this.agentConfigRegistry.keysArray;
-  getAgentTypesLike = this.agentConfigRegistry.entriesLike;
+  /** Agent types defined in the configuration layers — shipped with the app and its plugins. */
+  private bundledAgentConfigs = new KeyedRegistry<ParsedAgentConfig>();
+  /**
+   * Agent types read from the workspace agent directory. Kept apart from {@link bundledAgentConfigs}
+   * because {@link reconfigure} reconciles that registry against the config on every configuration
+   * change, which would otherwise delete anything registered from disk.
+   */
+  private workspaceAgentConfigs = new KeyedRegistry<ParsedAgentConfig>();
 
   constructor(readonly app: TokenRingApp) {}
+
+  /** Every agent type, workspace definitions shadowing bundled ones of the same name. */
+  getAgentConfigEntries = (): [string, ParsedAgentConfig][] => {
+    const merged = new Map(this.bundledAgentConfigs.entriesArray());
+    for (const [type, config] of this.workspaceAgentConfigs.entriesArray()) merged.set(type, config);
+    return [...merged];
+  };
+
+  getAgentConfig = (agentType: string): ParsedAgentConfig | undefined => {
+    return this.workspaceAgentConfigs.get(agentType) ?? this.bundledAgentConfigs.get(agentType);
+  };
+
+  getAgentTypes = (): string[] => this.getAgentConfigEntries().map(([type]) => type);
+
+  getAgentTypesLike = (likeName: string | string[]): [string, ParsedAgentConfig][] => {
+    const patterns = Array.isArray(likeName) ? likeName : [likeName];
+    return this.getAgentConfigEntries().filter(([type]) => patterns.some(pattern => like(pattern, type)));
+  };
+
+  /** Where an agent type came from, or undefined when it is not registered. */
+  getAgentSource(agentType: string): AgentSource | undefined {
+    if (this.workspaceAgentConfigs.get(agentType)) return "workspace";
+    if (this.bundledAgentConfigs.get(agentType)) return "bundled";
+    return undefined;
+  }
+
+  requireAgentConfig(agentType: string): ParsedAgentConfig {
+    const config = this.getAgentConfig(agentType);
+    if (!config) throw new Error(`Item ${agentType} not found`);
+    return config;
+  }
 
   async run(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
@@ -39,23 +74,38 @@ export default class AgentManager implements TokenRingService {
 
   addAgentConfigs(...configs: ParsedAgentConfig[]) {
     for (const config of configs) {
-      this.agentConfigRegistry.set(config.agentType, config);
+      this.bundledAgentConfigs.set(config.agentType, config);
     }
   }
 
   /**
-   * Reconciles agent type configs against the latest package config: creates missing
+   * Reconciles bundled agent type configs against the latest package config: creates missing
    * types, updates existing ones, and removes types that are no longer defined.
+   *
+   * Workspace agent types are untouched — they are owned by
+   * {@link import("../AgentDirectoryService.ts").default} and reconciled by
+   * {@link setWorkspaceAgentConfigs}.
    */
   reconfigure(agents: Record<string, Omit<ParsedAgentConfig, "agentType">>): void {
-    this.agentConfigRegistry.reconcileAgainst(agents, {
+    this.bundledAgentConfigs.reconcileAgainst(agents, {
+      creating: (name, config) => ({ agentType: name, ...config }),
+      updating: (name, _existing, config) => ({ agentType: name, ...config }),
+    });
+  }
+
+  /**
+   * Replaces the set of agent types loaded from the workspace agent directory. Types missing from
+   * `agents` are removed, so this is the whole directory every time, not a patch.
+   */
+  setWorkspaceAgentConfigs(agents: Record<string, Omit<ParsedAgentConfig, "agentType">>): void {
+    this.workspaceAgentConfigs.reconcileAgainst(agents, {
       creating: (name, config) => ({ agentType: name, ...config }),
       updating: (name, _existing, config) => ({ agentType: name, ...config }),
     });
   }
 
   spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig> = {}) {
-    const agentConfig = this.agentConfigRegistry.require(checkpoint.agentType);
+    const agentConfig = this.requireAgentConfig(checkpoint.agentType);
     return this.createAgent(
       {
         ...agentConfig,
@@ -68,7 +118,7 @@ export default class AgentManager implements TokenRingService {
 
   spawnAgent({ agentType, headless }: { agentType: string; headless: boolean }): Agent {
     return this.spawnAgentFromConfig({
-      ...this.agentConfigRegistry.require(agentType),
+      ...this.requireAgentConfig(agentType),
       headless,
     });
   }
@@ -81,7 +131,7 @@ export default class AgentManager implements TokenRingService {
   }
 
   spawnSubAgent(agent: Agent, agentType: string, config: Partial<ParsedAgentConfig>): Agent {
-    const agentConfig = this.agentConfigRegistry.require(agentType);
+    const agentConfig = this.requireAgentConfig(agentType);
     // Create a new agent of the specified type
     const newAgent = this.createAgent({
       ...agentConfig,
@@ -267,7 +317,7 @@ export default class AgentManager implements TokenRingService {
       }
     }
 
-    for (const [agentType, agentSpec] of this.agentConfigRegistry.entriesArray()) {
+    for (const [agentType, agentSpec] of this.getAgentConfigEntries()) {
       if (agentSpec.minimumRunning > 0) {
         let agentCount = 0;
         for (const { agent } of this.agents.values()) {

@@ -1,6 +1,8 @@
 import type TokenRingApp from "@tokenring-ai/app";
 import { createRPCEndpoint } from "@tokenring-ai/rpc/createRPCEndpoint";
 import EnhancedMap from "@tokenring-ai/utility/map/enhancedMap";
+import AgentDirectoryService from "../AgentDirectoryService.ts";
+import type { InstallSource } from "../schema.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
 import AgentManager from "../services/AgentManager.ts";
 import { AgentEventState } from "../state/agentEventState.ts";
@@ -63,18 +65,65 @@ export default createRPCEndpoint(AgentRpcSchema, {
   },
 
   getAgentTypes(_args, app) {
-    const configs = app.requireService(AgentManager).getAgentConfigEntries();
-    return configs.map(([type, config]) => {
-      const chat = (config as Record<string, unknown>).chat as { enabledTools?: string[] } | undefined;
+    const agentManager = app.requireService(AgentManager);
+    return agentManager.getAgentConfigEntries().map(([type, config]) => {
+      const loose = config as Record<string, unknown>;
+      const chat = loose.chat as { enabledTools?: string[] } | undefined;
       const enabledTools = Array.isArray(chat?.enabledTools) ? chat.enabledTools : [];
+      const installedFrom = loose.installedFrom as InstallSource | undefined;
       return {
         type,
         displayName: config.displayName,
         description: config.description,
         category: config.category,
         enabledTools,
+        source: agentManager.getAgentSource(type) ?? "bundled",
+        ...(installedFrom ? { installedFrom } : {}),
       };
     });
+  },
+
+  getAgentDirectory(_args, app) {
+    return { directory: app.requireService(AgentDirectoryService).getAgentDirectory() };
+  },
+
+  async listAgentDefinitions(_args, app) {
+    return app.requireService(AgentDirectoryService).listAgentDefinitions();
+  },
+
+  async getAgentTypeDetail(args, app) {
+    const source = app.requireService(AgentManager).getAgentSource(args.type);
+    if (!source) {
+      return { status: "agentTypeNotFound" as const };
+    }
+
+    if (source === "workspace") {
+      const definition = await app.requireService(AgentDirectoryService).getAgentDefinition(args.type);
+      // The file can disappear between the registry lookup and this read.
+      if (definition) {
+        const { name: _name, updatedAt, ...agent } = definition;
+        return { status: "success" as const, source, agent, updatedAt };
+      }
+    }
+
+    // Bundled types have no file on disk — hand back the running config so it can be cloned.
+    const { agentType: _agentType, ...agent } = app.requireService(AgentManager).requireAgentConfig(args.type);
+    return { status: "success" as const, source, agent, updatedAt: null };
+  },
+
+  async createAgentDefinition(args, app) {
+    const agent = await app.requireService(AgentDirectoryService).createAgentDefinition(args.name, args.agent);
+    return { agent };
+  },
+
+  async updateAgentDefinition(args, app) {
+    const agent = await app.requireService(AgentDirectoryService).updateAgentDefinition(args.name, args.agent);
+    return { agent };
+  },
+
+  async deleteAgentDefinition(args, app) {
+    const success = await app.requireService(AgentDirectoryService).deleteAgentDefinition(args.name);
+    return { success };
   },
 
   createAgent(args, app) {

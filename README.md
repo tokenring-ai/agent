@@ -19,11 +19,12 @@ is handed to the agent's `defaultCommand` (defaults to `/chat send`), and `@agen
 
 - **Agent runtime**: the `Agent` class with event emission, state slices, checkpointing, human interaction, and abort handling
 - **Agent management**: `AgentManager` registers agent type configs, spawns agents (from config, checkpoint, or as sub-agents), and runs automatic cleanup
+- **Editable agents**: `AgentDirectoryService` keeps one YAML file per agent type in the workspace, so agents can be authored and edited outside configuration
 - **Command system**: `AgentCommandService` registers and dispatches slash commands with a typed input schema (args, positionals, remainder, attachments)
 - **Sub-agent execution**: `runSubAgent` runs a child agent with configurable output forwarding, timeouts, and auto-cleanup
 - **Checkpointing and branching**: `generateCheckpoint` / `restoreState` plus the `/branch` command
 - **Human interface**: text, tree select, file select, and form questions (`askForApproval`, `askForText`, `askQuestion`)
-- **RPC integration**: `/rpc/agent` endpoint with 13 methods for remote agent management
+- **RPC integration**: `/rpc/agent` endpoint with 19 methods for remote agent management
 - **Debug integration**: a debug snapshot source exposing every running agent to `DebugService`
 - **Lifecycle hooks**: `BeforeInputReceived` (input mutation) and `AfterSubAgentResponse` (post sub-agent completion)
 
@@ -112,10 +113,11 @@ This package does not register any scripting functions.
 
 ## Configuration
 
-The plugin's config schema is `AgentPackageConfigSchema` (`agents` and `commands`, both keyed by name and both defaulting
-to `{}`):
+The plugin's config schema is `AgentPackageConfigSchema`: `agents` and `commands` (both keyed by name, both defaulting
+to `{}`), plus `agentDirectory`, which covers agent types authored in the workspace rather than in config.
 
 ```yaml
+agentDirectory: agents
 agents:
   researcher:
     displayName: Researcher
@@ -176,6 +178,27 @@ from the map key). The config is parsed with `.loose()`, so unknown fields on an
 
 `idleTimeout` and `maxRunTime` are measured in seconds (`unit: "s"`).
 
+### Workspace agents (`agentDirectory`)
+
+`agentDirectory` is resolved against the workspace directory (so it defaults to `.tokenring/agents`) and holds one YAML
+file per agent type, named after the type: `<agentDirectory>/<agentType>.yaml`. The file body is an `AgentItemSchema` —
+`AgentConfigSchema` without `agentType`, plus an optional `installedFrom` — and is `.loose()`, so plugin slices such as
+`chat` and `filesystem` round-trip through disk untouched.
+
+`AgentDirectoryService` owns these files (`listAgentDefinitions` / `getAgentDefinition` / `createAgentDefinition` /
+`updateAgentDefinition` / `deleteAgentDefinition`) and registers them with `AgentManager` through
+`setWorkspaceAgentConfigs`. That is a separate registry from the config-defined one: `reconfigure` reconciles only
+config-defined types, so a configuration change cannot evict an agent that lives on disk. Where a type came from is
+available as `AgentManager.getAgentSource(type)` — `"workspace"` for these, `"bundled"` for config-defined ones — and a
+workspace agent shadows a bundled one of the same name.
+
+In the Agents app, bundled agents are read-only and can only be cloned into the workspace; workspace agents can be
+edited, cloned, and deleted.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `agentDirectory` | `string` | `agents` | Directory (relative to the workspace) where editable agent YAML files are stored |
+
 ### Agent commands (`commands`)
 
 Each key under `commands` is the command name; the value is an `AgentCommandConfigSchema`. A config-defined command is
@@ -223,6 +246,7 @@ The config schema uses `.meta()` annotations that drive the config UI:
 |---|---|
 | `agents` | `label: "Agent Types"`, `description: "Agent type definitions, keyed by type name"` |
 | `commands` | `label: "Agent Commands"`, `description: "Reusable multi-step commands, keyed by command name"` |
+| `agentDirectory` | `description: "Directory where editable agent YAML files are stored"` |
 | `agents.*.displayName` | `description: "Human-readable name shown in agent pickers"` |
 | `agents.*.description` | `description: "What this agent type is for"` |
 | `agents.*.category` | `description: "Group this agent type appears under in pickers"` |
@@ -457,12 +481,19 @@ const subAgent = agentManager.spawnSubAgent(agent, "dev", { headless: true });
 
 | Method | Description |
 |---|---|
-| `addAgentConfigs(...configs)` | Register one or more `ParsedAgentConfig` entries, keyed by `agentType` |
-| `reconfigure(agents)` | Reconcile the registry against a config record: create missing types, update existing ones, remove undefined ones |
-| `getAgentConfigEntries()` | All `[agentType, config]` entries |
-| `getAgentConfig(name)` | A single agent config (or undefined) |
+| `addAgentConfigs(...configs)` | Register one or more bundled `ParsedAgentConfig` entries, keyed by `agentType` |
+| `reconfigure(agents)` | Reconcile the **bundled** registry against a config record: create missing types, update existing ones, remove undefined ones. Workspace agents are untouched |
+| `setWorkspaceAgentConfigs(agents)` | Reconcile the **workspace** registry against the whole agent directory. Called by `AgentDirectoryService` |
+| `getAgentConfigEntries()` | All `[agentType, config]` entries, merged across both registries |
+| `getAgentConfig(name)` | A single agent config (or undefined); a workspace agent shadows a bundled one of the same name |
+| `requireAgentConfig(name)` | Same, but throws when the type is unknown |
+| `getAgentSource(name)` | `"workspace"`, `"bundled"`, or undefined when the type is not registered |
 | `getAgentTypes()` | All registered agent type names |
 | `getAgentTypesLike(pattern)` | Agent config entries matching a glob pattern |
+
+Configs live in two registries because `reconfigure` runs on *every* configuration change and removes anything the
+config no longer defines. Keeping filesystem-backed agents in their own registry is what stops an unrelated settings
+change from deleting them.
 
 **Agent lifecycle methods:**
 
@@ -483,6 +514,26 @@ const subAgent = agentManager.spawnSubAgent(agent, "dev", { headless: true });
 - Idle agents are deleted after `idleTimeout` seconds (`0` disables).
 - Agents are deleted after `maxRunTime` seconds (`0` disables).
 - Agent types with `minimumRunning > 0` are kept at that many running headless agents.
+
+### AgentDirectoryService
+
+Service name `AgentDirectoryService`. Description: *"Manages editable agent types, backed by YAML files on disk."*
+
+CRUD over `<agentDirectory>/<agentType>.yaml`, mirroring `WorkflowService`. Every mutation re-syncs the whole directory
+into `AgentManager`, and `plugin.install` awaits one sync before the first `reconfigure` so that config-defined agent
+commands can resolve a workspace `agentType`.
+
+| Method | Description |
+|---|---|
+| `getAgentDirectory()` | Absolute path of the agent directory |
+| `listAgentDefinitions()` | Every valid definition, sorted by name; unparseable files are logged and skipped |
+| `getAgentDefinition(name)` | One definition, or `null` when the file does not exist |
+| `createAgentDefinition(name, agent)` | Write a new file; throws when one already exists |
+| `updateAgentDefinition(name, agent)` | Overwrite an existing file; throws when it does not exist |
+| `deleteAgentDefinition(name)` | Remove the file; returns `false` when it was not there |
+| `syncToManager()` | Re-read the directory and replace the workspace agent types in `AgentManager` |
+
+Names must match `/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/`, checked before any path is built.
 
 ### AgentCommandService
 
@@ -564,9 +615,10 @@ Plugin metadata:
 
 `reconfigure(app, config)` reconciles live registries when the package config changes:
 
-1. Applies `config.agents` to `AgentManager`, creating, updating, and removing agent types.
-2. Applies `config.commands` to `AgentCommandService`, creating and removing config-defined commands (each must
-   reference a configured `agentType`).
+1. Applies `config.agents` to `AgentManager`, creating, updating, and removing **bundled** agent types.
+2. Applies the config to `AgentDirectoryService`, re-syncing workspace agents when `agentDirectory` changed.
+3. Applies `config.commands` to `AgentCommandService`, creating and removing config-defined commands (each must
+   reference a configured `agentType`). This runs last, so both agent registries are already populated.
 
 ## Lifecycle Hooks
 
@@ -621,7 +673,7 @@ const subscription = {
 
 ## RPC Endpoints
 
-Registered under `/rpc/agent` (schema name "Agent RPC") with 13 methods:
+Registered under `/rpc/agent` (schema name "Agent RPC") with 19 methods:
 
 | Method | Type | Description |
 |---|---|---|
@@ -630,7 +682,7 @@ Registered under `/rpc/agent` (schema name "Agent RPC") with 13 methods:
 | `streamAgentEvents` | stream | `{ agentId, fromPosition }` → streaming `{ status: "success", events, position }` or `agentNotFound` |
 | `listAgents` | query | `{}` → `AgentListEntry[]` |
 | `streamAgents` | stream | `{}` → streaming `AgentListEntry[]` snapshots |
-| `getAgentTypes` | query | `{}` → `{ type, displayName, description, category?, enabledTools }[]` |
+| `getAgentTypes` | query | `{}` → `{ type, displayName, description, category?, enabledTools, source, installedFrom? }[]` |
 | `createAgent` | mutation | `{ agentType, headless }` → `{ id, displayName, description }` |
 | `deleteAgent` | mutation | `{ agentId, reason }` → `{ status: "success" }` or `agentNotFound` |
 | `sendInput` | mutation | `{ agentId, input }` → `{ status: "success", requestId }` or `agentNotFound` |
@@ -638,9 +690,17 @@ Registered under `/rpc/agent` (schema name "Agent RPC") with 13 methods:
 | `abortCurrentOperation` | mutation | `{ agentId, message }` → `{ status: "success" }` or `agentNotFound` |
 | `getCommandHistory` | query | `{ agentId }` → `{ status: "success", history }` or `agentNotFound` |
 | `getAvailableCommands` | query | `{ agentId? }` → `{ status: "success", commands }` or `agentNotFound` |
+| `getAgentDirectory` | query | `{}` → `{ directory }` |
+| `listAgentDefinitions` | query | `{}` → `AgentDefinition[]` (workspace agents only) |
+| `getAgentTypeDetail` | query | `{ type }` → `{ status: "success", source, agent, updatedAt }` or `agentTypeNotFound`. Works for bundled types too, so they can be cloned |
+| `createAgentDefinition` | mutation | `{ name, agent }` → `{ agent }` |
+| `updateAgentDefinition` | mutation | `{ name, agent }` → `{ agent }` |
+| `deleteAgentDefinition` | mutation | `{ name }` → `{ success }` |
 
 `AgentListEntry` is `{ id, createdAt, agentType, displayName, description, idle, currentActivity }`. `getAgentTypes`
-returns `enabledTools` from the agent type's `chat.enabledTools` config (empty array when not set).
+returns `enabledTools` from the agent type's `chat.enabledTools` config (empty array when not set), plus `source`
+(`"bundled"` or `"workspace"`) and, for agents installed from a marketplace registry, `installedFrom`.
+The agent-definition mutations throw on failure like the workflow CRUD methods do.
 `getAvailableCommands` lists commands from the app-level registry when `agentId` is omitted, and from the agent's own
 registry when it is provided; commands are sorted by name and deduplicated, each with `{ name, description, inputSchema }`.
 
@@ -862,8 +922,9 @@ plugin/agent/
 ├── Agent.ts                          # Core Agent class implementation
 ├── AgentEvents.ts                    # Event schemas and types (AgentEventEnvelope, InputMessage, ToolCallResult, ...)
 ├── AgentError.ts                     # CommandFailedError
+├── AgentDirectoryService.ts          # YAML CRUD for workspace-authored agent types
 ├── types.ts                          # Command schema types, AgentStateSlice, checkpoint schema
-├── schema.ts                         # AgentConfig / AgentPackageConfig / AgentCommandConfig / SubAgentConfig schemas
+├── schema.ts                         # AgentConfig / AgentPackageConfig / AgentItem / InstallSource schemas
 ├── question.ts                       # Question schemas (text, treeSelect, fileSelect, form) and helpers
 ├── index.ts                          # Package exports
 ├── plugin.ts                         # TokenRing plugin integration (install / reconfigure)
@@ -921,6 +982,8 @@ plugin/agent/
         ├── AgentLifecycleService.test.ts
         ├── AgentManager.test.ts
         ├── AgentManager.subscribeAgentsAsync.test.ts
+        ├── AgentDirectoryService.test.ts
+        ├── agentDirectory.rpc.test.ts
         ├── createAgentCommand.test.ts
         ├── parseAgentCommandInput.test.ts
         ├── streamAgents.rpc.test.ts

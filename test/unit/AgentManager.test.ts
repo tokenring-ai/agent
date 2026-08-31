@@ -106,6 +106,43 @@ describe("AgentManager", () => {
       const entries = manager.getAgentTypesLike("te*");
       expect(entries[0]?.[0]).toEqual("test");
     });
+
+    it("should report where each agent type came from", () => {
+      manager.setWorkspaceAgentConfigs({ authored: { ...mockConfig, displayName: "Authored" } });
+
+      expect(manager.getAgentSource("test")).toBe("bundled");
+      expect(manager.getAgentSource("authored")).toBe("workspace");
+      expect(manager.getAgentSource("nope")).toBeUndefined();
+    });
+
+    it("should keep workspace agents when the config is reconciled without them", () => {
+      manager.setWorkspaceAgentConfigs({ authored: { ...mockConfig, displayName: "Authored" } });
+
+      // Reconfigure passes the whole config-defined set; workspace agents are not part of it.
+      manager.reconfigure({ test: { ...mockConfig, displayName: "Test Agent" } });
+
+      expect(manager.getAgentTypes()).toContain("authored");
+      // ...and it still drops bundled types that the config no longer defines.
+      expect(manager.getAgentTypes()).not.toContain("background");
+    });
+
+    it("should let a workspace agent shadow a bundled one of the same name", () => {
+      manager.setWorkspaceAgentConfigs({ test: { ...mockConfig, displayName: "Overridden" } });
+
+      expect(manager.getAgentConfig("test")?.displayName).toBe("Overridden");
+      expect(manager.getAgentSource("test")).toBe("workspace");
+      // The merged list has one entry per type, not one per source.
+      expect(manager.getAgentTypes().filter(type => type === "test")).toHaveLength(1);
+    });
+
+    it("should remove workspace agents that are no longer in the directory", () => {
+      manager.setWorkspaceAgentConfigs({ authored: { ...mockConfig, displayName: "Authored" } });
+      manager.setWorkspaceAgentConfigs({});
+
+      expect(manager.getAgentTypes()).not.toContain("authored");
+      // Bundled types are left alone by a workspace sync.
+      expect(manager.getAgentTypes()).toContain("test");
+    });
   });
 
   describe("Agent Creation", () => {

@@ -1,3 +1,4 @@
+import type { ConfigFieldMeta } from "@tokenring-ai/app/config/metadata";
 import z from "zod";
 
 export const SubAgentConfigSchema = z.object({
@@ -65,6 +66,55 @@ export const AgentConfigSchema = z.object({
   maxRunTime: z.number().min(0).default(0).meta({ unit: "s", description: "Hard limit on agent runtime (0 disables)" }),
 });
 
+/** Where an agent came from: shipped with the app/plugins, or authored in the workspace agent directory. */
+export const AgentSourceSchema = z.enum(["bundled", "workspace"]);
+
+export type AgentSource = z.output<typeof AgentSourceSchema>;
+
+/**
+ * Provenance stamped onto anything installed from a marketplace registry — an agent, a tool, or a
+ * workflow. It lives here rather than in the marketplace package because agents, tools and workflows
+ * all already depend on this one, and the marketplace depends on all three; putting it the other way
+ * round would make the dependency graph a cycle.
+ */
+export const InstallSourceSchema = z.object({
+  /** Registry the item came from, e.g. "tokenring-ai/community". */
+  registry: z.string(),
+  /** Marketplace item id, `<kind>/<category>/<name>`, e.g. "agent/coding/code-reviewer". */
+  id: z.string(),
+  version: z.string().default(""),
+  author: z.string().default(""),
+  /** ISO timestamp of the install. */
+  installedAt: z.string(),
+});
+
+export type InstallSource = z.output<typeof InstallSourceSchema>;
+
+/**
+ * The contents of a single agent YAML file in the agent directory. The agent type comes from the
+ * file name, so it is not part of the file body.
+ *
+ * Loose on purpose: every plugin bolts its own slice onto an agent config (`chat`, `filesystem`,
+ * `scheduler`, …) and reads it back with {@link import("./Agent.ts").default.getAgentConfigSlice},
+ * so unknown keys have to survive the round trip through disk.
+ */
+export const AgentItemSchema = AgentConfigSchema.omit({ agentType: true })
+  .extend({
+    installedFrom: InstallSourceSchema.exactOptional(),
+  })
+  .loose();
+
+export type AgentItem = z.output<typeof AgentItemSchema>;
+export type AgentItemInput = z.input<typeof AgentItemSchema>;
+
+/** An agent as read from the agent directory: the file body plus its name and last-modified time. */
+export const AgentDefinitionSchema = AgentItemSchema.extend({
+  name: z.string(),
+  updatedAt: z.string(),
+});
+
+export type AgentDefinition = z.output<typeof AgentDefinitionSchema>;
+
 export const AgentPackageConfigSchema = z.object({
   agents: z
     .record(
@@ -79,6 +129,10 @@ export const AgentPackageConfigSchema = z.object({
     .record(z.string(), AgentCommandConfigSchema)
     .default({})
     .meta({ label: "Agent Commands", description: "Reusable multi-step commands, keyed by command name" }),
+  agentDirectory: z
+    .string()
+    .default("agents")
+    .meta({ description: "Directory where editable agent YAML files are stored" } satisfies ConfigFieldMeta),
 });
 
 export type AgentPackageConfig = z.input<typeof AgentPackageConfigSchema>;
