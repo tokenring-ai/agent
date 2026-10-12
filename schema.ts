@@ -72,10 +72,10 @@ export const AgentSourceSchema = z.enum(["bundled", "workspace"]);
 export type AgentSource = z.output<typeof AgentSourceSchema>;
 
 /**
- * Provenance stamped onto anything installed from a marketplace registry — an agent, a tool, or a
- * workflow. It lives here rather than in the marketplace package because agents, tools and workflows
- * all already depend on this one, and the marketplace depends on all three; putting it the other way
- * round would make the dependency graph a cycle.
+ * Provenance stamped onto anything installed from a marketplace registry — an agent, a tool, a
+ * workflow, or a skill. It lives here rather than in the marketplace package because agents, tools,
+ * workflows, and skills all already depend on this one, and the marketplace depends on all of them;
+ * putting it the other way round would make the dependency graph a cycle.
  */
 export const InstallSourceSchema = z.object({
   /** Registry the item came from, e.g. "tokenring-ai/community". */

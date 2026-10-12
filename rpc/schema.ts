@@ -263,6 +263,15 @@ export default {
       }),
       result: z.discriminatedUnion("status", [SuccessSchema, AgentNotFoundSchema]),
     },
+    /** Cancel one input: aborts it when already executing, removes it from the queue otherwise. */
+    cancelInput: {
+      type: "mutation",
+      input: z.object({
+        agentId: z.string(),
+        requestId: z.string(),
+      }),
+      result: z.discriminatedUnion("status", [SuccessSchema, AgentNotFoundSchema]),
+    },
     getCommandHistory: {
       type: "query",
       input: z.object({

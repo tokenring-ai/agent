@@ -1,3 +1,4 @@
+import { noteRegistration } from "@tokenring-ai/app/registrationOwner";
 import type { TokenRingService } from "@tokenring-ai/app/types";
 import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import {
@@ -47,6 +48,8 @@ export default class AgentCommandService implements TokenRingService {
   addAgentCommands(commands: Arrayable<TokenRingAgentCommand<any>>) {
     for (const command of arrayableToArray(commands)) {
       this.agentCommands.set(command.name, command);
+      // Aliases are alternate lookup keys for the same command, not separate registrations.
+      noteRegistration("commands", command.name);
       for (const alias of arrayableToArray(command.alias)) {
         this.agentCommands.set(alias, command);
       }

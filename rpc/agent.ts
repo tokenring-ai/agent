@@ -42,14 +42,30 @@ export default createRPCEndpoint(AgentRpcSchema, {
 
     let position = args.fromPosition;
 
-    for await (const state of agent.subscribeStateAsync(AgentEventState, signal)) {
-      const events = state.events.slice(position);
-      position = state.events.length;
-      yield {
-        status: "success",
-        events,
-        position,
-      };
+    // End the stream when the agent is deleted, not only when the client goes
+    // away: `agentNotFound` is only yielded to a NEW subscription, so a stream
+    // left open across deletion would keep a viewing client stale instead of
+    // letting it flip to its not-running (restore) state.
+    const controller = new AbortController();
+    const onClientAbort = () => controller.abort(signal.reason);
+    const onAgentShutdown = () => controller.abort();
+    if (signal.aborted) onClientAbort();
+    else signal.addEventListener("abort", onClientAbort);
+    agent.agentShutdownSignal.addEventListener("abort", onAgentShutdown);
+
+    try {
+      for await (const state of agent.subscribeStateAsync(AgentEventState, controller.signal)) {
+        const events = state.events.slice(position);
+        position = state.events.length;
+        yield {
+          status: "success",
+          events,
+          position,
+        };
+      }
+    } finally {
+      signal.removeEventListener("abort", onClientAbort);
+      agent.agentShutdownSignal.removeEventListener("abort", onAgentShutdown);
     }
   },
 
@@ -178,6 +194,39 @@ export default createRPCEndpoint(AgentRpcSchema, {
     }
 
     agent.abortCurrentOperation(args.message);
+    return { status: "success" };
+  },
+
+  cancelInput(args, app) {
+    const agent = app.requireService(AgentManager).getAgent(args.agentId);
+    if (!agent) {
+      return { status: "agentNotFound" };
+    }
+
+    agent.mutateState(AgentEventState, state => {
+      const queuedIndex = state.inputQueue.findIndex(item => item.request.requestId === args.requestId);
+      if (queuedIndex === -1) {
+        // Not queued (already finished or unknown) — nothing to do.
+        return;
+      }
+      if (queuedIndex === 0 && state.currentlyExecutingInputItem?.request.requestId === args.requestId) {
+        // Already executing: an abort is the only meaningful cancellation.
+        state.currentlyExecutingInputItem.abortController.abort("User cancelled the operation via the chat webapp");
+        return;
+      }
+
+      // Still waiting in the queue: drop it and record a cancelled response so
+      // the transcript shows what happened to the input.
+      state.inputQueue.splice(queuedIndex, 1);
+      state.emit({
+        type: "agent.response",
+        requestId: args.requestId,
+        status: "cancelled",
+        message: "Cancelled while queued.",
+        timestamp: Date.now(),
+      });
+      state.pushAgentStatus();
+    });
     return { status: "success" };
   },
 
