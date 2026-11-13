@@ -161,23 +161,12 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
   }
 
   serialize(): z.output<typeof serializationSchema> {
-    const compressedEvents: AgentEventEnvelope[] = [];
-    let lastEvent: AgentEventEnvelope | undefined;
+    return { events: compressEvents(this.events) };
+  }
 
-    for (const event of this.events) {
-      if (event.type === "output.chat" || event.type === "output.reasoning") {
-        if (lastEvent?.type === event.type) {
-          lastEvent.message += event.message;
-          continue;
-        }
-      }
-
-      compressedEvents.push((lastEvent = { ...event }));
-    }
-
-    return {
-      events: compressedEvents,
-    };
+  /** The events up to and including `timestamp`. */
+  serializeAt(timestamp: number): z.output<typeof serializationSchema> {
+    return { events: compressEvents(this.events.filter(event => event.timestamp <= timestamp)) };
   }
 
   deserialize(data: z.output<typeof serializationSchema>): void {
@@ -246,4 +235,23 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
       yield this.events[cursor.position]!;
     }
   }
+}
+
+/** Joins streamed chat and reasoning chunks so a stored transcript holds one event per message. */
+function compressEvents(events: readonly AgentEventEnvelope[]): AgentEventEnvelope[] {
+  const compressedEvents: AgentEventEnvelope[] = [];
+  let lastEvent: AgentEventEnvelope | undefined;
+
+  for (const event of events) {
+    if (event.type === "output.chat" || event.type === "output.reasoning") {
+      if (lastEvent?.type === event.type) {
+        lastEvent.message += event.message;
+        continue;
+      }
+    }
+
+    compressedEvents.push((lastEvent = { ...event }));
+  }
+
+  return compressedEvents;
 }

@@ -11,12 +11,7 @@ const inputSchema = {
 
 function execute({ remainder, agent }: AgentCommandInputType<typeof inputSchema>): string {
   const agentManager = agent.requireService(AgentManager);
-  const checkpoint = agent.generateCheckpoint();
-
-  const newAgent = agentManager.spawnAgentFromCheckpoint(checkpoint, {
-    headless: agent.headless,
-    createMessage: `Branched from agent ${formatAgentId(agent.id)}`,
-  });
+  const newAgent = agentManager.branchAgent(agent);
 
   if (remainder) {
     newAgent.handleInput({

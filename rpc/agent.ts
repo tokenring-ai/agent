@@ -164,6 +164,17 @@ export default createRPCEndpoint(AgentRpcSchema, {
     return { status: "success" };
   },
 
+  branchAgent(args, app) {
+    const agentManager = app.requireService(AgentManager);
+    const agent = agentManager.getAgent(args.agentId);
+    if (!agent) {
+      return { status: "agentNotFound" };
+    }
+
+    const branch = agentManager.branchAgent(agent, args.at);
+    return { status: "success", agentId: branch.id, agentName: branch.displayName };
+  },
+
   sendInput(args, app) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) {

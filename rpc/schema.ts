@@ -29,6 +29,8 @@ export const AgentListEntrySchema = z.object({
   description: z.string(),
   idle: z.boolean(),
   currentActivity: z.string(),
+  /** Questions the agent is blocked on until a person answers them (absent from older servers). */
+  pendingQuestions: z.number().exactOptional(),
 });
 
 /** Mirrors {@link import("../types.ts").AgentCommandArgumentSchema} for RPC transport. */
@@ -233,6 +235,21 @@ export default {
         reason: z.string(),
       }),
       result: z.discriminatedUnion("status", [SuccessSchema, AgentNotFoundSchema]),
+    },
+    branchAgent: {
+      type: "mutation",
+      input: z.object({
+        agentId: z.string(),
+        /** Branch from the conversation as it stood at this event timestamp; omitted, from now. */
+        at: z.number().exactOptional(),
+      }),
+      result: z.discriminatedUnion("status", [
+        SuccessSchema.extend({
+          agentId: z.string(),
+          agentName: z.string(),
+        }),
+        AgentNotFoundSchema,
+      ]),
     },
     sendInput: {
       type: "mutation",

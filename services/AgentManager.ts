@@ -116,6 +116,17 @@ export default class AgentManager implements TokenRingService {
     );
   }
 
+  /**
+   * Starts a copy of `agent` as it is now, or as it stood at `at` (a timestamp in
+   * its event log). The original keeps running.
+   */
+  branchAgent(agent: Agent, at?: number): Agent {
+    return this.spawnAgentFromCheckpoint(agent.generateCheckpoint(at), {
+      headless: agent.headless,
+      createMessage: `Branched from agent ${formatAgentId(agent.id)}`,
+    });
+  }
+
   spawnAgent({ agentType, headless }: { agentType: string; headless: boolean }): Agent {
     return this.spawnAgentFromConfig({
       ...this.requireAgentConfig(agentType),

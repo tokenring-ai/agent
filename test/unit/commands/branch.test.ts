@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type Agent from "../../../Agent.ts";
 import branch from "../../../commands/branch.ts";
-import type AgentManager from "../../../services/AgentManager.ts";
+import AgentManager from "../../../services/AgentManager.ts";
 
 function makeAgent(
   overrides: { id?: string; headless?: boolean; checkpoint?: ReturnType<Agent["generateCheckpoint"]>; agentManager?: Partial<AgentManager> } = {},
@@ -45,7 +45,7 @@ describe("/branch command", () => {
 
   test("checkpoints current agent and spawns a new agent from it", () => {
     const agent = makeAgent({
-      agentManager: { spawnAgentFromCheckpoint } as unknown as AgentManager,
+      agentManager: { spawnAgentFromCheckpoint, branchAgent: AgentManager.prototype.branchAgent } as unknown as AgentManager,
     });
 
     const result = branch.execute({ agent, remainder: undefined });
@@ -73,7 +73,7 @@ describe("/branch command", () => {
     const agent = makeAgent({
       id: "quiet-lake-7",
       headless: true,
-      agentManager: { spawnAgentFromCheckpoint } as unknown as AgentManager,
+      agentManager: { spawnAgentFromCheckpoint, branchAgent: AgentManager.prototype.branchAgent } as unknown as AgentManager,
     });
 
     const result = branch.execute({ agent, remainder: "continue the auth investigation" });

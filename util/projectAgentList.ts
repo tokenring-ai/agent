@@ -9,6 +9,8 @@ export type AgentListEntry = {
   description: string;
   idle: boolean;
   currentActivity: string;
+  /** Questions the agent is blocked on until a person answers them (approvals, choices, forms). */
+  pendingQuestions: number;
 };
 
 export function projectAgentList(agents: Agent[]): AgentListEntry[] {
@@ -22,6 +24,8 @@ export function projectAgentList(agents: Agent[]): AgentListEntry[] {
       description: agent.config.description,
       idle: agentState.idle,
       currentActivity: agentState.currentActivity,
+      pendingQuestions:
+        agentState.currentlyExecutingInputItem?.executionState.availableInteractions.filter(interaction => interaction.type === "question").length ?? 0,
     };
   });
 }

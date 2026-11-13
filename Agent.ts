@@ -68,13 +68,17 @@ export default class Agent {
     return this.config.displayName;
   }
 
-  generateCheckpoint(): AgentCheckpointData {
+  /** A snapshot of the agent's state: now, or as it stood at `at` (a branch from an earlier point in the conversation). */
+  generateCheckpoint(at?: number): AgentCheckpointData {
     return {
       agentId: this.id,
       createdAt: Date.now(),
       sessionId: this.app.sessionId,
       agentType: this.config.agentType,
-      state: this.stateManager.serialize(),
+      state:
+        at === undefined
+          ? this.stateManager.serialize()
+          : Object.fromEntries([...this.stateManager.slices()].map(slice => [slice.name, slice.serializeAt(at)])),
     };
   }
 

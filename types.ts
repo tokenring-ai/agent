@@ -209,6 +209,14 @@ export abstract class AgentStateSlice<SerializationSchema extends ZodType> exten
   abstract show(): string;
 
   transferStateFromParent(_agent: Agent) {}
+
+  /**
+   * The slice's state as it stood at `timestamp`, for branching a conversation
+   * from an earlier point. Slices that keep no history return their current state.
+   */
+  serializeAt(_timestamp: number): z.input<SerializationSchema> {
+    return this.serialize();
+  }
 }
 
 export type AgentCreationContext = {
