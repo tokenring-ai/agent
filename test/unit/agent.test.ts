@@ -36,8 +36,8 @@ describe("Agent", () => {
       expect(agent.displayName).toBe(agent.config.displayName);
       expect(agent.config.description).toBe(agent.config.description);
       expect(agent.id).toBeDefined();
-      // headless is set from config
-      expect(agent.headless).toBe(agent.config.headless);
+      // Questions wait for an answer unless whoever started the agent says otherwise.
+      expect(agent.getAnswerTimeoutSeconds()).toBeNull();
     });
 
     it("should initialize state correctly", () => {
@@ -195,9 +195,9 @@ describe("Agent", () => {
   });
 
   describe("Human Interface", () => {
-    it("should throw error when asking human in headless mode", async () => {
-      agent.config.headless = true;
-      await expect(agent.askForApproval({ message: "foo" })).rejects.toThrow("Cannot ask human for feedback when agent is running in headless mode");
+    it("refuses an approval at once, without posting it, when nobody can answer (deadline 0)", async () => {
+      agent.answerTimeoutSeconds = 0;
+      await expect(agent.askForApproval({ message: "foo", defaultValue: true })).resolves.toBe(false);
     });
 
     it("should handle busyWithActivity correctly", async () => {
@@ -313,7 +313,6 @@ describe("Agent", () => {
         category: "test",
         debug: true,
         createMessage: "Test",
-        headless: true,
       });
 
       const debugAgent = new Agent(app, {}, debugConfig, new AbortController().signal);
@@ -404,6 +403,83 @@ describe("Agent", () => {
       expect(lastEvent!.type).toBe("input.interaction");
       expect(lastEvent!.requestId).toBe("test-request");
       expect(resolveCallback).toHaveBeenCalledWith("test-result");
+    });
+
+    it("answers a masked question with the real value but keeps only a placeholder in the history", () => {
+      const resolveCallback = mock();
+      const question = {
+        type: "question" as const,
+        interactionId: "key-question",
+        timestamp: Date.now(),
+        message: "Paste your API key",
+        question: { type: "text" as const, label: "API key", masked: true, required: false, defaultValue: "", expectedLines: 1 },
+        optional: false,
+      };
+      agent.mutateState(AgentEventState, state => {
+        state.inputQueue.push({
+          request: { type: "input.received", requestId: "masked-request", timestamp: Date.now(), input: { from: "test", message: "/connect openai" } },
+          executionState: { status: "running", currentActivity: "test", availableInteractions: [question] },
+          interactionCallbacks: new Map([["key-question", resolveCallback]]),
+          abortController: new AbortController(),
+        });
+        state.currentlyExecutingInputItem = state.inputQueue.at(-1) ?? null;
+      });
+
+      agent.sendInteractionResponse({ requestId: "masked-request", interactionId: "key-question", result: "sk-secret-123" });
+
+      expect(resolveCallback).toHaveBeenCalledWith("sk-secret-123");
+      const recorded = agent.getState(AgentEventState).events.find(e => e.type === "input.interaction" && e.interactionId === "key-question");
+      expect(recorded).toMatchObject({ result: "••••••••" });
+      expect(JSON.stringify(agent.getState(AgentEventState).serialize())).not.toContain("sk-secret-123");
+    });
+
+    it("redacts masked answers in histories saved before redaction existed", () => {
+      const question = {
+        type: "question" as const,
+        interactionId: "old-key",
+        timestamp: 1,
+        message: "Paste your API key",
+        question: { type: "text" as const, label: "API key", masked: true, required: false, defaultValue: "", expectedLines: 1 },
+        optional: false,
+      };
+      const state = new AgentEventState();
+      state.deserialize({
+        events: [
+          { type: "input.received", requestId: "r", timestamp: 1, input: { from: "test", message: "/connect slack" } },
+          { type: "input.execution", requestId: "r", timestamp: 2, status: "running", currentActivity: "", availableInteractions: [question] },
+          { type: "input.interaction", requestId: "r", interactionId: "old-key", result: "xoxb-raw-token", timestamp: 3 },
+          { type: "agent.response", requestId: "r", timestamp: 4, status: "success", message: "done" },
+        ],
+      } as never);
+      expect(JSON.stringify(state.events)).not.toContain("xoxb-raw-token");
+      expect(state.events.find(e => e.type === "input.interaction")).toMatchObject({ result: "••••••••" });
+    });
+
+    it("rejects at once when the request was already aborted, instead of waiting forever", async () => {
+      const abortController = new AbortController();
+      abortController.abort("User cancelled");
+      agent.mutateState(AgentEventState, state => {
+        state.inputQueue.push({
+          request: { type: "input.received", requestId: "aborted-request", timestamp: Date.now(), input: { from: "test", message: "test" } },
+          executionState: { status: "running", currentActivity: "test", availableInteractions: [] },
+          interactionCallbacks: new Map(),
+          abortController,
+        });
+        state.currentlyExecutingInputItem = state.inputQueue.at(-1) ?? null;
+      });
+
+      const pending = agent.waitForInteraction({ type: "question", message: "Allow it?", question: { type: "text", label: "Answer" } } as Parameters<
+        typeof agent.waitForInteraction
+      >[0]);
+      const outcome = await Promise.race([
+        pending.then(
+          () => "resolved",
+          (reason: unknown) => (reason as Error).message,
+        ),
+        new Promise(resolve => setTimeout(() => resolve("hung"), 200)),
+      ]);
+      expect(outcome).toBe("User cancelled");
+      expect(agent.getState(AgentEventState).currentlyExecutingInputItem?.executionState.availableInteractions).toEqual([]);
     });
   });
 });

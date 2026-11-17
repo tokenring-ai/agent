@@ -45,8 +45,13 @@ export default class AgentCommandService implements TokenRingService {
   getCommandEntries = this.agentCommands.entriesArray;
   getCommand = this.agentCommands.get;
 
+  /** Names (and aliases) of commands registered by plugins; config-defined commands may not replace them. */
+  private readonly builtInNames = new Set<string>();
+
   addAgentCommands(commands: Arrayable<TokenRingAgentCommand<any>>) {
     for (const command of arrayableToArray(commands)) {
+      this.builtInNames.add(command.name);
+      for (const alias of arrayableToArray(command.alias)) this.builtInNames.add(alias);
       this.agentCommands.set(command.name, command);
       // Aliases are alternate lookup keys for the same command, not separate registrations.
       noteRegistration("commands", command.name);
@@ -63,6 +68,10 @@ export default class AgentCommandService implements TokenRingService {
   reconfigure(commandConfigs: Record<string, ParsedAgentCommandConfig>, agentManager: AgentManager): void {
     this.currentlyRegisteredCommands.reconcileAgainst(commandConfigs, {
       creating: (name, commandConfig) => {
+        if (this.builtInNames.has(name)) {
+          // Replacing it would also delete the built-in for good once this entry is removed.
+          throw new Error(`Error while processing command ${name}: /${name} is a built-in command; give this command another name`);
+        }
         if (!agentManager.getAgentConfig(commandConfig.agentType)) {
           throw new Error(`Error while processing command ${name}: Agent ${commandConfig.agentType} not found`);
         }
@@ -85,6 +94,10 @@ export default class AgentCommandService implements TokenRingService {
   }
 
   async executeAgentCommand(agent: Agent, message: string, attachments: BaseAttachment[] = []): Promise<TokenRingAgentCommandResult> {
+    // Commands report activity and ask questions through the input they belong to.
+    if (!agent.getState(AgentEventState).currentlyExecutingInputItem) {
+      throw new CommandFailedError("Commands run as part of an agent's input; send it with agent.handleInput instead.");
+    }
     const signal = agent.getAbortSignal();
     if (signal.aborted) {
       throw new CommandFailedError("Command execution aborted");
@@ -93,29 +106,20 @@ export default class AgentCommandService implements TokenRingService {
     message = message.trim();
     if (message === "") {
       message = "/help";
-    } else if (message.startsWith("@")) {
-      const match = message.match(/^@(\S+)\s+(.*)$/i) as [string, string, string] | undefined;
-      if (match) {
-        const [, agentName, prompt] = match;
-        if (agentName && prompt) {
-          message = `/agent run ${agentName} ${prompt}`;
-        } else {
-          throw new CommandFailedError(`Invalid agent invocation: ${message}`);
-        }
-      } else {
-        throw new CommandFailedError(`Invalid agent invocation: ${message}`);
-      }
     } else if (!message.startsWith("/")) {
+      // Everything else is chat, "@" included: an @mention (a file, or another include) is resolved
+      // by the chat, not treated as a command.
       message = `${agent.config.defaultCommand} ${message}`;
     }
 
     let commandInput = message.slice(1); // Remove leading '/'
-    const isHelpCommand = commandInput.startsWith("help ");
-    if (isHelpCommand) {
-      commandInput = commandInput.slice(5);
+    const helpPrefix = /^help\s+/.exec(commandInput);
+    const isHelpCommand = helpPrefix !== null;
+    if (helpPrefix) {
+      commandInput = commandInput.slice(helpPrefix[0].length);
     }
 
-    const match = this.agentCommands.getLongestPrefixMatch(commandInput);
+    const match = this.matchCommand(commandInput);
 
     if (match) {
       if (isHelpCommand) {
@@ -138,6 +142,22 @@ ${markdownList(matchingCommands.map(cmd => `/${cmd[1].name} - ${cmd[1].descripti
 Type /help for a list of commands.`);
     }
     throw new CommandFailedError(`Unknown command: /${firstWord}. Type /help for a list of commands.`);
+  }
+
+  /**
+   * The longest command name `input` starts with. The words of a name may be separated by any
+   * whitespace, and the name may be followed by a space or a line break: "/chat send" then Enter
+   * then the message works.
+   */
+  private matchCommand(input: string): { item: TokenRingAgentCommand<any>; remainder: string } | undefined {
+    let best: { key: string; item: TokenRingAgentCommand<any>; remainder: string } | undefined;
+    for (const [key, item] of this.agentCommands.entriesArray()) {
+      if (best && key.length <= best.key.length) continue;
+      const pattern = new RegExp(`^${key.split(/\s+/).map(escapeRegExp).join("\\s+")}(?=\\s|$)`);
+      const found = pattern.exec(input);
+      if (found) best = { key, item, remainder: input.slice(found[0].length) };
+    }
+    return best;
   }
 
   async runAgentLoop(agent: Agent, signal: AbortSignal): Promise<void> {
@@ -276,4 +296,8 @@ Type /help for a list of commands.`);
 
     await agentLifecycleService?.executeHooks(new AfterAgentInputHandled(item.request, response), agent);
   }
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

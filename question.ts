@@ -23,6 +23,9 @@ export type TreeLeaf =
       children: Array<TreeLeaf>;
     };
 
+/** Answer value of the optional third approval choice, "Always allow" (see {@link Agent.askForApproval}). Never offered over chat channels. */
+export const ALWAYS_ALLOW_VALUE = "Always";
+
 export function isTreeBranch(node: TreeLeaf): node is Extract<TreeLeaf, { children: Array<TreeLeaf> }> {
   return "children" in node;
 }

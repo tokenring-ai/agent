@@ -37,6 +37,7 @@ describe("createAgentStateSliceStream", () => {
 
     const fakeAgent = {
       subscribeStateAsync: stateManager.subscribeAsync.bind(stateManager),
+      agentShutdownSignal: new AbortController().signal,
     };
     const mockManager = {
       getAgent: (id: string) => (id === "agent-1" ? fakeAgent : null),

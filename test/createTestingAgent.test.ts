@@ -9,7 +9,6 @@ const config = AgentConfigSchema.parse({
   description: "A mock agent for testing purposes",
   category: "test",
   createMessage: "",
-  headless: true,
   debug: false,
   initialCommands: [],
   callable: true,

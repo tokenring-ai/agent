@@ -228,6 +228,8 @@ export const AgentCheckpointSchema = z.object({
   sessionId: z.string(),
   createdAt: z.number(),
   agentType: z.string(),
+  /** The agent it was a sub-agent of, so a restore can put it back under that parent. Absent in older checkpoints. */
+  parentAgentId: z.string().nullable().exactOptional(),
   state: z.record(z.string(), z.unknown()),
 });
 

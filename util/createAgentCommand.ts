@@ -4,6 +4,7 @@ import { CommandFailedError } from "../AgentError.ts";
 import { AfterSubAgentResponse } from "../hooks.ts";
 import type { ParsedAgentCommandConfig } from "../schema.ts";
 import AgentCommandService from "../services/AgentCommandService.ts";
+import SubAgentService from "../services/SubAgentService.ts";
 import type { AgentCommandInputType, TokenRingAgentCommand, TokenRingAgentCommandResult } from "../types.ts";
 import type { RunSubAgentOptions } from "./runSubAgent.ts";
 import { runSubAgent } from "./runSubAgent.ts";
@@ -50,10 +51,17 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
       // Prefer background when spawning from a different agent type so the parent is not blocked.
       const useBackground = commandConfig.requireNewAgent ? commandConfig.background : true;
 
+      if (useBackground) {
+        const record = agent.requireService(SubAgentService).startSubAgent(agent, {
+          agentType: commandConfig.agentType,
+          messages: steps,
+          from: `Parent agent command: /${name}`,
+        });
+        return `Started ${record.name} (${commandConfig.agentType}) in the background. Its reply is sent here when it finishes.`;
+      }
+
       const request: RunSubAgentOptions = {
         agentType: commandConfig.agentType,
-        background: useBackground,
-        headless: agent.headless,
         from: `Parent agent command: /${name}`,
         steps,
         parentAgent: agent,
@@ -61,10 +69,6 @@ export function createAgentCommand(name: string, commandConfig: ParsedAgentComma
       };
 
       const result = await runSubAgent(request);
-
-      if (useBackground) {
-        return `Agent ${commandConfig.agentType} started in background.`;
-      }
 
       const lifecycleService = agent.getService(AgentLifecycleService);
       await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);

@@ -29,7 +29,6 @@ const mockConfig = AgentConfigSchema.parse({
   debug: false,
   initialCommands: [],
   createMessage: "foo",
-  headless: true,
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
@@ -154,7 +153,7 @@ describe("AgentManager", () => {
     });
 
     it("should spawn agent by type", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = manager.spawnAgent({ agentType: "test" });
 
       expect(agent).toBeInstanceOf(Agent);
       expect(agent.config.displayName).toBe("Test Agent");
@@ -169,7 +168,7 @@ describe("AgentManager", () => {
         state: {},
       };
 
-      const agent = manager.spawnAgentFromCheckpoint(checkpoint, { headless: true });
+      const agent = manager.spawnAgentFromCheckpoint(checkpoint);
 
       expect(agent).toBeInstanceOf(Agent);
       expect(agent.config.agentType).toBe("test");
@@ -179,9 +178,7 @@ describe("AgentManager", () => {
   describe("Sub-Agent Management", () => {
     it("should spawn sub-agent", async () => {
       const mockAgent = createMockAgent();
-      const subAgent = manager.spawnSubAgent(mockAgent, "background", {
-        headless: true,
-      });
+      const subAgent = manager.spawnSubAgent(mockAgent, "background", {});
 
       expect(subAgent).toBeInstanceOf(Agent);
       expect(subAgent.config.agentType).toBe("background");
@@ -220,9 +217,7 @@ describe("AgentManager", () => {
       }
       app.addService(TestStateService, new TestStateService());
 
-      manager.spawnSubAgent(mockAgent, "test", {
-        headless: true,
-      });
+      manager.spawnSubAgent(mockAgent, "test", {});
 
       expect(transferStateFromParent).toHaveBeenCalledWith(mockAgent);
     });
@@ -230,7 +225,7 @@ describe("AgentManager", () => {
 
   describe("Agent Storage and Retrieval", () => {
     it("should store and retrieve agents", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = manager.spawnAgent({ agentType: "test" });
 
       const retrievedAgent = manager.getAgent(agent.id);
       expect(retrievedAgent).toBe(agent);
@@ -242,8 +237,8 @@ describe("AgentManager", () => {
     });
 
     it("should get all agents", async () => {
-      manager.spawnAgent({ agentType: "test", headless: true });
-      manager.spawnAgent({ agentType: "background", headless: true });
+      manager.spawnAgent({ agentType: "test" });
+      manager.spawnAgent({ agentType: "background" });
 
       const agents = manager.getAgents();
       expect(agents).toHaveLength(2);
@@ -253,7 +248,7 @@ describe("AgentManager", () => {
 
   describe("Agent Deletion", () => {
     it("should delete agent correctly", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = manager.spawnAgent({ agentType: "test" });
 
       manager.deleteAgent(agent.id, "AgentManager initiated shutdown");
 
@@ -284,7 +279,7 @@ describe("AgentManager", () => {
       });
       manager.addAgentConfigs(shortTimeoutConfig);
 
-      const agent = manager.spawnAgent({ agentType: "short", headless: true });
+      const agent = manager.spawnAgent({ agentType: "short" });
 
       // Mock agent to be idle
       spyOn(agent, "getIdleDuration").mockReturnValue(2000); // 2 seconds > 1 second timeout
@@ -299,7 +294,7 @@ describe("AgentManager", () => {
     });
 
     it("should not delete active agents", async () => {
-      const agent = manager.spawnAgent({ agentType: "test", headless: true });
+      const agent = manager.spawnAgent({ agentType: "test" });
 
       // Mock agent to be active (idle duration < timeout)
       spyOn(agent, "getIdleDuration").mockReturnValue(1000); // 1 second < 86400 second timeout
@@ -317,7 +312,6 @@ describe("AgentManager", () => {
       expect(() =>
         manager.spawnAgent({
           agentType: "non-existent",
-          headless: true,
         }),
       ).toThrow("Item non-existent not found");
     });

@@ -46,7 +46,7 @@ function captureAgentState(agent: Agent): Record<string, unknown> {
     displayName: agent.displayName,
     agentType: agent.config.agentType,
     createdAt: agent.createdAt,
-    headless: agent.headless,
+    answerTimeoutSeconds: agent.getAnswerTimeoutSeconds(),
     debugEnabled: agent.debugEnabled,
     status: eventState.status,
     idle: eventState.idle,

@@ -4,10 +4,12 @@ import {
   type AgentEventEnvelope,
   AgentEventEnvelopeSchema,
   type InputExecutionStateSchema,
+  type InteractionRequest,
   type ParsedAgentStatus,
   type ParsedInputReceived,
 } from "../AgentEvents.js";
 import { AgentStateSlice } from "../types.ts";
+import { redactMaskedAnswer } from "../util/redactMaskedAnswer.ts";
 
 export const agentMessages = {
   agentStarting: "Agent starting...",
@@ -18,8 +20,13 @@ export const agentMessages = {
 const serializationSchema = z
   .object({
     events: z.array(AgentEventEnvelopeSchema).default([]),
+    /** The session's title, and when it was set (so a branch from before then has none). */
+    title: z.object({ text: z.string(), at: z.number() }).nullable().default(null),
   })
   .prefault({});
+
+/** Longest session title kept. */
+const MAX_TITLE_LENGTH = 80;
 
 export type AgentEventCursor = {
   position: number;
@@ -132,7 +139,9 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
           if (inputQueueItem) {
             const callback = inputQueueItem.interactionCallbacks.get(event.interactionId);
             if (callback) {
-              this.events.push(event);
+              // The code that asked gets the real answer; the history keeps masked answers (keys, passwords) redacted.
+              const interaction = inputQueueItem.executionState.availableInteractions.find(candidate => candidate.interactionId === event.interactionId);
+              this.events.push({ ...event, result: redactMaskedAnswer(interaction, event.result) });
               inputQueueItem.executionState.availableInteractions = inputQueueItem.executionState.availableInteractions.filter(
                 interaction => interaction.interactionId !== event.interactionId,
               );
@@ -160,47 +169,73 @@ export class AgentEventState extends AgentStateSlice<typeof serializationSchema>
     }
   }
 
+  /**
+   * What the session is about: set once, from the first prompt the agent's model is given (see
+   * runChat), so commands like `/tools enable …` never become a title.
+   */
+  title: { text: string; at: number } | null = null;
+
+  /** Sets the title from a prompt, unless the session already has one. */
+  setTitleOnce(prompt: string, at = Date.now()): void {
+    if (this.title) return;
+    const text = prompt.replace(/\s+/g, " ").trim();
+    if (!text) return;
+    this.title = { text: text.length > MAX_TITLE_LENGTH ? `${text.slice(0, MAX_TITLE_LENGTH - 1)}…` : text, at };
+  }
+
   serialize(): z.output<typeof serializationSchema> {
-    return { events: compressEvents(this.events) };
+    return { events: compressEvents(this.events), title: this.title };
   }
 
   /** The events up to and including `timestamp`. */
   serializeAt(timestamp: number): z.output<typeof serializationSchema> {
-    return { events: compressEvents(this.events.filter(event => event.timestamp <= timestamp)) };
+    return {
+      events: compressEvents(this.events.filter(event => event.timestamp <= timestamp)),
+      title: this.title && this.title.at <= timestamp ? this.title : null,
+    };
   }
 
   deserialize(data: z.output<typeof serializationSchema>): void {
-    // When restoring the event state, we need to clean up the events to put the agent back into a usable state
+    this.title = data.title;
+    // When restoring the event state, we need to clean up the events to put the agent back into a usable state.
+    // Events keep their original timestamps: branching at a point in the conversation goes by them.
     const { events } = data;
     const receivedEvents = new Set<string>();
     for (const event of events) {
       if (event.type === "input.received") receivedEvents.add(event.requestId);
     }
 
+    // The questions asked, so answers to masked ones can be redacted: histories saved before redaction existed
+    // may still hold a key or password typed into one.
+    const asked = new Map<string, InteractionRequest>();
     for (const event of events) {
       switch (event.type) {
         case "agent.status":
         case "agent.created":
         case "agent.stopped":
         case "cancel":
+          break;
         case "input.execution":
+          for (const interaction of event.availableInteractions ?? []) asked.set(interaction.interactionId, interaction);
           break;
         case "agent.response":
           receivedEvents.delete(event.requestId);
-          this.events.push({ ...event, timestamp: Date.now() });
+          this.events.push({ ...event });
           break;
         case "input.received":
           receivedEvents.add(event.requestId);
-          this.events.push({ ...event, timestamp: Date.now() });
+          this.events.push({ ...event });
           break;
         case "output.info":
         case "output.warning":
         case "output.error":
         case "output.chat":
         case "output.reasoning":
-        case "input.interaction":
         case "toolCall":
-          this.events.push({ ...event, timestamp: Date.now() });
+          this.events.push({ ...event });
+          break;
+        case "input.interaction":
+          this.events.push({ ...event, result: redactMaskedAnswer(asked.get(event.interactionId), event.result) });
           break;
         default: {
           const exhaustive: any = event satisfies never;

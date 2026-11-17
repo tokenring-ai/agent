@@ -49,6 +49,9 @@ export default class AgentDirectoryService implements TokenRingService {
   description = "Manages editable agent types, backed by YAML files on disk";
 
   private config = AgentPackageConfigSchema.parse({});
+  /** Invalid agent files already reported, with the problem, so each is reported once. */
+  private readonly invalidFiles = new Map<string, string>();
+  private syncQueue: Promise<void> = Promise.resolve();
 
   constructor(private app: TokenRingApp) {}
 
@@ -88,15 +91,32 @@ export default class AgentDirectoryService implements TokenRingService {
         const definition = await this.readAgentFile(path.join(root, entry), agentName);
         if (definition) definitions.push(definition);
       } catch (error) {
-        console.error(`Skipping invalid agent file ${entry}: ${formatError(error)}`);
+        this.reportInvalidFile(entry, error);
+        continue;
       }
+      this.invalidFiles.delete(entry);
     }
 
     return definitions.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getAgentDefinition(agentName: string): Promise<AgentDefinition | null> {
-    return this.readAgentFile(this.resolveAgentPath(agentName), agentName);
+    try {
+      return await this.readAgentFile(this.resolveAgentPath(agentName), agentName);
+    } catch (error) {
+      throw new Error(`The agent file ${agentName}${EXTENSION} is not valid, so this agent type is not loaded: ${formatError(error)}`, { cause: error });
+    }
+  }
+
+  /**
+   * A file that fails to parse is left out, so its agent type disappears (or a bundled type of the
+   * same name takes its place). Said where people look, once per distinct problem.
+   */
+  private reportInvalidFile(entry: string, error: unknown): void {
+    const message = formatError(error);
+    if (this.invalidFiles.get(entry) === message) return;
+    this.invalidFiles.set(entry, message);
+    this.app.serviceError(this, `Agent file ${entry} is not valid and was skipped, so its agent type is not available: ${message}`);
   }
 
   async createAgentDefinition(agentName: string, agent: AgentItemInput): Promise<AgentDefinition> {
@@ -136,6 +156,14 @@ export default class AgentDirectoryService implements TokenRingService {
    * sync in that case.
    */
   async syncToManager(): Promise<void> {
+    // One at a time: each sync replaces the whole set, so an older read finishing last would bring
+    // back a type whose file was deleted in between.
+    const run = this.syncQueue.then(() => this.syncOnce());
+    this.syncQueue = run.catch(() => {});
+    return run;
+  }
+
+  private async syncOnce(): Promise<void> {
     const agentManager = this.app.getService(AgentManager);
     if (!agentManager) return;
 

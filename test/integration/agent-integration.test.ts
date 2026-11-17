@@ -21,7 +21,6 @@ const mockConfig = AgentConfigSchema.parse({
   debug: false,
   initialCommands: [],
   createMessage: "Agent created",
-  headless: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
   minimumRunning: 0,
@@ -222,7 +221,7 @@ describe("Agent Integration Tests", () => {
     it("should create agents through manager", async () => {
       manager.addAgentConfigs(mockConfig);
 
-      const managedAgent = manager.spawnAgent({ agentType: "integration-test", headless: true });
+      const managedAgent = manager.spawnAgent({ agentType: "integration-test" });
 
       expect(managedAgent).toBeInstanceOf(Agent);
       expect(managedAgent.config.displayName).toBe("Integration Test Agent");
@@ -231,9 +230,7 @@ describe("Agent Integration Tests", () => {
     it("should handle sub-agent creation", async () => {
       manager.addAgentConfigs(mockConfig);
 
-      const subAgent = manager.spawnSubAgent(agent, "integration-test", {
-        headless: true,
-      });
+      const subAgent = manager.spawnSubAgent(agent, "integration-test", {});
 
       expect(subAgent).toBeInstanceOf(Agent);
       expect(subAgent).not.toBe(agent);
@@ -322,7 +319,7 @@ describe("Agent Integration Tests", () => {
 
       // The command service will throw because there's no executing input item
       // This is expected behavior - the command service requires an input item to be executing
-      expect(commandService.executeAgentCommand(agent, "/work")).rejects.toThrow("Cannot get abort signal");
+      expect(commandService.executeAgentCommand(agent, "/work")).rejects.toThrow("Commands run as part of an agent's input");
       expect(workingCommand.execute).not.toHaveBeenCalled();
     });
 

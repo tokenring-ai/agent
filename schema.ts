@@ -60,7 +60,6 @@ export const AgentConfigSchema = z.object({
   debug: z.boolean().default(false).meta({ advanced: true, description: "Log extra diagnostic output for this agent type" }),
   initialCommands: z.array(z.string()).default([]).meta({ description: "Commands run automatically when an agent of this type starts" }),
   createMessage: z.string().default("Agent Created").meta({ advanced: true, description: "Message logged when an agent of this type is created" }),
-  headless: z.boolean().default(false).meta({ description: "Run without an interactive chat surface" }),
   minimumRunning: z.number().min(0).default(0).meta({ description: "Keep at least this many agents of this type running" }),
   idleTimeout: z.number().min(0).default(0).meta({ unit: "s", description: "Shut idle agents down after this long (0 disables)" }),
   maxRunTime: z.number().min(0).default(0).meta({ unit: "s", description: "Hard limit on agent runtime (0 disables)" }),
@@ -115,7 +114,153 @@ export const AgentDefinitionSchema = AgentItemSchema.extend({
 
 export type AgentDefinition = z.output<typeof AgentDefinitionSchema>;
 
+/** Limits for unattended agent jobs (queue items, task dispatches, workflow runs, scheduled runs). */
+export const AgentJobsConfigSchema = z
+  .object({
+    maxDepth: z
+      .number()
+      .int()
+      .min(1)
+      .default(3)
+      .meta({ description: "How deep jobs may nest: a job started by a job started by a job is depth 3" } satisfies ConfigFieldMeta),
+    maxConcurrent: z
+      .number()
+      .int()
+      .min(1)
+      .default(8)
+      .meta({ description: "Job agents running at once across the whole app" } satisfies ConfigFieldMeta),
+    maxDescendants: z
+      .number()
+      .int()
+      .min(0)
+      .default(20)
+      .meta({ description: "Jobs one top-level job, and everything it starts, may start in total" } satisfies ConfigFieldMeta),
+    timeoutSeconds: z
+      .number()
+      .int()
+      .min(0)
+      .default(1800)
+      .meta({ unit: "s", description: "Default time limit for a job (0 disables); jobs may set their own" } satisfies ConfigFieldMeta),
+    maxAutoApprovalLevel: z
+      .number()
+      .int()
+      .min(0)
+      .max(10)
+      .default(5)
+      .meta({
+        description: "Highest tool safety level a job agent may auto-approve, whatever the person or agent that started it allows",
+      } satisfies ConfigFieldMeta),
+    approvalCeiling: z
+      .number()
+      .int()
+      .min(0)
+      .max(7)
+      .default(5)
+      .meta({
+        description:
+          "Highest approval level any schedule or queue may be allowed to auto-approve in an unattended run (at most 7: levels 8 and above always need a person and are refused when nobody can answer)",
+      } satisfies ConfigFieldMeta),
+    defaultMaxCostUsd: z
+      .number()
+      .positive()
+      .exactOptional()
+      .meta({
+        unit: "USD",
+        description: "Spending limit applied to every job that sets none of its own; a job over it stops and is marked failed (unset: no limit)",
+      } satisfies ConfigFieldMeta),
+  })
+  .prefault({})
+  .meta({ label: "Agent jobs", description: "Limits for agents that work unattended" } satisfies ConfigFieldMeta);
+
+export type ParsedAgentJobsConfig = z.output<typeof AgentJobsConfigSchema>;
+
+export const JobStatusSchema = z.enum(["queued", "running", "succeeded", "failed", "cancelled", "interrupted"]);
+export type JobStatus = z.output<typeof JobStatusSchema>;
+
+/** Who started a job, as recorded (an agent is kept by id: it may be gone when the record is read). */
+export const JobRecordOriginSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("agent"), agentId: z.string(), agentType: z.string() }),
+  z.object({ kind: z.literal("person"), label: z.string() }),
+  z.object({ kind: z.literal("schedule"), scheduleId: z.string() }),
+]);
+
+/** Refusals kept on a job record; the rest are only counted. */
+export const MAX_JOB_REFUSALS = 20;
+
+/** An action the job's approval policy refused instead of asking a person. */
+export const JobRefusalSchema = z.object({
+  tool: z.string(),
+  message: z.string(),
+  level: z.number(),
+  /** Permission id of the refused request when one "Allow" could grant (see the chat plugin's permission grants). */
+  permissionId: z.string().exactOptional(),
+  /** Plain-language scope of {@link permissionId}, e.g. "Publish posts on mysite". */
+  permissionSummary: z.string().exactOptional(),
+});
+export type JobRefusal = z.output<typeof JobRefusalSchema>;
+
+/** Defaulted questions kept on a job record; the rest are only counted. */
+export const MAX_JOB_UNANSWERED = 20;
+
+/** A non-approval question nobody answered, so it took its default (approvals go to `refusals`). */
+export const JobUnansweredSchema = z.object({
+  /** What was asked, short. */
+  question: z.string(),
+  /** The default the agent went on with, short; "(no answer)" when the question had none. */
+  answer: z.string(),
+  /** "deadline": nobody answered in time. "nobody": nobody could be asked, so it defaulted at once. */
+  reason: z.enum(["deadline", "nobody"]),
+  at: z.number(),
+});
+export type JobUnanswered = z.output<typeof JobUnansweredSchema>;
+
+export const JobRecordSchema = z.object({
+  id: z.string(),
+  owner: z.string(),
+  label: z.string(),
+  /** Where the owner keeps the job's entry (queue `{ queue }`, tasks `{ board, task }`, workflow `{ run }`, scheduler `{ schedule }`). */
+  ownerRef: z.record(z.string(), z.string()).default({}),
+  agentType: z.string(),
+  origin: JobRecordOriginSchema,
+  parentJobId: z.string().nullable(),
+  /** The top-level job of this job's tree (its own id for a top-level job). */
+  rootJobId: z.string(),
+  /** 1 for a job nothing else's job started; a job's child is one deeper. */
+  depth: z.number(),
+  status: JobStatusSchema,
+  /** When the job was asked for (it may then have queued for a free slot). */
+  requestedAt: z.number(),
+  /** When its agent started; null while queued. */
+  startedAt: z.number().nullable(),
+  endedAt: z.number().nullable(),
+  summary: z.string(),
+  error: z.string().nullable(),
+  costUsd: z.number().nullable(),
+  tokens: z.number().nullable(),
+  agentId: z.string().nullable(),
+  /** The spending limit the job runs under (its own, else `agent.jobs.defaultMaxCostUsd`); null: none. */
+  maxCostUsd: z.number().nullable().default(null),
+  /** The highest approval level the job may auto-approve; actions above it are refused. Null: not known. */
+  approvalLevel: z.number().nullable().default(null),
+  /** Approvals the job's policy refused (unattended: nobody to ask, or nobody answered). The first {@link MAX_JOB_REFUSALS} are kept. */
+  refusals: z.array(JobRefusalSchema).default([]),
+  /** How many approvals were refused in all (may exceed `refusals.length`). */
+  refusalCount: z.number().int().default(0),
+  /** Questions (not approvals) nobody answered, which took their default. The first {@link MAX_JOB_UNANSWERED} are kept. */
+  unanswered: z.array(JobUnansweredSchema).default([]),
+  /** How many questions took their default in all (may exceed `unanswered.length`). */
+  unansweredCount: z.number().int().default(0),
+});
+
+export type JobRecord = z.output<typeof JobRecordSchema>;
+
 export const AgentPackageConfigSchema = z.object({
+  agent: z
+    .object({
+      jobs: AgentJobsConfigSchema,
+    })
+    .prefault({})
+    .meta({ label: "Agent engine", description: "Settings for how agents run" } satisfies ConfigFieldMeta),
   agents: z
     .record(
       z.string(),

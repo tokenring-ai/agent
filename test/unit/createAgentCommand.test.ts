@@ -47,8 +47,7 @@ function makeCommandConfig(overrides: Partial<ParsedAgentCommandConfig> = {}): P
 
 function makeAgent(agentType: string, services: Record<string, unknown>) {
   return {
-    config: { agentType, headless: false },
-    headless: false,
+    config: { agentType },
     requireService: (type: new (...args: any[]) => unknown) => {
       const name = type.name;
       const service = services[name];
@@ -91,10 +90,12 @@ describe("createAgentCommand requireNewAgent", () => {
     expect(runSubAgent).not.toHaveBeenCalled();
   });
 
-  test("spawns background subagent when agent types differ", async () => {
+  test("starts a background sub-agent when agent types differ", async () => {
     const command = createAgentCommand("deep research", makeCommandConfig({ requireNewAgent: false }));
+    const start = mock((_parent: Agent, _options: { agentType: string; messages: string[] }) => ({ name: "research-1" }));
     const agent = makeAgent("code", {
       AgentCommandService: { executeAgentCommand },
+      SubAgentService: { startSubAgent: start },
     });
 
     const result = await command.execute({
@@ -104,10 +105,9 @@ describe("createAgentCommand requireNewAgent", () => {
       agent,
     });
 
-    expect(result).toBe("Agent research started in background.");
-    expect(runSubAgent).toHaveBeenCalledTimes(1);
-    expect(runSubAgent.mock.calls[0]![0].background).toBe(true);
-    expect(runSubAgent.mock.calls[0]![0].agentType).toBe("research");
+    expect(result).toContain("Started research-1 (research) in the background");
+    expect(runSubAgent).not.toHaveBeenCalled();
+    expect(start.mock.calls[0]![1]).toMatchObject({ agentType: "research", messages: ["Research this: solid state batteries"] });
     expect(executeAgentCommand).not.toHaveBeenCalled();
   });
 
@@ -126,7 +126,6 @@ describe("createAgentCommand requireNewAgent", () => {
 
     expect(result).toBe("subagent done");
     expect(runSubAgent).toHaveBeenCalledTimes(1);
-    expect(runSubAgent.mock.calls[0]![0].background).toBe(false);
     expect(executeAgentCommand).not.toHaveBeenCalled();
   });
 });

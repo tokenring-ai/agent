@@ -4,82 +4,94 @@ import type { BaseAttachment } from "../AgentEvents.ts";
 import type { AgentCommandArgumentSchema, AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../types.ts";
 import { formatAgentCommandUsageError } from "./formatAgentCommandUsage.ts";
 
-function tokenizeInput(input: string): string[] {
-  const tokens: string[] = [];
+interface Token {
+  value: string;
+  /** Offset in the input just after the token. */
+  end: number;
+}
+
+/**
+ * Reads the token starting at or after `start`, shell-style: quotes group words, and outside quotes a
+ * backslash escapes the next character. Inside double quotes a backslash only escapes `"` and `\`, and
+ * inside single quotes nothing is special, so paths and regexes in quotes come through as typed.
+ */
+function readToken(input: string, start: number): Token | null {
+  let index = start;
+  while (index < input.length && /\s/.test(input[index]!)) index++;
+  if (index >= input.length) return null;
+
   let current = "";
-  let tokenStarted = false;
   let quote: '"' | "'" | null = null;
-  let escapeNext = false;
-
-  for (const char of input) {
-    if (escapeNext) {
-      current += char;
-      tokenStarted = true;
-      escapeNext = false;
+  for (; index < input.length; index++) {
+    const char = input[index]!;
+    if (quote === "'") {
+      if (char === "'") quote = null;
+      else current += char;
       continue;
     }
-
-    if (char === "\\") {
-      escapeNext = true;
-      tokenStarted = true;
-      continue;
-    }
-
-    if (quote) {
-      if (char === quote) {
+    if (quote === '"') {
+      const next = input[index + 1];
+      if (char === "\\" && (next === '"' || next === "\\")) {
+        current += next;
+        index++;
+      } else if (char === '"') {
         quote = null;
       } else {
         current += char;
       }
-      tokenStarted = true;
       continue;
     }
-
-    if ((char === '"' || char === "'") && (!tokenStarted || current.endsWith("="))) {
+    if (char === "\\") {
+      const next = input[index + 1];
+      current += next ?? "\\";
+      if (next !== undefined) index++;
+      continue;
+    }
+    if ((char === '"' || char === "'") && (current === "" || current.endsWith("="))) {
       quote = char;
-      tokenStarted = true;
       continue;
     }
-
-    if (char === '"' || char === "'") {
-      current += char;
-      tokenStarted = true;
-      continue;
-    }
-
-    if (/\s/.test(char)) {
-      if (tokenStarted) {
-        tokens.push(current);
-        current = "";
-        tokenStarted = false;
-      }
-      continue;
-    }
-
+    if (/\s/.test(char)) break;
     current += char;
-    tokenStarted = true;
   }
+  if (quote) throw new Error("Unterminated quote in command input");
+  return { value: current, end: index };
+}
 
-  if (escapeNext) {
-    current += "\\";
+/** The free text after the parsed arguments, exactly as typed — a chat message must reach the model unaltered. */
+function rawRemainder(input: string, start: number): string {
+  const raw = input.slice(start).trim();
+  // A remainder that is exactly one quoted string is taken without its quotes, as it always was.
+  // Only exactly: `"Hello"!` or `"a" "b"` are text that happens to contain quotes, and stay as typed.
+  if (raw.length >= 2 && (raw[0] === '"' || raw[0] === "'") && closingQuoteIndex(raw) === raw.length - 1) {
+    try {
+      const token = readToken(raw, 0);
+      if (token && token.end === raw.length) return token.value;
+    } catch {
+      // An unbalanced quote in free text is just text.
+    }
   }
+  return raw;
+}
 
-  if (quote) {
-    throw new Error("Unterminated quote in command input");
+/** Where the quote opening `text` closes: a double quote skips backslash escapes, a single quote does not. */
+function closingQuoteIndex(text: string): number {
+  const quote = text[0];
+  for (let i = 1; i < text.length; i++) {
+    if (quote === '"' && text[i] === "\\") {
+      i++;
+      continue;
+    }
+    if (text[i] === quote) return i;
   }
-
-  if (tokenStarted) {
-    tokens.push(current);
-  }
-
-  return tokens;
+  return -1;
 }
 
 function parseDateValue(argumentName: string, rawValue: string): number {
   const parsedDate = Date.parse(rawValue);
 
   if (Number.isNaN(parsedDate)) {
-    throw new CommandFailedError(`Argument ${argumentName} must be a valid date string (e.g., "2024-01-15", "January 15, 2024", "today", "yesterday").`);
+    throw new CommandFailedError(`Argument ${argumentName} must be a valid date (e.g. "2024-01-15", "2024-01-15T09:30", or "January 15, 2024").`);
   }
 
   return parsedDate;
@@ -189,30 +201,33 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
       throw new CommandFailedError(`Attachments are not allowed for command: /${command.name}`);
     }
 
-    const tokens = tokenizeInput(input.trim());
+    const text = input.trim();
+    let position = 0;
     const parsedArgs: Record<string, string | number | boolean> = {};
     const argsSchema = inputSchema.args;
     const positionalSchema = inputSchema.positionals;
     const remainderSchema = inputSchema.remainder;
-    let tokenIndex = 0;
-    let consumedPositionalTokens = 0;
 
-    if (argsSchema) {
-      while (tokenIndex < tokens.length) {
-        const token = tokens[tokenIndex]!;
+    // A command that declares no options (like /chat send) takes its text as it is, even text
+    // that starts with "-".
+    if (argsSchema && Object.keys(argsSchema).length > 0) {
+      for (;;) {
+        const token = readToken(text, position);
+        if (!token) break;
 
-        if (token === "--") {
-          tokenIndex += 1;
+        if (token.value === "--") {
+          position = token.end;
           break;
         }
 
-        const matchingArgument = findMatchingArgument(token, argsSchema);
+        const matchingArgument = findMatchingArgument(token.value, argsSchema);
         if (!matchingArgument) {
-          if (token.startsWith("-")) {
-            throw new CommandFailedError(`Unknown argument ${token} for command /${command.name}`);
+          if (token.value.startsWith("-")) {
+            throw new CommandFailedError(`Unknown argument ${token.value} for command /${command.name}`);
           }
           break;
         }
+        position = token.end;
 
         if (matchingArgument.name in parsedArgs) {
           throw new CommandFailedError(`Argument ${matchingArgument.name} was provided more than once.`);
@@ -222,12 +237,17 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
         let rawValue = matchingArgument.value;
 
         if (argumentSchema.type !== "flag" && rawValue === undefined) {
-          tokenIndex += 1;
-          rawValue = tokens[tokenIndex];
+          const valueToken = readToken(text, position);
+          if (valueToken && findMatchingArgument(valueToken.value, argsSchema)) {
+            throw new CommandFailedError(`Argument ${matchingArgument.name} requires a value, but was followed by ${valueToken.value}.`);
+          }
+          if (valueToken) {
+            rawValue = valueToken.value;
+            position = valueToken.end;
+          }
         }
 
         parsedArgs[matchingArgument.name] = parseArgumentValue(matchingArgument.name, argumentSchema, rawValue);
-        tokenIndex += 1;
       }
 
       for (const [argumentName, argumentSchema] of Object.entries(argsSchema)) {
@@ -245,7 +265,7 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
           continue;
         }
 
-        if (argumentSchema.type === "date" && argumentSchema.defaultValue !== undefined) {
+        if ((argumentSchema.type === "date" || argumentSchema.type === "enum") && argumentSchema.defaultValue !== undefined) {
           parsedArgs[argumentName] = argumentSchema.defaultValue;
           continue;
         }
@@ -256,17 +276,13 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
       }
     }
 
-    const remainingTokens = tokens.slice(tokenIndex);
-
     if (positionalSchema) {
-      let positionalTokenIndex = 0;
-
       for (const positional of positionalSchema) {
-        const value = remainingTokens[positionalTokenIndex];
+        const token = readToken(text, position);
 
-        if (value !== undefined) {
-          parsedArgs[positional.name] = value;
-          positionalTokenIndex += 1;
+        if (token) {
+          parsedArgs[positional.name] = token.value;
+          position = token.end;
           continue;
         }
 
@@ -280,20 +296,20 @@ export function parseAgentCommandInput<Schema extends AgentCommandInputSchema>(
         }
       }
 
-      if (!remainderSchema && positionalTokenIndex < remainingTokens.length) {
+      if (!remainderSchema && readToken(text, position)) {
         throw new CommandFailedError(`Too many positional arguments for command /${command.name}`);
       }
-
-      consumedPositionalTokens = positionalTokenIndex;
-    } else if (!remainderSchema && remainingTokens.length > 0) {
-      throw new CommandFailedError(`Command /${command.name} does not take positional arguments.`);
+    } else if (!remainderSchema && readToken(text, position)) {
+      const extra = readToken(text, position)!.value;
+      throw new CommandFailedError(
+        extra.startsWith("-") ? `Unknown argument ${extra} for command /${command.name}` : `Command /${command.name} does not take positional arguments.`,
+      );
     }
 
-    const remainderTokens = remainingTokens.slice(consumedPositionalTokens);
     let parsedRemainder: string | undefined;
 
     if (remainderSchema) {
-      const value = remainderTokens.join(" ").trim();
+      const value = rawRemainder(text, position);
 
       if (value) {
         parsedRemainder = value;

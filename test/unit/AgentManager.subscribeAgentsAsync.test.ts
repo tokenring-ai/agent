@@ -12,7 +12,6 @@ const mockConfig = AgentConfigSchema.parse({
   debug: false,
   initialCommands: [],
   createMessage: "foo",
-  headless: true,
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
@@ -47,7 +46,7 @@ describe("AgentManager.subscribeAgentsAsync", () => {
   });
 
   it("yields the current agent list immediately", async () => {
-    const agent = manager.spawnAgent({ agentType: "test", headless: true });
+    const agent = manager.spawnAgent({ agentType: "test" });
     const controller = new AbortController();
 
     const snapshots = await collectUntil(manager.subscribeAgentsAsync(controller.signal), () => true, 1);
@@ -70,7 +69,7 @@ describe("AgentManager.subscribeAgentsAsync", () => {
 
     expect(first.value).toEqual([]);
 
-    const agent = manager.spawnAgent({ agentType: "test", headless: true });
+    const agent = manager.spawnAgent({ agentType: "test" });
     const second = await iterator.next();
 
     expect(second.value).toEqual([
@@ -84,7 +83,7 @@ describe("AgentManager.subscribeAgentsAsync", () => {
   });
 
   it("emits when an agent is deleted", async () => {
-    const agent = manager.spawnAgent({ agentType: "test", headless: true });
+    const agent = manager.spawnAgent({ agentType: "test" });
     const controller = new AbortController();
     const iterator = manager.subscribeAgentsAsync(controller.signal);
     await iterator.next();
@@ -98,7 +97,7 @@ describe("AgentManager.subscribeAgentsAsync", () => {
   });
 
   it("emits when agent activity changes", async () => {
-    const agent = manager.spawnAgent({ agentType: "test", headless: true });
+    const agent = manager.spawnAgent({ agentType: "test" });
     const controller = new AbortController();
     const iterator = manager.subscribeAgentsAsync(controller.signal);
     await iterator.next();

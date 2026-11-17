@@ -60,8 +60,9 @@ describe("parseAgentCommandInput", () => {
     expect(parsed.args?.message).toBe("hello world");
   });
 
-  it("handles escaped characters", () => {
+  it("passes free text through exactly as typed: quotes, backslashes, line breaks and leading dashes", () => {
     const inputSchema = {
+      args: {},
       remainder: { name: "message", description: "Message", required: true },
     } as const satisfies AgentCommandInputSchema;
 
@@ -73,25 +74,54 @@ describe("parseAgentCommandInput", () => {
       execute: () => "",
     } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-    const parsed = parseAgentCommandInput(command, "hello\\ world", [], {} as any);
-
-    expect(parsed.remainder).toBe("hello world");
+    for (const message of [
+      'Fix "the" bug in C:\\Users\\x',
+      "line one\n\n  indented `code`",
+      "--verbose isn't an option here",
+      "it's an 'unbalanced quote",
+      "hello\\ world",
+      '"Hello"!',
+      '"a" "b"',
+      "'yes' and 'no'",
+    ]) {
+      expect(parseAgentCommandInput(command, message, [], {} as any).remainder).toBe(message);
+    }
+    // One quoted string is taken without its quotes.
+    expect(parseAgentCommandInput(command, '"just this"', [], {} as any).remainder).toBe("just this");
   });
 
-  it("throws error for unterminated quotes", () => {
+  it("unescapes and unquotes option values shell-style, keeping backslashes inside quotes", () => {
     const inputSchema = {
-      remainder: { name: "message", description: "Message", required: true },
+      args: { path: { type: "string", description: "Path" }, pattern: { type: "string", description: "Pattern" } },
+      positionals: [{ name: "name", description: "Name" }],
     } as const satisfies AgentCommandInputSchema;
+    const command = { name: "probe", description: "", help: "", inputSchema, execute: () => "" } satisfies TokenRingAgentCommand<typeof inputSchema>;
 
-    const command = {
-      name: "chat send",
-      description: "Send a chat message",
-      help: "help",
-      inputSchema,
-      execute: () => "",
-    } satisfies TokenRingAgentCommand<typeof inputSchema>;
+    const parsed = parseAgentCommandInput(command, `--path "C:\\Users\\x" --pattern 'foo\\d+' hello\\ world`, [], {} as any);
+    expect(parsed.args).toMatchObject({ path: "C:\\Users\\x", pattern: "foo\\d+", name: "hello world" });
+  });
 
-    expect(() => parseAgentCommandInput(command, '"unterminated', [], {} as any)).toThrow("Unterminated quote");
+  it("throws error for unterminated quotes in an option value", () => {
+    const inputSchema = {
+      args: { title: { type: "string", description: "Title" } },
+    } as const satisfies AgentCommandInputSchema;
+    const command = { name: "probe", description: "", help: "", inputSchema, execute: () => "" } satisfies TokenRingAgentCommand<typeof inputSchema>;
+
+    expect(() => parseAgentCommandInput(command, '--title "unterminated', [], {} as any)).toThrow("Unterminated quote");
+  });
+
+  it("applies enum defaults and refuses an option that would swallow the next one as its value", () => {
+    const inputSchema = {
+      args: {
+        mode: { type: "enum", description: "Mode", values: ["auto", "on"], defaultValue: "auto" },
+        from: { type: "string", description: "From" },
+        to: { type: "string", description: "To" },
+      },
+    } as const satisfies AgentCommandInputSchema;
+    const command = { name: "probe", description: "", help: "", inputSchema, execute: () => "" } satisfies TokenRingAgentCommand<typeof inputSchema>;
+
+    expect(parseAgentCommandInput(command, "", [], {} as any).args).toMatchObject({ mode: "auto" });
+    expect(() => parseAgentCommandInput(command, "--from --to x", [], {} as any)).toThrow("from requires a value, but was followed by --to");
   });
 
   describe("Number Arguments", () => {

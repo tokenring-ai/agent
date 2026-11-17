@@ -1,3 +1,4 @@
+import { CommandFailedError } from "../../AgentError.ts";
 import AgentManager from "../../services/AgentManager.ts";
 import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
 
@@ -15,7 +16,9 @@ function execute({ args, agent }: AgentCommandInputType<typeof inputSchema>): st
   const agentId = args.agentId ?? agent.id;
   const agentManager = agent.requireService(AgentManager);
 
-  agentManager.deleteAgent(agentId, "Agent was shut down with /agent shutdown command");
+  if (!agentManager.deleteAgent(agentId, "Agent was shut down with /agent shutdown command")) {
+    throw new CommandFailedError(`There is no running agent ${agentId}. /agent list shows the running agents.`);
+  }
   return `Agent ${agentId} shut down.`;
 }
 

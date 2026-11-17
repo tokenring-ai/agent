@@ -1,6 +1,7 @@
 import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import { CommandFailedError } from "../../AgentError.ts";
 import { AfterSubAgentResponse } from "../../hooks.ts";
+import SubAgentService from "../../services/SubAgentService.ts";
 import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "../../types.ts";
 import type { RunSubAgentOptions } from "../../util/runSubAgent.ts";
 import { runSubAgent } from "../../util/runSubAgent.ts";
@@ -9,7 +10,7 @@ const inputSchema = {
   args: {
     bg: {
       type: "flag",
-      description: "Run the agent in the background without forwarding output",
+      description: "Run the agent in the background; its reply is sent to this agent when it finishes",
     },
     type: {
       type: "string",
@@ -42,7 +43,7 @@ const inputSchema = {
     },
     timeout: {
       type: "number",
-      description: "Timeout in milliseconds for the sub-agent (0 = no timeout)",
+      description: "Timeout in seconds for the sub-agent (0 = no timeout)",
       defaultValue: 0,
     },
     maxResponseLength: {
@@ -83,10 +84,13 @@ async function execute({ remainder, args, agent }: AgentCommandInputType<typeof 
     minContextLength: args.minContextLength,
   };
 
+  if (isBg) {
+    const record = agent.requireService(SubAgentService).startSubAgent(agent, { agentType, messages: [remainder], from: "Parent agent command: /agent run" });
+    return `Started ${record.name} (${agentType}) in the background. Its reply is sent here when it finishes.`;
+  }
+
   const request: RunSubAgentOptions = {
     agentType,
-    background: isBg,
-    headless: agent.headless,
     from: "Parent agent command: /agent run",
     steps: [remainder],
     parentAgent: agent,
@@ -97,10 +101,6 @@ async function execute({ remainder, args, agent }: AgentCommandInputType<typeof 
 
   const lifecycleService = agent.getService(AgentLifecycleService);
   await lifecycleService?.executeHooks(new AfterSubAgentResponse(request, result), agent);
-
-  if (isBg) {
-    return `Agent ${agentType} started in background.`;
-  }
 
   if (result.status === "success" || args.neverFail) {
     return result.response || "Agent completed successfully.";

@@ -3,9 +3,7 @@ import type Agent from "../../../Agent.ts";
 import branch from "../../../commands/branch.ts";
 import AgentManager from "../../../services/AgentManager.ts";
 
-function makeAgent(
-  overrides: { id?: string; headless?: boolean; checkpoint?: ReturnType<Agent["generateCheckpoint"]>; agentManager?: Partial<AgentManager> } = {},
-) {
+function makeAgent(overrides: { id?: string; checkpoint?: ReturnType<Agent["generateCheckpoint"]>; agentManager?: Partial<AgentManager> } = {}) {
   const id = overrides.id ?? "sunny-river-42";
   const generateCheckpoint = mock(
     () =>
@@ -20,7 +18,6 @@ function makeAgent(
 
   return {
     id,
-    headless: overrides.headless ?? false,
     generateCheckpoint,
     requireService: mock((_type: unknown) => overrides.agentManager),
   } as unknown as Agent & {
@@ -61,7 +58,6 @@ describe("/branch command", () => {
         state: { some: "state" },
       },
       {
-        headless: false,
         createMessage: "Branched from agent sunny-ri",
       },
     );
@@ -72,14 +68,12 @@ describe("/branch command", () => {
   test("sends optional remainder message to the new agent", () => {
     const agent = makeAgent({
       id: "quiet-lake-7",
-      headless: true,
       agentManager: { spawnAgentFromCheckpoint, branchAgent: AgentManager.prototype.branchAgent } as unknown as AgentManager,
     });
 
     const result = branch.execute({ agent, remainder: "continue the auth investigation" });
 
     expect(spawnAgentFromCheckpoint).toHaveBeenCalledWith(expect.any(Object), {
-      headless: true,
       createMessage: "Branched from agent quiet-la",
     });
     expect(handleInput).toHaveBeenCalledTimes(1);

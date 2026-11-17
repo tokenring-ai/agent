@@ -143,10 +143,8 @@ export default createRPCEndpoint(AgentRpcSchema, {
   },
 
   createAgent(args, app) {
-    const agent = app.requireService(AgentManager).spawnAgent({
-      agentType: args.agentType,
-      headless: args.headless,
-    });
+    // Started from the app: its questions wait for a person unless the caller says nobody will watch it.
+    const agent = app.requireService(AgentManager).spawnAgent({ agentType: args.agentType, answerTimeoutSeconds: args.answerTimeoutSeconds ?? null });
     return {
       id: agent.id,
       displayName: agent.displayName,
@@ -214,30 +212,8 @@ export default createRPCEndpoint(AgentRpcSchema, {
       return { status: "agentNotFound" };
     }
 
-    agent.mutateState(AgentEventState, state => {
-      const queuedIndex = state.inputQueue.findIndex(item => item.request.requestId === args.requestId);
-      if (queuedIndex === -1) {
-        // Not queued (already finished or unknown) — nothing to do.
-        return;
-      }
-      if (queuedIndex === 0 && state.currentlyExecutingInputItem?.request.requestId === args.requestId) {
-        // Already executing: an abort is the only meaningful cancellation.
-        state.currentlyExecutingInputItem.abortController.abort("User cancelled the operation via the chat webapp");
-        return;
-      }
-
-      // Still waiting in the queue: drop it and record a cancelled response so
-      // the transcript shows what happened to the input.
-      state.inputQueue.splice(queuedIndex, 1);
-      state.emit({
-        type: "agent.response",
-        requestId: args.requestId,
-        status: "cancelled",
-        message: "Cancelled while queued.",
-        timestamp: Date.now(),
-      });
-      state.pushAgentStatus();
-    });
+    // Also covers an input whose hooks are still running, which is not in the queue yet.
+    agent.cancelInput(args.requestId);
     return { status: "success" };
   },
 

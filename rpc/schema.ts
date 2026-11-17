@@ -31,6 +31,10 @@ export const AgentListEntrySchema = z.object({
   currentActivity: z.string(),
   /** Questions the agent is blocked on until a person answers them (absent from older servers). */
   pendingQuestions: z.number().exactOptional(),
+  /** The first message the agent was sent, shortened (absent until it has one). */
+  title: z.string().exactOptional(),
+  /** Set on sub-agents: the agent that started this one. */
+  parentAgentId: z.string().exactOptional(),
 });
 
 /** Mirrors {@link import("../types.ts").AgentCommandArgumentSchema} for RPC transport. */
@@ -119,7 +123,7 @@ export default {
       type: "query",
       input: z.object({
         agentId: z.string(),
-        fromPosition: z.number(),
+        fromPosition: z.number().int().nonnegative(),
       }),
       result: z.discriminatedUnion("status", [
         SuccessSchema.extend({
@@ -133,7 +137,7 @@ export default {
       type: "stream",
       input: z.object({
         agentId: z.string(),
-        fromPosition: z.number(),
+        fromPosition: z.number().int().nonnegative(),
       }),
       result: z.discriminatedUnion("status", [
         SuccessSchema.extend({
@@ -220,7 +224,11 @@ export default {
       type: "mutation",
       input: z.object({
         agentType: z.string(),
-        headless: z.boolean(),
+        /**
+         * How long the agent's questions wait for an answer: omitted or null waits until someone answers;
+         * 0 means nobody watches this agent, so questions take their defaults (approvals are refused) at once.
+         */
+        answerTimeoutSeconds: z.number().min(0).nullable().exactOptional(),
       }),
       result: z.object({
         id: z.string(),

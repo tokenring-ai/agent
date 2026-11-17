@@ -12,6 +12,15 @@ import type { AgentCheckpointData, AgentCreationContext } from "../types.js";
 import { formatAgentId } from "../util/formatAgentId.ts";
 import { type AgentListEntry, projectAgentList } from "../util/projectAgentList.ts";
 
+/** Settings for one agent, chosen by whoever starts it rather than by its type. */
+export type SpawnOptions = {
+  /**
+   * How long the agent's questions wait for an answer: null waits until answered, 0 means nobody can
+   * answer (questions take their defaults at once). Omitted: follow the parent agent (null for a top-level one).
+   */
+  answerTimeoutSeconds?: number | null | undefined;
+};
+
 export default class AgentManager implements TokenRingService {
   readonly name = "AgentManager";
   description = "A service which manages agent configurations and spawns agents.";
@@ -104,15 +113,28 @@ export default class AgentManager implements TokenRingService {
     });
   }
 
-  spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig> = {}) {
+  /**
+   * Brings an agent back from a checkpoint. It keeps the checkpoint's agent id when no agent with that
+   * id is running, so it is the same agent again (same chat link, same checkpoint history); otherwise
+   * it is a copy with a new id. A restored sub-agent goes back under its parent when the parent is
+   * running (a copy is always a top-level agent).
+   */
+  spawnAgentFromCheckpoint(checkpoint: AgentCheckpointData, config: Partial<ParsedAgentConfig> = {}, spawnOptions: SpawnOptions = {}) {
     const agentConfig = this.requireAgentConfig(checkpoint.agentType);
+    const reuseId = !this.agents.has(checkpoint.agentId);
+    const parentAgentId = reuseId && checkpoint.parentAgentId && this.agents.has(checkpoint.parentAgentId) ? checkpoint.parentAgentId : null;
     return this.createAgent(
       {
         ...agentConfig,
-        createMessage: `Recovered agent of type: ${checkpoint.agentType} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`,
+        createMessage: reuseId
+          ? `Restored agent of type: ${checkpoint.agentType} from a checkpoint`
+          : `Recovered agent of type: ${checkpoint.agentType} from checkpoint of agent ${formatAgentId(checkpoint.agentId)}`,
         ...config,
       },
       checkpoint.state,
+      parentAgentId,
+      reuseId ? checkpoint.agentId : undefined,
+      spawnOptions,
     );
   }
 
@@ -122,33 +144,42 @@ export default class AgentManager implements TokenRingService {
    */
   branchAgent(agent: Agent, at?: number): Agent {
     return this.spawnAgentFromCheckpoint(agent.generateCheckpoint(at), {
-      headless: agent.headless,
       createMessage: `Branched from agent ${formatAgentId(agent.id)}`,
     });
   }
 
-  spawnAgent({ agentType, headless }: { agentType: string; headless: boolean }): Agent {
-    return this.spawnAgentFromConfig({
-      ...this.requireAgentConfig(agentType),
-      headless,
-    });
+  spawnAgent({ agentType, ...spawnOptions }: { agentType: string } & SpawnOptions): Agent {
+    return this.spawnAgentFromConfig(this.requireAgentConfig(agentType), spawnOptions);
   }
 
-  spawnAgentFromConfig(config: ParsedAgentConfig) {
-    return this.createAgent({
-      ...config,
-      createMessage: `Agent created from config: ${config.displayName} (${config.agentType})`,
-    });
+  spawnAgentFromConfig(config: ParsedAgentConfig, spawnOptions: SpawnOptions = {}) {
+    return this.createAgent(
+      {
+        ...config,
+        createMessage: `Agent created from config: ${config.displayName} (${config.agentType})`,
+      },
+      {},
+      null,
+      undefined,
+      spawnOptions,
+    );
   }
 
-  spawnSubAgent(agent: Agent, agentType: string, config: Partial<ParsedAgentConfig>): Agent {
+  /** Starts a sub-agent of `agent`. Its answer deadline follows the parent unless `spawnOptions` sets one. */
+  spawnSubAgent(agent: Agent, agentType: string, config: Partial<ParsedAgentConfig> = {}, spawnOptions: SpawnOptions = {}): Agent {
     const agentConfig = this.requireAgentConfig(agentType);
     // Create a new agent of the specified type
-    const newAgent = this.createAgent({
-      ...agentConfig,
-      createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.displayName} (${agentConfig.agentType})`,
-      ...config,
-    });
+    const newAgent = this.createAgent(
+      {
+        ...agentConfig,
+        createMessage: `Subagent of agent ${agent.id} created from config: ${agentConfig.displayName} (${agentConfig.agentType})`,
+        ...config,
+      },
+      {},
+      agent.id,
+      undefined,
+      spawnOptions,
+    );
 
     for (const item of newAgent.stateManager.slices()) {
       item.transferStateFromParent(agent);
@@ -160,9 +191,63 @@ export default class AgentManager implements TokenRingService {
     return newAgent;
   }
 
+  /** Agents spawned as sub-agents of `agentId`. */
+  getChildAgents(agentId: string): Agent[] {
+    return this.getAgents().filter(agent => agent.parentAgentId === agentId);
+  }
+
+  /** The agent at the top of `agent`'s parent chain: the one a person started. `agent` itself when it has no live parent. */
+  getRootAgent(agent: Agent): Agent {
+    let current = agent;
+    const seen = new Set([agent.id]);
+    while (current.parentAgentId) {
+      const parent = this.getAgent(current.parentAgentId);
+      if (!parent || seen.has(parent.id)) break;
+      seen.add(parent.id);
+      current = parent;
+    }
+    return current;
+  }
+
+  /** How many parents `agent` has: 0 for an agent started on its own. */
+  getAgentDepth(agent: Agent): number {
+    let depth = 0;
+    let current: Agent | null = agent;
+    while (current?.parentAgentId && depth < 100) {
+      depth++;
+      current = this.getAgent(current.parentAgentId);
+    }
+    return depth;
+  }
+
+  /**
+   * Brings back a sub-agent of `parent` as it was at `checkpoint`. Like {@link spawnAgentFromCheckpoint}
+   * it keeps the old agent id unless an agent with that id is running.
+   */
+  spawnSubAgentFromCheckpoint(parent: Agent, checkpoint: AgentCheckpointData): Agent {
+    const agentConfig = this.requireAgentConfig(checkpoint.agentType);
+    const reuseId = !this.agents.has(checkpoint.agentId);
+    return this.createAgent(
+      {
+        ...agentConfig,
+        createMessage: reuseId
+          ? `Sub-agent of agent ${formatAgentId(parent.id)} resumed from a checkpoint`
+          : `Sub-agent of agent ${formatAgentId(parent.id)} resumed from a checkpoint of ${formatAgentId(checkpoint.agentId)}`,
+      },
+      checkpoint.state,
+      parent.id,
+      reuseId ? checkpoint.agentId : undefined,
+    );
+  }
+
   deleteAgent(agentId: string, reason: string): boolean {
     const agentEntry = this.agents.get(agentId);
     if (!agentEntry) return false;
+
+    // Sub-agents work for their parent; with the parent gone nobody would read their results.
+    for (const child of this.getChildAgents(agentId)) {
+      this.deleteAgent(child.id, `Parent agent ${formatAgentId(agentId)} was stopped`);
+    }
 
     this.untrackAgentState(agentId);
 
@@ -247,11 +332,19 @@ export default class AgentManager implements TokenRingService {
     return this.agents.get(id)?.agent ?? null;
   }
 
-  private createAgent(options: ParsedAgentConfig, state: AgentCheckpointData["state"] = {}) {
+  private createAgent(
+    options: ParsedAgentConfig,
+    state: AgentCheckpointData["state"] = {},
+    parentAgentId: string | null = null,
+    id?: string,
+    spawnOptions: SpawnOptions = {},
+  ) {
     try {
+      if (id !== undefined && this.agents.has(id)) throw new Error(`An agent with id ${id} is already running`);
       const shutdownController = new AbortController();
 
-      const agent = new Agent(this.app, state, options, shutdownController.signal);
+      const agent = new Agent(this.app, state, options, shutdownController.signal, parentAgentId, id);
+      agent.answerTimeoutSeconds = spawnOptions.answerTimeoutSeconds;
 
       this.agents.set(agent.id, { agent, shutdownController });
       this.trackAgentState(agent);
@@ -307,11 +400,19 @@ export default class AgentManager implements TokenRingService {
     callback?.();
   }
 
+  private isNeededForMinimum(agent: Agent): boolean {
+    const minimum = this.getAgentConfig(agent.config.agentType)?.minimumRunning ?? 0;
+    if (minimum === 0) return false;
+    const running = this.getAgents().filter(other => other.config.agentType === agent.config.agentType).length;
+    return running <= minimum;
+  }
+
   private checkAndDeleteIdleAgents() {
     for (const [agentId, { agent }] of this.agents) {
       const idleTimeout = agent.config.idleTimeout;
       const maxRunTime = agent.config.maxRunTime;
-      if (idleTimeout && agent.getIdleDuration() > idleTimeout * 1000) {
+      // An idle agent kept as part of its type's minimumRunning pool would only be replaced by a new one.
+      if (idleTimeout && agent.getIdleDuration() > idleTimeout * 1000 && !this.isNeededForMinimum(agent)) {
         try {
           this.deleteAgent(agentId, `Agent has been idle for ${agent.getIdleDuration() / 1000} seconds`);
           this.app.serviceOutput(this, `Agent ${agent.id} has been deleted due to inactivity.`);
@@ -337,7 +438,8 @@ export default class AgentManager implements TokenRingService {
 
         while (agentCount++ < agentSpec.minimumRunning) {
           this.app.serviceOutput(this, `Agent type ${agentType} has less than the minimum number of running agents. Starting new agent...`);
-          this.spawnAgent({ agentType, headless: true });
+          // Warm agents wait in the agents list for a person to open them, so their questions wait for that person.
+          this.spawnAgent({ agentType, answerTimeoutSeconds: null });
         }
       }
     }

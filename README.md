@@ -21,7 +21,7 @@ is handed to the agent's `defaultCommand` (defaults to `/chat send`), and `@agen
 - **Agent management**: `AgentManager` registers agent type configs, spawns agents (from config, checkpoint, or as sub-agents), and runs automatic cleanup
 - **Editable agents**: `AgentDirectoryService` keeps one YAML file per agent type in the workspace, so agents can be authored and edited outside configuration
 - **Command system**: `AgentCommandService` registers and dispatches slash commands with a typed input schema (args, positionals, remainder, attachments)
-- **Sub-agent execution**: `runSubAgent` runs a child agent with configurable output forwarding, timeouts, and auto-cleanup
+- **Sub-agent execution**: `runSubAgent` runs a child agent and waits for it, with configurable output forwarding, timeouts, and auto-cleanup; `SubAgentService` runs sub-agents in the background and wakes the parent when they finish
 - **Checkpointing and branching**: `generateCheckpoint` / `restoreState` plus the `/branch` command
 - **Human interface**: text, tree select, file select, and form questions (`askForApproval`, `askForText`, `askQuestion`)
 - **RPC integration**: `/rpc/agent` endpoint with 19 methods for remote agent management
@@ -66,7 +66,7 @@ The agent plugin registers fifteen chat commands:
 | `/agent list` | List all currently running agents |
 | `/agent run` | Run an agent with a message |
 | `/agent shutdown` | Shut down an agent |
-| `/debug app shutdown` | Send an abort command to the app |
+| `/debug app shutdown` | Shut down the app; asks first unless `--confirm` is given |
 | `/debug chat throwError` | Throw an error in the chat handler |
 | `/debug logging` | Enable or disable debug logging |
 | `/debug markdown` | Output a markdown sample |
@@ -75,23 +75,22 @@ The agent plugin registers fifteen chat commands:
 | `/debug checkpoint` | Dumps the current state of the agent to the chat window |
 | `/debug commands` | Dumps a list of all the registered commands into the chat |
 
-`/help <command>` shows the detailed help text for a single command. `@agentName message` is shorthand for
-`/agent run agentName message`, and text that does not start with `/` is prefixed with the agent's `defaultCommand`
-(`/chat send` by default).
+`/help <command>` shows the detailed help text for a single command. Text that does not start with `/` (including
+text starting with `@`, such as a file mention) is prefixed with the agent's `defaultCommand` (`/chat send` by default).
 
 ### `/agent run` options
 
 | Flag | Description |
 |---|---|
 | `--type` | The type of agent to run (required) |
-| `--bg` | Run the agent in the background without forwarding output |
+| `--bg` | Run the agent in the background; its reply is sent to this agent when it finishes |
 | `--forwardChatOutput` | Forward chat output from the sub-agent |
 | `--noStatusMessages` | Do not forward status messages from the sub-agent |
 | `--forwardSystemOutput` | Forward system output from the sub-agent |
 | `--noHumanRequests` | Do not forward human requests from the sub-agent |
 | `--forwardReasoning` | Forward reasoning output from the sub-agent |
 | `--noInputCommands` | Do not forward input commands from the sub-agent |
-| `--timeout` | Timeout in milliseconds for the sub-agent (0 = no timeout) |
+| `--timeout` | Timeout in seconds for the sub-agent (0 = no timeout) |
 | `--maxResponseLength` | Maximum response length from the sub-agent |
 | `--minContextLength` | Minimum context length for the sub-agent |
 | `--neverFail` | Ignore errors from the sub-agent, printing them as warnings instead of failing the command |
@@ -127,7 +126,6 @@ agents:
     debug: false
     initialCommands: []
     createMessage: Agent Created
-    headless: false
     minimumRunning: 0
     idleTimeout: 0
     maxRunTime: 0
@@ -171,7 +169,6 @@ from the map key). The config is parsed with `.loose()`, so unknown fields on an
 | `debug` | `boolean` | no | `false` | Log extra diagnostic output for this agent type |
 | `initialCommands` | `string[]` | no | `[]` | Commands run automatically when an agent of this type starts |
 | `createMessage` | `string` | no | `Agent Created` | Message logged when an agent of this type is created |
-| `headless` | `boolean` | no | `false` | Run without an interactive chat surface |
 | `minimumRunning` | `number` | no | `0` | Keep at least this many agents of this type running |
 | `idleTimeout` | `number` | no | `0` | Shut idle agents down after this long (0 disables) |
 | `maxRunTime` | `number` | no | `0` | Hard limit on agent runtime (0 disables) |
@@ -254,7 +251,6 @@ The config schema uses `.meta()` annotations that drive the config UI:
 | `agents.*.debug` | `advanced: true`, `description: "Log extra diagnostic output for this agent type"` |
 | `agents.*.initialCommands` | `description: "Commands run automatically when an agent of this type starts"` |
 | `agents.*.createMessage` | `advanced: true`, `description: "Message logged when an agent of this type is created"` |
-| `agents.*.headless` | `description: "Run without an interactive chat surface"` |
 | `agents.*.minimumRunning` | `description: "Keep at least this many agents of this type running"` |
 | `agents.*.idleTimeout` | `unit: "s"`, `description: "Shut idle agents down after this long (0 disables)"` |
 | `agents.*.maxRunTime` | `unit: "s"`, `description: "Hard limit on agent runtime (0 disables)"` |
@@ -289,7 +285,6 @@ const agent = new Agent(app, {}, config, new AbortController().signal);
 | `id` | `string` | Unique human-readable agent identifier |
 | `createdAt` | `number` | Timestamp when the agent was created |
 | `debugEnabled` | `boolean` | Debug logging toggle, from `config.debug` |
-| `headless` | `boolean` | Headless mode (getter, from `config.headless`) |
 | `displayName` | `string` | Agent display name (getter, from `config.displayName`) |
 | `app` | `TokenRingApp` | The application instance |
 | `initialState` | `Record<string, unknown>` | Initial state passed to the `StateManager` |
@@ -330,7 +325,7 @@ use `AgentCommandService.executeAgentCommand` programmatically.
 | `getIdleDuration()` | Milliseconds since the last event (`Infinity` when there are no events) |
 | `getRunDuration()` | Milliseconds since the first event (`0` when there are no events) |
 | `abortCurrentOperation(reason)` | Abort the currently executing input item; returns `true` if there was one, `false` otherwise |
-| `getAbortSignal()` | The abort signal for the currently executing input item; throws when none is executing |
+| `getAbortSignal()` | The abort signal for the currently executing input item; when no input is running, returns the agent's `agentShutdownSignal` |
 | `busyWithActivity(message, awaitable)` | Set a temporary activity label while `awaitable` runs; throws outside an executing task |
 | `setCurrentActivity(message)` | Set the current activity label; throws outside an executing task |
 
@@ -351,13 +346,12 @@ use `AgentCommandService.executeAgentCommand` programmatically.
 
 | Method | Description |
 |---|---|
-| `askForApproval({ message, label?, defaultValue? })` | Yes/No approval via a tree-select question; resolves `Promise<boolean>` |
+| `askForApproval({ message, label?, defaultValue?, whenUnanswered? })` | Yes/No approval via a tree-select question; resolves `Promise<boolean>`; unanswered → `whenUnanswered` (default `false`, refused) |
 | `askForText({ message, label, masked? })` | Text input; resolves `Promise<string \| null>` |
-| `askQuestion(question)` | Ask any question type (see Human Interface); resolves the typed result or `null` |
+| `askQuestion(question, { whenUnanswered?, unansweredNote? }?)` | Ask any question type (see Human Interface); resolves the typed result, or the default when unanswered by the deadline |
 | `waitForInteraction(interaction)` | Directly initiate an interaction and wait for the response |
 
-All human-interface methods throw when the agent runs in headless mode (`Cannot ask human for feedback when agent is
-running in headless mode`). The interaction must be answered through a currently executing input item.
+Every question waits for an answer up to the agent's deadline, `getAnswerTimeoutSeconds()`: the agent's own `answerTimeoutSeconds` if set, else its nearest parent's, else `null`. Whoever starts an agent chooses it (not the agent type): `null` waits until someone answers (chats started from the app); `0` means nobody can answer, so the question is not posted and its default is taken at once with an info note (bot conversations, code-watch, job agents nobody can be reached for); a number of seconds posts the question with `autoSubmitAt` (the app shows a countdown) and, if unanswered by then, withdraws it with a warning note and takes the default (job agents a person can be reached for get the job's time limit). The default is `whenUnanswered` (`askQuestion(question, { whenUnanswered })`), else the question's own non-empty `defaultValue`, else `null`. `askForApproval` always defaults to refusal — its `defaultValue` only preselects an answer in the UI — unless it is asked with `whenUnanswered: true` (e.g. "compact now?"). A posted question must be answered through a currently executing input item.
 
 ### AgentEventState
 
@@ -473,8 +467,8 @@ agentManager.addAgentConfigs(
 );
 
 // Spawn by type, from config, or from a checkpoint
-const agent = agentManager.spawnAgent({ agentType: "dev", headless: false });
-const subAgent = agentManager.spawnSubAgent(agent, "dev", { headless: true });
+const agent = agentManager.spawnAgent({ agentType: "dev" });
+const subAgent = agentManager.spawnSubAgent(agent, "dev") // follows the parent's answer deadline;
 ```
 
 **Configuration methods:**
@@ -500,9 +494,9 @@ change from deleting them.
 | Method | Description |
 |---|---|
 | `spawnAgentFromConfig(config)` | Create an agent from a full `ParsedAgentConfig` |
-| `spawnAgent({ agentType, headless })` | Create an agent of a registered type; throws when the type is unknown |
+| `spawnAgent({ agentType, answerTimeoutSeconds? })` | Create an agent of a registered type; throws when the type is unknown |
 | `spawnAgentFromCheckpoint(checkpoint, config?)` | Create an agent from a checkpoint, restoring its state |
-| `spawnSubAgent(agent, agentType, config)` | Create a child agent of a registered type and call `transferStateFromParent` on each state slice |
+| `spawnSubAgent(agent, agentType, config?, { answerTimeoutSeconds? }?)` | Create a child agent of a registered type and call `transferStateFromParent` on each state slice; its answer deadline follows the parent unless set |
 | `getAgent(id)` | Get an agent by ID (`Agent \| null`) |
 | `getAgents()` | All currently running agents |
 | `deleteAgent(agentId, reason)` | Abort and remove an agent, emit `agent.stopped`, detach services, and notify list subscribers; returns `false` when the agent does not exist |
@@ -513,7 +507,79 @@ change from deleting them.
 
 - Idle agents are deleted after `idleTimeout` seconds (`0` disables).
 - Agents are deleted after `maxRunTime` seconds (`0` disables).
-- Agent types with `minimumRunning > 0` are kept at that many running headless agents.
+- Agent types with `minimumRunning > 0` are kept at that many running agents (their questions wait for whoever opens them).
+
+### Background sub-agents (`SubAgentService`)
+
+An agent can start sub-agents that work in the background while it carries on, the way background
+terminals work. The chat plugin exposes this to agents as tools:
+
+| Tool | What it does |
+|------|--------------|
+| `agent_start` | Start a sub-agent with a message; returns its name (e.g. `explore-1`) at once |
+| `agent_send` | Send a sub-agent a follow-up; queued if it is still busy, and resumes a closed one |
+| `agent_output` | Read its output and status since the last read; `waitSeconds` waits for it to finish |
+| `agent_list` | List your sub-agents and the agent types you can start |
+| `agent_stop` | Stop a sub-agent and close it (a later message resumes it) |
+
+- **Finishing wakes the parent.** When a sub-agent replies and the parent has not read the reply, the
+  parent is sent a message with it once the parent is idle, so the parent never has to poll. Replies
+  that arrive close together go in one message. Pass `notify: false` to `agent_start` to read
+  results only with `agent_output`.
+- **Listed under the parent.** Each sub-agent is a full agent with `parentAgentId` set. The agent lists
+  in the app show it nested under its parent. Stopping the parent stops its sub-agents.
+- **Questions.** A sub-agent's tool approvals follow the permission setting (`autoToolApprovalLevel`,
+  `toolApprovalMode`) of the chat at the top of its parent chain, read at the moment it asks. Changing
+  that chat's setting covers its running sub-agents too. Anything above it is asked in the sub-agent's
+  own chat; the parent's chat shows a note pointing there. A parent agent can never answer its sub-agents' questions.
+- **Closed sub-agents resume.** A sub-agent that was stopped, closed after 30 idle minutes, or lost in a
+  restart is not forgotten: the parent remembers its sub-agents in its own saved state, and sending one a
+  message (`agent_send`) brings it back from its latest checkpoint (the snapshot taken when it closed, or
+  the checkpoint store) with its conversation intact and under its old agent id. `agent_list` shows these
+  as `closed`.
+- **Limits.** At most 8 working sub-agents per agent, nesting 3 deep. An agent remembers its last 50.
+
+`/agent run --bg` and agent commands that start a different agent type use the same service.
+
+### Unattended jobs (`AgentJobService`)
+
+The one way to run an agent unattended (queue items, task dispatches, workflow runs, scheduled prompts):
+spawn, send, wait, cancel, time and cost limits, cleanup, lineage, and one persisted record per job.
+
+```ts
+const jobs = app.requireService(AgentJobService);
+const session = jobs.startJob({ owner: "workflow", label: "release · step 1", agentType: "code", origin: { kind: "agent", agent } });
+const step = await session.run({ from: "Workflow release", message: "Run the tests" }); // { status, message, output, requestId }
+await session.finish(step.status === "success" ? "succeeded" : "failed", step.message);
+
+await jobs.runOnce(spec, input);                                       // start + run + finish
+await jobs.runInAgent(chatAgent, input, { signal, timeoutSeconds });   // an existing agent; cancels only its own input
+jobs.cancel(jobId, "reason");                                          // cascades to every job under it
+```
+
+- **Lineage and limits (`agent.jobs`).** A job started from an agent (or from anything under a job agent) is
+  that job's child in the job tree. Job agents themselves are always top-level (they take over the starter's
+  working state), so a job keeps running when the job or chat that started it ends; cancelling a job still
+  cancels everything it started. `maxDepth` [3] counts across owners;
+  `maxDescendants` [20] caps one top-level tree; `maxConcurrent` [8] caps running job agents app-wide —
+  `startJob` throws `LimitError`, or with `{ wait: true }` returns a promise that waits for a slot.
+  `parentJobId` places a job under a job whose agent is gone (background run groups).
+- **Approvals.** The starter's approval policy (an agent's effective one; `chat.agentDefaults` for a person or
+  schedule) is snapshotted at start, capped at `maxAutoApprovalLevel` [5] (and at the job agent type's own
+  level), and written into the job agent's chat settings. It is pinned: it does not follow the chat above it,
+  and the job agent's own sub-agents follow the job agent.
+- **Needing a person.** When approval escalation is configured (`bot.escalation.target`, covering the job's
+  agent type), a job agent's `answerTimeoutSeconds` is the job's time limit: a question shows in the app, is escalated
+  over chat, and unanswered by then takes its default (approvals are refused). Otherwise it is 0 and questions take
+  their defaults at once. The deadline is set on the job agent itself, so it never follows a parent.
+- **Time, cost, cleanup.** `timeoutSeconds` [1800] per job; optional `limits.maxCostUsd` (read from metrics
+  after each step). A succeeded job's agent is deleted; a failed or cancelled one an hour later; `cleanup: "keep"`
+  leaves it.
+- **Records.** `agent-jobs.json` in the workspace keeps the last 1000. A job that was running when the app
+  stopped or crashed is `interrupted` and never re-run. Owners can `subscribe`/`onJobFinished`; the UI uses
+  `/rpc/agent-jobs` (`listJobs`, `streamJobs`, `cancelJob`): the Agents app's **Agent jobs** page (`/agents/jobs`,
+  `?job=<id>` opens one). `ownerRef` on a spec (queue `{ queue }`, tasks `{ board, task }`, workflow `{ run }`,
+  scheduler `{ schedule }`) is kept on the record so that page can link each job to its owner's entry.
 
 ### AgentDirectoryService
 
@@ -570,14 +636,14 @@ commandService.addAgentCommands({
 
 | Method | Description |
 |---|---|
-| `executeAgentCommand(agent, message, attachments?)` | Parse and execute a command message, returning a `TokenRingAgentCommandResult` (`{ message, details?, attachments? }`); unknown or invalid commands throw `CommandFailedError` |
+| `executeAgentCommand(agent, message, attachments?)` | Parse and execute a command message, returning a `TokenRingAgentCommandResult` (`{ message, details?, attachments? }`); unknown or invalid commands throw `CommandFailedError`; calling it with no input running also throws, since commands run as part of an agent's input (send it with `agent.handleInput`) |
 | `runAgentLoop(agent, signal)` | The per-agent loop: sets status to `running`, emits startup `initialCommands`, drains the input queue, and executes each item through the agent lifecycle hooks |
 | `attach(agent)` | Start the agent command loop in the background for an agent |
 
 **Command parsing behavior** (`executeAgentCommand`):
 
 - A blank message runs `/help`.
-- `@agentName prompt` is rewritten to `/agent run agentName prompt`.
+- Text starting with `@` is a chat message like any other; mentions in it are resolved by the chat.
 - Text that does not start with `/` is prefixed with the agent's `defaultCommand` (`/chat send` by default).
 - `/help <command>` returns that command's help text.
 - Commands are matched by longest prefix of the input after the leading `/`.
@@ -683,7 +749,7 @@ Registered under `/rpc/agent` (schema name "Agent RPC") with 19 methods:
 | `listAgents` | query | `{}` → `AgentListEntry[]` |
 | `streamAgents` | stream | `{}` → streaming `AgentListEntry[]` snapshots |
 | `getAgentTypes` | query | `{}` → `{ type, displayName, description, category?, enabledTools, source, installedFrom? }[]` |
-| `createAgent` | mutation | `{ agentType, headless }` → `{ id, displayName, description }` |
+| `createAgent` | mutation | `{ agentType, answerTimeoutSeconds? }` → `{ id, displayName, description }` |
 | `deleteAgent` | mutation | `{ agentId, reason }` → `{ status: "success" }` or `agentNotFound` |
 | `sendInput` | mutation | `{ agentId, input }` → `{ status: "success", requestId }` or `agentNotFound` |
 | `sendInteractionResponse` | mutation | `{ agentId, response }` → `{ status: "success" }` or `agentNotFound` |
@@ -723,9 +789,8 @@ import { runSubAgent } from "@tokenring-ai/agent/util/runSubAgent";
 
 const result = await runSubAgent({
   agentType: "researcher",
-  headless: true,
   from: "parent",
-  steps: ["/work Research {topic}"],
+  steps: ["/chat send Research {topic}"],
   parentAgent: agent,
   options: {
     forwardChatOutput: true,
@@ -743,7 +808,6 @@ console.log(result.status, result.response);
 | Option | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `agentType` | `string` | yes | — | The type of agent to create |
-| `headless` | `boolean` | yes | — | Whether to run the agent in headless mode |
 | `from` | `string` | yes | — | The source of the input |
 | `steps` | `SubAgentStep[]` | yes | — | The command(s) to send to the agent (must be non-empty) |
 | `options` | `ParsedSubAgentConfig` | yes | — | Configuration options for sub-agent execution |

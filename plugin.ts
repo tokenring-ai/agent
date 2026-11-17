@@ -5,9 +5,12 @@ import agentCommands from "./commands.ts";
 import { createAgentSnapshotSource } from "./debug/agentSnapshotSource.ts";
 import packageJSON from "./package.json" with { type: "json" };
 import agentRPC from "./rpc/agent.ts";
+import agentJobsRPC from "./rpc/jobs.ts";
 import { AgentPackageConfigSchema } from "./schema.ts";
 import AgentCommandService from "./services/AgentCommandService.ts";
+import AgentJobService from "./services/AgentJobService.ts";
 import AgentManager from "./services/AgentManager.ts";
+import SubAgentService from "./services/SubAgentService.ts";
 
 export default {
   name: packageJSON.name,
@@ -19,10 +22,14 @@ export default {
     agentCommandService.addAgentCommands(agentCommands);
 
     app.addService(AgentManager, new AgentManager(app));
+    app.addService(SubAgentService, new SubAgentService(app));
+    // Saved job records are read before anything can start a job; ones that were running are now interrupted.
+    app.addService(AgentJobService, new AgentJobService(app)).load();
     const agentDirectoryService = app.addService(AgentDirectoryService, new AgentDirectoryService(app));
 
     app.waitForService(RpcService, rpcService => {
       rpcService.registerEndpoint(agentRPC);
+      rpcService.registerEndpoint(agentJobsRPC);
     });
 
     app.waitForService(DebugService, debugService => {
@@ -36,6 +43,7 @@ export default {
   async reconfigure(app, config) {
     const agentManager = app.requireService(AgentManager);
     agentManager.reconfigure(config.agents);
+    app.requireService(AgentJobService).reconfigure(config.agent.jobs);
 
     await app.requireService(AgentDirectoryService).reconfigure(config);
 

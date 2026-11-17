@@ -34,4 +34,34 @@ describe("projectAgentList", () => {
 
     expect(projectAgentList([agent])[0]!.pendingQuestions).toBe(1);
   });
+
+  it("names each agent by its session title: the first prompt, shortened, set once", () => {
+    const agent = createTestingAgent(createTestingApp());
+    expect(projectAgentList([agent])[0]!.title).toBeUndefined();
+
+    agent.mutateState(AgentEventState, state => state.setTitleOnce(`  fix the\n  login ${"bug ".repeat(40)}`, 1));
+    agent.mutateState(AgentEventState, state => state.setTitleOnce("and then this", 2));
+
+    const title = projectAgentList([agent])[0]!.title!;
+    expect(title.startsWith("fix the login bug")).toBe(true);
+    expect(title.length).toBe(80);
+    expect(title.endsWith("…")).toBe(true);
+  });
+
+  it("is not titled by commands, which never reach the model", () => {
+    const agent = createTestingAgent(createTestingApp());
+    agent.mutateState(AgentEventState, state => {
+      state.events.push({ type: "input.received", requestId: "r1", timestamp: 1, input: { from: "test", message: "/tools enable x" } });
+    });
+    expect(projectAgentList([agent])[0]!.title).toBeUndefined();
+  });
+
+  it("keeps the title through a checkpoint, and drops it from a branch taken before it was set", () => {
+    const agent = createTestingAgent(createTestingApp());
+    agent.mutateState(AgentEventState, state => state.setTitleOnce("plan the release", 1_000));
+    const state = agent.getState(AgentEventState);
+    expect(state.serialize().title).toEqual({ text: "plan the release", at: 1_000 });
+    expect(state.serializeAt(999).title).toBeNull();
+    expect(state.serializeAt(1_000).title?.text).toBe("plan the release");
+  });
 });

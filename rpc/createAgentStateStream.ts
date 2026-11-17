@@ -27,13 +27,29 @@ export function createAgentStateSliceStream<Slice extends AgentStateSlice<any>, 
 
     let last: Result | undefined;
 
-    for await (const slice of agent.subscribeStateAsync(opts.SliceClass, signal)) {
-      const data = opts.project(slice, agent);
-      if (last !== undefined && opts.equals?.(last, data)) {
-        continue;
+    // End when the agent is deleted as well as when the client goes away, so a viewing client learns
+    // the agent is gone instead of watching a dead agent's state forever.
+    const controller = new AbortController();
+    const onClientAbort = () => controller.abort(signal.reason);
+    const onAgentShutdown = () => controller.abort();
+    if (signal.aborted) onClientAbort();
+    else signal.addEventListener("abort", onClientAbort);
+    agent.agentShutdownSignal.addEventListener("abort", onAgentShutdown);
+    if (agent.agentShutdownSignal.aborted) onAgentShutdown();
+
+    try {
+      for await (const slice of agent.subscribeStateAsync(opts.SliceClass, controller.signal)) {
+        const data = opts.project(slice, agent);
+        if (last !== undefined && opts.equals?.(last, data)) {
+          continue;
+        }
+        last = data;
+        yield data;
       }
-      last = data;
-      yield data;
+      if (agent.agentShutdownSignal.aborted && !signal.aborted) yield { status: "agentNotFound" };
+    } finally {
+      signal.removeEventListener("abort", onClientAbort);
+      agent.agentShutdownSignal.removeEventListener("abort", onAgentShutdown);
     }
   };
 }

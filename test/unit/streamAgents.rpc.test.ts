@@ -15,7 +15,6 @@ const mockConfig = AgentConfigSchema.parse({
   debug: false,
   initialCommands: [],
   createMessage: "foo",
-  headless: true,
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
@@ -43,7 +42,7 @@ describe("streamAgents RPC", () => {
     const first = await stream.next();
     expect(first.value).toEqual([]);
 
-    const agent = manager.spawnAgent({ agentType: "test", headless: true });
+    const agent = manager.spawnAgent({ agentType: "test" });
     const second = await stream.next();
     expect(second.value).toEqual([
       expect.objectContaining({

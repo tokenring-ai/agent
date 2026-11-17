@@ -13,7 +13,6 @@ const mockConfig = AgentConfigSchema.parse({
   debug: false,
   initialCommands: [],
   createMessage: "foo",
-  headless: true,
   callable: true,
   idleTimeout: 86400,
   maxRunTime: 1800,
@@ -60,7 +59,7 @@ describe("streamAgentEvents RPC", () => {
     const manager = new AgentManager(app);
     app.addService(AgentManager, manager);
     manager.addAgentConfigs(mockConfig);
-    const agent = manager.spawnAgent({ agentType: "test", headless: true });
+    const agent = manager.spawnAgent({ agentType: "test" });
 
     const controller = new AbortController();
     const stream = streamAgentEventsExecute(app)({ agentId: agent.id, fromPosition: 0 }, app, controller.signal);
@@ -76,7 +75,7 @@ describe("streamAgentEvents RPC", () => {
     const manager = new AgentManager(app);
     app.addService(AgentManager, manager);
     manager.addAgentConfigs(mockConfig);
-    const agent = manager.spawnAgent({ agentType: "test", headless: true });
+    const agent = manager.spawnAgent({ agentType: "test" });
 
     // The client signal never aborts — only the agent going away can end the stream.
     const controller = new AbortController();
